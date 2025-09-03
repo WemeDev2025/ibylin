@@ -2,30 +2,25 @@ package com.ibylin.app.ui
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.webkit.WebSettings
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceError
+import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.ibylin.app.R
+import com.ibylin.app.api.UnsplashPhoto
 import com.ibylin.app.utils.EpubFile
+import com.ibylin.app.utils.UnsplashManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.net.URL
 
 class CoverSelectionActivity : AppCompatActivity() {
     
@@ -42,9 +37,11 @@ class CoverSelectionActivity : AppCompatActivity() {
     }
     
     private lateinit var book: EpubFile
-    private lateinit var webView: WebView
+    private lateinit var recyclerView: RecyclerView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvStatus: TextView
+    private lateinit var adapter: CoverSelectionAdapter
+    private val unsplashManager = UnsplashManager.getInstance()
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,138 +52,63 @@ class CoverSelectionActivity : AppCompatActivity() {
             ?: throw IllegalArgumentException("Book data is required")
         
         initViews()
-        setupWebView()
-        loadUnsplashSearch()
+        setupRecyclerView()
+        searchCoverImages()
     }
     
     private fun initViews() {
-        webView = findViewById(R.id.web_view)
+        recyclerView = findViewById(R.id.rv_covers)
         progressBar = findViewById(R.id.progress_bar)
         tvStatus = findViewById(R.id.tv_status)
         
         title = "为《${book.metadata?.title ?: book.name}》选择封面"
     }
     
-    private fun setupWebView() {
-        val webSettings = webView.settings
-        webSettings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            setSupportZoom(true)
-            builtInZoomControls = true
-            displayZoomControls = false
-            loadWithOverviewMode = true
-            useWideViewPort = true
-            setSupportMultipleWindows(true)
-            javaScriptCanOpenWindowsAutomatically = true
+    private fun setupRecyclerView() {
+        adapter = CoverSelectionAdapter { photo ->
+            onCoverSelected(photo)
         }
         
-        // 添加JavaScript接口
-        webView.addJavascriptInterface(object {
-            @android.webkit.JavascriptInterface
-            fun downloadImage(downloadUrl: String, originalUrl: String) {
-                runOnUiThread {
-                    handleImageDownload(downloadUrl, originalUrl)
+        recyclerView.layoutManager = GridLayoutManager(this, 2)
+        recyclerView.adapter = adapter
+    }
+    
+    private fun searchCoverImages() {
+        showLoading(true)
+        tvStatus.text = "正在搜索封面图片..."
+        
+        coroutineScope.launch {
+            try {
+                val photos = unsplashManager.searchCoverImages(
+                    bookTitle = book.metadata?.title ?: book.name,
+                    author = book.metadata?.author
+                )
+                
+                if (photos.isNotEmpty()) {
+                    adapter.updatePhotos(photos)
+                    showLoading(false)
+                    tvStatus.text = "找到 ${photos.size} 张封面图片"
+                } else {
+                    showLoading(false)
+                    tvStatus.text = "未找到合适的封面图片"
+                    Toast.makeText(this@CoverSelectionActivity, "未找到封面图片", Toast.LENGTH_SHORT).show()
                 }
-            }
-        }, "AndroidInterface")
-        
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                super.onPageStarted(view, url, favicon)
-                showLoading(true)
-                tvStatus.text = "正在加载..."
-            }
-            
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
+            } catch (e: Exception) {
+                Log.e(TAG, "搜索封面图片失败", e)
                 showLoading(false)
-                tvStatus.text = "Unsplash图片搜索"
-                
-                // 注入JavaScript来监听图片点击
-                injectImageClickListener()
-            }
-            
-            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
-                super.onReceivedError(view, request, error)
-                showLoading(false)
-                tvStatus.text = "加载失败: ${error?.description}"
-                Toast.makeText(this@CoverSelectionActivity, "加载失败", Toast.LENGTH_SHORT).show()
+                tvStatus.text = "搜索失败: ${e.message}"
+                Toast.makeText(this@CoverSelectionActivity, "搜索失败: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
     
-    private fun loadUnsplashSearch() {
-        val searchQuery = buildSearchQuery(book.metadata?.title ?: book.name, book.metadata?.author)
-        val searchUrl = "https://unsplash.com/s/photos/$searchQuery"
-        webView.loadUrl(searchUrl)
-    }
-    
-    private fun buildSearchQuery(bookTitle: String, author: String?): String {
-        val cleanTitle = bookTitle.replace(Regex("[《》【】()（）]"), "").trim()
-        val query = if (author != null && author.isNotBlank()) {
-            "$cleanTitle $author book cover"
-        } else {
-            "$cleanTitle book cover"
-        }
-        return query.replace(" ", "-")
-    }
-    
-    private fun injectImageClickListener() {
-        val js = """
-            (function() {
-                var images = document.querySelectorAll('img[src*="images.unsplash.com"]');
-                for (var i = 0; i < images.length; i++) {
-                    images[i].style.cursor = 'pointer';
-                    images[i].addEventListener('click', function() {
-                        var imgSrc = this.src;
-                        var originalSrc = imgSrc.split('?')[0];
-                        var downloadUrl = originalSrc + '?w=800&h=1200&fit=crop';
-                        
-                        // 发送消息到Android
-                        window.AndroidInterface.downloadImage(downloadUrl, originalSrc);
-                    });
-                }
-                
-                // 添加下载提示
-                var style = document.createElement('style');
-                style.textContent = '
-                    img[src*="images.unsplash.com"]:hover {
-                        opacity: 0.8;
-                        transform: scale(1.05);
-                        transition: all 0.2s ease;
-                    }
-                    .download-hint {
-                        position: fixed;
-                        top: 20px;
-                        right: 20px;
-                        background: rgba(0,0,0,0.8);
-                        color: white;
-                        padding: 10px;
-                        border-radius: 5px;
-                        z-index: 10000;
-                        font-size: 14px;
-                    }
-                ';
-                document.head.appendChild(style);
-                
-                var hint = document.createElement('div');
-                hint.className = 'download-hint';
-                hint.textContent = '点击图片下载封面';
-                document.body.appendChild(hint);
-            })();
-        """.trimIndent()
-        
-        webView.evaluateJavascript(js, null)
-    }
-    
-    private fun handleImageDownload(imageUrl: String, originalUrl: String) {
+    private fun onCoverSelected(photo: UnsplashPhoto) {
         showLoading(true)
         tvStatus.text = "正在下载封面图片..."
         
         coroutineScope.launch {
             try {
-                val localPath = downloadImageToLocal(imageUrl, book.name)
+                val localPath = unsplashManager.downloadImage(this@CoverSelectionActivity, photo, book.name)
                 
                 if (localPath != null) {
                     // 更新书籍封面
@@ -207,53 +129,6 @@ class CoverSelectionActivity : AppCompatActivity() {
         }
     }
     
-    private suspend fun downloadImageToLocal(imageUrl: String, bookName: String): String? = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "开始下载图片: $imageUrl")
-            
-            val url = URL(imageUrl)
-            val connection = url.openConnection()
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            
-            val inputStream = connection.getInputStream()
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            
-            if (bitmap != null) {
-                val filePath = saveImageToLocal(bitmap, bookName)
-                Log.d(TAG, "图片下载成功: $filePath")
-                filePath
-            } else {
-                Log.e(TAG, "图片解码失败")
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "下载图片异常", e)
-            null
-        }
-    }
-    
-    private fun saveImageToLocal(bitmap: Bitmap, bookName: String): String {
-        val coverDir = File(filesDir, "book_covers")
-        if (!coverDir.exists()) {
-            coverDir.mkdirs()
-        }
-        
-        val fileName = "${bookName.replace(Regex("[^a-zA-Z0-9\u4e00-\u9fa5]"), "_")}_cover.jpg"
-        val file = File(coverDir, fileName)
-        
-        try {
-            FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
-            }
-            Log.d(TAG, "图片保存成功: ${file.absolutePath}")
-            return file.absolutePath
-        } catch (e: IOException) {
-            Log.e(TAG, "保存图片失败", e)
-            throw e
-        }
-    }
-    
     private fun updateBookCover(localPath: String) {
         // TODO: 这里需要实现更新书籍封面的逻辑
         // 可以通过SharedPreferences保存封面路径，或者更新数据库
@@ -262,14 +137,51 @@ class CoverSelectionActivity : AppCompatActivity() {
     
     private fun showLoading(show: Boolean) {
         progressBar.visibility = if (show) View.VISIBLE else View.GONE
-        webView.visibility = if (show) View.GONE else View.VISIBLE
+        recyclerView.visibility = if (show) View.GONE else View.VISIBLE
     }
     
-    override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            super.onBackPressed()
+    private class CoverSelectionAdapter(
+        private val onCoverClick: (UnsplashPhoto) -> Unit
+    ) : RecyclerView.Adapter<CoverSelectionAdapter.ViewHolder>() {
+        
+        private var photos: List<UnsplashPhoto> = emptyList()
+        
+        fun updatePhotos(newPhotos: List<UnsplashPhoto>) {
+            photos = newPhotos
+            notifyDataSetChanged()
+        }
+        
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_cover_selection, parent, false)
+            return ViewHolder(view)
+        }
+        
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val photo = photos[position]
+            holder.bind(photo)
+        }
+        
+        override fun getItemCount(): Int = photos.size
+        
+        inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            private val ivCover: ImageView = itemView.findViewById(R.id.iv_cover)
+            private val tvAuthor: TextView = itemView.findViewById(R.id.tv_author)
+            
+            fun bind(photo: UnsplashPhoto) {
+                // 使用Glide加载图片
+                com.bumptech.glide.Glide.with(itemView.context)
+                    .load(photo.urls.small)
+                    .placeholder(R.drawable.placeholder_cover)
+                    .error(R.drawable.placeholder_cover)
+                    .into(ivCover)
+                
+                tvAuthor.text = "by ${photo.user.name}"
+                
+                itemView.setOnClickListener {
+                    onCoverClick(photo)
+                }
+            }
         }
     }
 }

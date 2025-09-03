@@ -26,11 +26,13 @@
         android:layout_marginTop="32dp"
         android:indeterminateTint="@color/apple_books_accent" />
 
-    <!-- WebView -->
-    <WebView
-        android:id="@+id/web_view"
+    <!-- 封面图片网格 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_covers"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:padding="8dp"
+        android:clipToPadding="false" />
 
 </LinearLayout>
