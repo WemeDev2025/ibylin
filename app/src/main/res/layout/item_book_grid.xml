@@ -17,20 +17,55 @@
         <!-- 封面图片容器 -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="280dp"
+            android:layout_height="wrap_content"
             android:background="@android:color/transparent">
 
-                                 <!-- 封面图片 -->
-                     <ImageView
-                         android:id="@+id/iv_book_cover"
-                         android:layout_width="match_parent"
-                         android:layout_height="match_parent"
-                         android:scaleType="fitEnd"
-                         android:contentDescription="书籍封面"
-                         android:clipToOutline="true"
-                         android:background="@drawable/cover_rounded_background" />
+            <!-- 圆角封面图片容器 -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
+                <!-- 封面图片 -->
+                <ImageView
+                    android:id="@+id/iv_book_cover"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="书籍封面"
+                    android:background="@drawable/placeholder_cover" />
 
+            </androidx.cardview.widget.CardView>
+
+            <!-- 书名半透明条 - 覆盖在封面上 -->
+            <View
+                android:id="@+id/overlay_bottom"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="bottom"
+                android:background="@drawable/book_title_overlay" />
+
+            <!-- 书名文字 - 覆盖在封面上 -->
+            <TextView
+                android:id="@+id/tv_book_title"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="bottom"
+                android:padding="8dp"
+                android:text="书名"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:gravity="center_vertical|center_horizontal"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:shadowColor="@color/black"
+                android:shadowDx="1"
+                android:shadowDy="1"
+                android:shadowRadius="2" />
 
         </FrameLayout>
 

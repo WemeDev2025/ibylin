@@ -58,29 +58,85 @@ class PexelsManager private constructor() {
             Log.d(TAG, "使用API Key: ${PEXELS_API_KEY.take(10)}...")
             Log.d(TAG, "API Base URL: $PEXELS_BASE_URL")
             
-            val response = pexelsService.searchPhotos(
-                apiKey = PEXELS_API_KEY,
-                query = query,
-                page = page,
-                perPage = perPage,
-                orientation = "portrait"
-            )
+            // 尝试多种搜索策略来提高结果相关性
+            val searchResults = mutableListOf<PexelsPhoto>()
             
-            Log.d(TAG, "API响应成功: total_results=${response.total_results}, page=${response.page}, per_page=${response.per_page}")
-            Log.d(TAG, "搜索到 ${response.photos.size} 张图片")
+            // 策略1：使用原始查询
+            val response1 = try {
+                pexelsService.searchPhotos(
+                    apiKey = PEXELS_API_KEY,
+                    query = query,
+                    page = page,
+                    perPage = perPage,
+                    orientation = "portrait"
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "策略1搜索失败: $query", e)
+                null
+            }
+            
+            if (response1 != null && response1.photos.isNotEmpty()) {
+                Log.d(TAG, "策略1成功: 找到 ${response1.photos.size} 张图片")
+                searchResults.addAll(response1.photos)
+            }
+            
+            // 策略2：如果第一页结果不够相关，尝试更精确的搜索
+            if (searchResults.isEmpty() || page == 1) {
+                val refinedQuery = refineSearchQuery(query)
+                if (refinedQuery != query) {
+                    try {
+                        val response2 = pexelsService.searchPhotos(
+                            apiKey = PEXELS_API_KEY,
+                            query = refinedQuery,
+                            page = 1,
+                            perPage = 20,
+                            orientation = "portrait"
+                        )
+                        
+                        if (response2.photos.isNotEmpty()) {
+                            Log.d(TAG, "策略2成功: 使用 '$refinedQuery' 找到 ${response2.photos.size} 张图片")
+                            // 将策略2的结果添加到前面，提高相关性
+                            searchResults.addAll(0, response2.photos)
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "策略2搜索失败: $refinedQuery", e)
+                    }
+                }
+            }
+            
+            Log.d(TAG, "最终搜索结果: 总共 ${searchResults.size} 张图片")
             
             // 记录第一张图片的信息用于调试
-            if (response.photos.isNotEmpty()) {
-                val firstPhoto = response.photos[0]
+            if (searchResults.isNotEmpty()) {
+                val firstPhoto = searchResults[0]
                 Log.d(TAG, "第一张图片: ID=${firstPhoto.id}, 摄影师=${firstPhoto.photographer}, URL=${firstPhoto.src.medium}")
             }
             
-            response.photos
+            searchResults
         } catch (e: Exception) {
             Log.e(TAG, "搜索封面图片失败: query=$query, page=$page", e)
             Log.e(TAG, "异常详情: ${e.javaClass.simpleName} - ${e.message}")
             e.printStackTrace()
             emptyList()
+        }
+    }
+    
+    /**
+     * 优化搜索查询，提高结果相关性
+     */
+    private fun refineSearchQuery(query: String): String {
+        val lowerQuery = query.lowercase()
+        
+        // 针对特定关键词的优化
+        return when {
+            lowerQuery.contains("bike") -> "bicycle transportation cover"
+            lowerQuery.contains("car") -> "automobile vehicle cover"
+            lowerQuery.contains("mountain") -> "mountain landscape cover"
+            lowerQuery.contains("ocean") -> "ocean water cover"
+            lowerQuery.contains("sci-fi") -> "science fiction cover"
+            lowerQuery.contains("fantasy") -> "fantasy magical cover"
+            lowerQuery.contains("minimal") -> "minimal design cover"
+            else -> query
         }
     }
     

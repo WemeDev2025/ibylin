@@ -26,6 +26,7 @@ class BookGridAdapter(
     
     class BookGridViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val ivCover: ImageView = itemView.findViewById(R.id.iv_book_cover)
+        val tvBookTitle: TextView = itemView.findViewById(R.id.tv_book_title)
         val tvReadingProgress: TextView = itemView.findViewById(R.id.tv_reading_progress)
         val btnBookMenu: ImageButton = itemView.findViewById(R.id.btn_book_menu)
     }
@@ -43,6 +44,23 @@ class BookGridAdapter(
         try {
             val epubFile = epubFiles[position]
             android.util.Log.d("BookGridAdapter", "绑定ViewHolder: position=$position, 书名=${epubFile.name}, 路径=${epubFile.path}")
+            
+            // 优先使用EPUB格式里的书名，如果没有则使用文件名
+            val rawBookTitle = if (epubFile.metadata?.title.isNullOrBlank()) {
+                android.util.Log.w("BookGridAdapter", "EPUB元数据中没有书名，使用文件名: ${epubFile.name}")
+                epubFile.name
+            } else {
+                android.util.Log.d("BookGridAdapter", "使用EPUB元数据中的书名: '${epubFile.metadata?.title}' (文件名: ${epubFile.name})")
+                epubFile.metadata?.title ?: epubFile.name
+            }
+            
+            // 优化书名显示：如果包含《书名》副标题格式，只显示《书名》部分
+            val bookTitle = com.ibylin.app.utils.SearchHelper.optimizeBookTitleForDisplay(rawBookTitle)
+            
+            android.util.Log.d("BookGridAdapter", "原始书名: '$rawBookTitle'")
+            android.util.Log.d("BookGridAdapter", "优化后书名: '$bookTitle'")
+            android.util.Log.d("BookGridAdapter", "封面腰封将显示的书名: '$bookTitle'")
+            holder.tvBookTitle.text = bookTitle
             
             // 设置阅读进度（暂时显示0%，后续可以从数据库读取）
             holder.tvReadingProgress.text = "0%"

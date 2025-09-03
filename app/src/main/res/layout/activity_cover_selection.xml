@@ -11,6 +11,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="16dp"
+        android:layout_marginTop="20dp"
         android:background="@color/apple_books_card_bg"
         android:gravity="center_vertical">
 
@@ -44,18 +45,19 @@
     </LinearLayout>
 
     <!-- 状态栏 -->
+
+    <!-- 进度条 -->
     <TextView
         android:id="@+id/tv_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@color/apple_books_card_bg"
+        android:gravity="center"
         android:padding="16dp"
         android:text="输入关键词搜索封面图片，如：高山、大海、科幻、简约等"
         android:textColor="@color/apple_books_text_primary"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:background="@color/apple_books_card_bg" />
+        android:textSize="16sp" />
 
-    <!-- 进度条 -->
     <ProgressBar
         android:id="@+id/progress_bar"
         android:layout_width="wrap_content"

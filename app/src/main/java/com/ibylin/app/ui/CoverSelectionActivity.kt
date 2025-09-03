@@ -9,7 +9,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -21,6 +23,7 @@ import com.ibylin.app.api.PexelsPhoto
 import com.ibylin.app.utils.CoverManager
 import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.PexelsManager
+import com.ibylin.app.utils.SearchHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -85,9 +88,28 @@ class CoverSelectionActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        adapter = CoverSelectionAdapter { photo ->
-            onCoverSelected(photo)
+        // 优先使用EPUB格式里的书名，如果没有则使用文件名
+        val rawBookTitle = if (book.metadata?.title.isNullOrBlank()) {
+            Log.w(TAG, "EPUB元数据中没有书名，使用文件名: ${book.name}")
+            book.name
+        } else {
+            Log.d(TAG, "使用EPUB元数据中的书名: '${book.metadata?.title}' (文件名: ${book.name})")
+            book.metadata?.title ?: book.name
         }
+        
+        // 优化书名显示：如果包含《书名》副标题格式，只显示《书名》部分
+        val bookTitle = SearchHelper.optimizeBookTitleForDisplay(rawBookTitle)
+        
+        Log.d(TAG, "原始书名: '$rawBookTitle'")
+        Log.d(TAG, "优化后书名: '$bookTitle'")
+        Log.d(TAG, "封面腰封将显示的书名: '$bookTitle'")
+        
+        adapter = CoverSelectionAdapter(
+            onCoverClick = { photo ->
+                onCoverSelected(photo)
+            },
+            bookTitle = bookTitle
+        )
         
         recyclerView.layoutManager = GridLayoutManager(this, 2)
         recyclerView.adapter = adapter
@@ -124,17 +146,26 @@ class CoverSelectionActivity : AppCompatActivity() {
     }
     
     private fun performSearch() {
-        val query = etSearch.text.toString().trim()
-        if (query.isEmpty()) {
+        val originalQuery = etSearch.text.toString().trim()
+        if (originalQuery.isEmpty()) {
             Toast.makeText(this, "请输入搜索关键词", Toast.LENGTH_SHORT).show()
             return
         }
         
-        currentSearchQuery = query
+        // 使用优化后的搜索策略
+        val optimizedQuery = SearchHelper.getOptimizedSearchQuery(originalQuery)
+        currentSearchQuery = originalQuery  // 保存原始查询用于显示
         currentPage = 1
         hasMorePages = true
         
-        searchCoverImages(query, currentPage, isNewSearch = true)
+        Log.d(TAG, "优化搜索转换: '$originalQuery' -> '$optimizedQuery'")
+        
+        // 显示转换后的搜索词
+        if (originalQuery != optimizedQuery) {
+            tvStatus.text = "搜索: $originalQuery → $optimizedQuery"
+        }
+        
+        searchCoverImages(optimizedQuery, currentPage, isNewSearch = true)
     }
     
     private fun loadMoreImages() {
@@ -164,7 +195,12 @@ class CoverSelectionActivity : AppCompatActivity() {
                     if (isNewSearch) {
                         adapter.updatePhotos(photos)
                         showLoading(false)
-                        tvStatus.text = "找到 ${photos.size} 张封面图片"
+                        val statusText = if (currentSearchQuery != query) {
+                            "找到 ${photos.size} 张封面图片 (搜索: $currentSearchQuery → $query)"
+                        } else {
+                            "找到 ${photos.size} 张封面图片"
+                        }
+                        tvStatus.text = statusText
                         Log.d(TAG, "新搜索完成，更新适配器")
                     } else {
                         adapter.addPhotos(photos)
@@ -252,8 +288,11 @@ class CoverSelectionActivity : AppCompatActivity() {
         }
     }
     
+
+    
     private class CoverSelectionAdapter(
-        private val onCoverClick: (PexelsPhoto) -> Unit
+        private val onCoverClick: (PexelsPhoto) -> Unit,
+        private val bookTitle: String
     ) : RecyclerView.Adapter<CoverSelectionAdapter.ViewHolder>() {
         
         private var photos: List<PexelsPhoto> = emptyList()
@@ -277,7 +316,7 @@ class CoverSelectionActivity : AppCompatActivity() {
         
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val photo = photos[position]
-            holder.bind(photo)
+            holder.bind(photo, bookTitle)
         }
         
         override fun getItemCount(): Int = photos.size
@@ -285,14 +324,18 @@ class CoverSelectionActivity : AppCompatActivity() {
         inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             private val ivCover: ImageView = itemView.findViewById(R.id.iv_cover)
             private val tvAuthor: TextView = itemView.findViewById(R.id.tv_author)
+            private val tvBookTitle: TextView = itemView.findViewById(R.id.tv_book_title)
             
-            fun bind(photo: PexelsPhoto) {
+            fun bind(photo: PexelsPhoto, bookTitle: String) {
                 // 使用Glide加载图片
                 com.bumptech.glide.Glide.with(itemView.context)
                     .load(photo.src.medium)
                     .placeholder(R.drawable.placeholder_cover)
                     .error(R.drawable.placeholder_cover)
                     .into(ivCover)
+                
+                // 设置书名
+                tvBookTitle.text = bookTitle
                 
                 tvAuthor.text = "by ${photo.photographer}"
                 

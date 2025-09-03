@@ -159,9 +159,42 @@ class EpubScanner {
      * 从OPF文件中提取标题
      */
     private fun extractTitle(opfXml: String): String? {
-        val titleRegex = """<dc:title[^>]*>([^<]*)</dc:title>""".toRegex()
-        val matchResult = titleRegex.find(opfXml)
-        return matchResult?.groupValues?.get(1)?.trim()
+        // 尝试多种标题提取策略
+        var title: String? = null
+        
+        // 策略1: 标准的dc:title标签
+        val titleRegex1 = """<dc:title[^>]*>([^<]*)</dc:title>""".toRegex()
+        val matchResult1 = titleRegex1.find(opfXml)
+        if (matchResult1 != null) {
+            title = matchResult1.groupValues[1].trim()
+            Log.d(TAG, "策略1提取到标题: '$title'")
+        }
+        
+        // 策略2: 如果没有找到，尝试查找任何包含title的标签
+        if (title.isNullOrBlank()) {
+            val titleRegex2 = """<title[^>]*>([^<]*)</title>""".toRegex()
+            val matchResult2 = titleRegex2.find(opfXml)
+            if (matchResult2 != null) {
+                title = matchResult2.groupValues[1].trim()
+                Log.d(TAG, "策略2提取到标题: '$title'")
+            }
+        }
+        
+        // 策略3: 查找meta标签中的title
+        if (title.isNullOrBlank()) {
+            val titleRegex3 = """<meta[^>]*name="title"[^>]*content="([^"]*?)"[^>]*>""".toRegex()
+            val matchResult3 = titleRegex3.find(opfXml)
+            if (matchResult3 != null) {
+                title = matchResult3.groupValues[1].trim()
+                Log.d(TAG, "策略3提取到标题: '$title'")
+            }
+        }
+        
+        if (title.isNullOrBlank()) {
+            Log.w(TAG, "未能从OPF文件中提取到标题")
+        }
+        
+        return title
     }
     
     /**
