@@ -56,8 +56,7 @@ class MainActivity : AppCompatActivity() {
     
     override fun onResume() {
         super.onResume()
-        // 检查文件权限
-        checkAndRequestPermissions()
+        // 不在这里检查权限，改为在点击书架时检查
     }
     
     private fun initViews() {
@@ -200,6 +199,35 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
     
+    /**
+     * 显示Apple风格的权限申请弹窗
+     */
+    private fun showAppleStylePermissionDialog() {
+        AlertDialog.Builder(this, R.style.AppleStyleDialog)
+            .setTitle("需要文件访问权限")
+            .setMessage("为了扫描和显示您的EPUB图书，需要访问设备上的文件。请在接下来的设置页面中授予\"所有文件访问权限\"。")
+            .setPositiveButton("去设置") { _, _ ->
+                // 跳转到设置页面
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                    } else {
+                        openAppSettings()
+                    }
+                } catch (e: Exception) {
+                    openAppSettings()
+                }
+            }
+            .setNegativeButton("取消") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setCancelable(false)
+            .show()
+    }
+    
     private fun openAppSettings() {
         try {
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -241,8 +269,14 @@ class MainActivity : AppCompatActivity() {
      * 打开书架页面
      */
     private fun openBookLibrary() {
-        val intent = Intent(this, com.ibylin.app.ui.BookLibraryActivity::class.java)
-        startActivity(intent)
+        // 检查权限后再打开书架页面
+        if (hasAllRequiredPermissions()) {
+            val intent = Intent(this, com.ibylin.app.ui.BookLibraryActivity::class.java)
+            startActivity(intent)
+        } else {
+            // 显示Apple风格的权限申请弹窗
+            showAppleStylePermissionDialog()
+        }
     }
     
     /**

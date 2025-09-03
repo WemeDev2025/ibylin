@@ -1,10 +1,18 @@
 package com.ibylin.app.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.ibylin.app.R
@@ -26,13 +34,36 @@ class BookLibraryActivity : AppCompatActivity() {
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     
+    // 权限相关
+    private var hasScanned = false
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (allGranted) {
+            // 权限已授予，开始扫描
+            startBookScan()
+        } else {
+            // 权限被拒绝，显示设置引导
+            showPermissionDeniedDialog()
+        }
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_book_library)
         
         initViews()
         setupRecyclerView()
-        startBookScan()
+        // 不在这里自动扫描，等权限确认后再扫描
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // 如果还没有扫描过，且权限已授予，则开始扫描
+        if (!hasScanned && checkPermissions()) {
+            startBookScan()
+        }
     }
     
     private fun initViews() {
@@ -63,8 +94,15 @@ class BookLibraryActivity : AppCompatActivity() {
      * 开始扫描书籍
      */
     private fun startBookScan() {
+        // 检查权限
+        if (!checkPermissions()) {
+            requestPermissions()
+            return
+        }
+        
         android.util.Log.d("BookLibraryActivity", "开始扫描书籍")
         showScanningProgress()
+        hasScanned = true
         
         coroutineScope.launch {
             try {
@@ -154,5 +192,86 @@ class BookLibraryActivity : AppCompatActivity() {
     private fun openReaderSettings() {
         val intent = Intent(this, com.ibylin.app.ui.LibreraSettingsActivity::class.java)
         startActivity(intent)
+    }
+    
+    /**
+     * 检查权限
+     */
+    private fun checkPermissions(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+ 检查MANAGE_EXTERNAL_STORAGE权限
+            try {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                intent.data = Uri.parse("package:$packageName")
+                // 如果能找到这个Activity，说明权限可能已授予
+                packageManager.resolveActivity(intent, 0) != null
+            } catch (e: Exception) {
+                false
+            }
+        } else {
+            // Android 10及以下使用传统权限
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+    
+    /**
+     * 请求权限
+     */
+    private fun requestPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+ 显示Apple风格的权限说明弹窗
+            showAppleStylePermissionDialog()
+        } else {
+            // Android 10及以下请求传统权限
+            requestPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+            )
+        }
+    }
+    
+    /**
+     * 显示Apple风格的权限说明弹窗
+     */
+    private fun showAppleStylePermissionDialog() {
+        AlertDialog.Builder(this, R.style.AppleStyleDialog)
+            .setTitle("需要文件访问权限")
+            .setMessage("为了扫描和显示您的EPUB图书，需要访问设备上的文件。请在接下来的设置页面中授予\"所有文件访问权限\"。")
+            .setPositiveButton("去设置") { _, _ ->
+                // 跳转到设置页面
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("取消") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setCancelable(false)
+            .show()
+    }
+    
+    /**
+     * 显示权限被拒绝的弹窗
+     */
+    private fun showPermissionDeniedDialog() {
+        AlertDialog.Builder(this, R.style.AppleStyleDialog)
+            .setTitle("权限被拒绝")
+            .setMessage("没有文件访问权限，无法扫描图书。请在设置中手动授予权限。")
+            .setPositiveButton("去设置") { _, _ ->
+                // 跳转到应用设置页面
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("取消") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setCancelable(false)
+            .show()
     }
 }

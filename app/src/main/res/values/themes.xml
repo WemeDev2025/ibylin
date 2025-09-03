@@ -13,4 +13,16 @@
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
     </style>
+    
+    <!-- Apple风格的对话框样式 -->
+    <style name="AppleStyleDialog" parent="Theme.Material3.DayNight.Dialog.Alert">
+        <item name="android:background">@color/apple_books_card_bg</item>
+        <item name="android:textColorPrimary">@color/apple_books_text_primary</item>
+        <item name="android:textColorSecondary">@color/apple_books_text_secondary</item>
+        <item name="colorPrimary">@color/apple_books_accent</item>
+        <item name="colorAccent">@color/apple_books_accent</item>
+        <item name="android:windowBackground">@color/apple_books_bg</item>
+        <item name="android:windowMinWidthMajor">85%</item>
+        <item name="android:windowMinWidthMinor">85%</item>
+    </style>
 </resources>
