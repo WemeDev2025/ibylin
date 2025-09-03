@@ -7,13 +7,16 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ImageButton
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.app.AlertDialog
 import com.ibylin.app.R
 import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.AdvancedCoverExtractor
 import com.ibylin.app.utils.CoverResult
 import com.ibylin.app.utils.CoverExtractionStats
 import java.util.zip.ZipFile
+import java.io.File
 
 class BookGridAdapter(
     private var epubFiles: List<EpubFile> = emptyList(),
@@ -234,10 +237,41 @@ class BookGridAdapter(
             .setTitle("删除确认")
             .setMessage("确定要删除《$title》吗？此操作不可撤销。")
             .setPositiveButton("删除") { _, _ ->
-                // TODO: 实现删除逻辑
                 android.util.Log.d("BookGridAdapter", "用户确认删除: ${epubFile.name}")
+                deleteEpubFile(context, epubFile)
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    /**
+     * 删除EPUB文件
+     */
+    private fun deleteEpubFile(context: android.content.Context, epubFile: EpubFile) {
+        try {
+            val file = File(epubFile.path)
+            if (file.exists()) {
+                val deleted = file.delete()
+                if (deleted) {
+                    android.util.Log.d("BookGridAdapter", "文件删除成功: ${epubFile.path}")
+                    
+                    // 从列表中移除
+                    val currentList = epubFiles.toMutableList()
+                    currentList.remove(epubFile)
+                    updateEpubFiles(currentList)
+                    
+                    Toast.makeText(context, "《${epubFile.metadata?.title ?: epubFile.name}》已删除", Toast.LENGTH_SHORT).show()
+                } else {
+                    android.util.Log.e("BookGridAdapter", "文件删除失败: ${epubFile.path}")
+                    Toast.makeText(context, "删除失败，请检查文件权限", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                android.util.Log.w("BookGridAdapter", "文件不存在: ${epubFile.path}")
+                Toast.makeText(context, "文件不存在", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookGridAdapter", "删除文件时发生异常: ${epubFile.path}", e)
+            Toast.makeText(context, "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 }
