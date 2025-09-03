@@ -9,6 +9,9 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.ibylin.app.R
 import com.ibylin.app.utils.EpubFile
+import com.ibylin.app.utils.AdvancedCoverExtractor
+import com.ibylin.app.utils.CoverResult
+import com.ibylin.app.utils.CoverExtractionStats
 import java.util.zip.ZipFile
 
 class BookGridAdapter(
@@ -94,72 +97,39 @@ class BookGridAdapter(
     private fun loadCoverImage(imageView: ImageView, epubFile: EpubFile) {
         android.util.Log.d("BookGridAdapter", "开始加载封面图片: ${epubFile.name}")
         
+        val startTime = System.currentTimeMillis()
+        
         try {
-            val zipFile = ZipFile(epubFile.path)
-            android.util.Log.d("BookGridAdapter", "ZipFile创建成功: ${epubFile.path}")
+            // 使用高级封面解析器
+            val coverResult = AdvancedCoverExtractor.extractCover(epubFile.path)
             
-            // 尝试从元数据中查找封面
-            val coverImagePath = epubFile.metadata?.coverImagePath
-            android.util.Log.d("BookGridAdapter", "元数据封面路径: $coverImagePath")
+            val extractionTime = System.currentTimeMillis() - startTime
             
-            if (coverImagePath != null) {
-                val coverEntry = zipFile.getEntry(coverImagePath)
-                android.util.Log.d("BookGridAdapter", "查找封面条目: $coverImagePath, 结果: ${coverEntry != null}")
+            if (coverResult.isSuccess && coverResult.bitmap != null) {
+                android.util.Log.d("BookGridAdapter", "封面解析成功: ${coverResult.coverPath}, 方法: ${coverResult.method?.description}")
+                android.util.Log.d("BookGridAdapter", "封面尺寸: ${coverResult.bitmap.width}x${coverResult.bitmap.height}")
                 
-                if (coverEntry != null) {
-                    val inputStream = zipFile.getInputStream(coverEntry)
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    
-                    if (bitmap != null) {
-                        android.util.Log.d("BookGridAdapter", "封面图片解析成功: ${bitmap.width}x${bitmap.height}")
-                        imageView.setImageBitmap(bitmap)
-                        imageView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        inputStream.close()
-                        zipFile.close()
-                        android.util.Log.d("BookGridAdapter", "封面设置完成: ${epubFile.name}")
-                        return
-                    } else {
-                        android.util.Log.w("BookGridAdapter", "封面图片解码失败: $coverImagePath")
-                        inputStream.close()
-                    }
-                }
+                imageView.setImageBitmap(coverResult.bitmap)
+                imageView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                
+                android.util.Log.d("BookGridAdapter", "封面设置完成: ${epubFile.name}")
+            } else {
+                android.util.Log.w("BookGridAdapter", "封面解析失败: ${coverResult.errorMessage}")
+                // 使用备用颜色
+                setFallbackColor(imageView, epubFile.name)
             }
             
-            // 尝试查找常见的封面文件名
-            val coverNames = listOf("cover.jpg", "cover.png", "cover.jpeg", "Cover.jpg", "Cover.png", "Cover.jpeg")
-            android.util.Log.d("BookGridAdapter", "尝试常见封面文件名: $coverNames")
-            
-            for (coverName in coverNames) {
-                val coverEntry = zipFile.getEntry(coverName)
-                android.util.Log.d("BookGridAdapter", "查找封面: $coverName, 结果: ${coverEntry != null}")
-                
-                if (coverEntry != null) {
-                    val inputStream = zipFile.getInputStream(coverEntry)
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    
-                    if (bitmap != null) {
-                        android.util.Log.d("BookGridAdapter", "常见封面图片解析成功: $coverName, 尺寸: ${bitmap.width}x${bitmap.height}")
-                        imageView.setImageBitmap(bitmap)
-                        imageView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        inputStream.close()
-                        zipFile.close()
-                        android.util.Log.d("BookGridAdapter", "常见封面设置完成: ${epubFile.name}")
-                        return
-                    } else {
-                        android.util.Log.w("BookGridAdapter", "常见封面图片解码失败: $coverName")
-                        inputStream.close()
-                    }
-                }
-            }
-            
-            zipFile.close()
-            android.util.Log.d("BookGridAdapter", "未找到封面图片，使用备用颜色: ${epubFile.name}")
-            
-            // 如果找不到封面，使用基于文件名的颜色
-            setFallbackColor(imageView, epubFile.name)
+            // 记录统计信息
+            CoverExtractionStats.recordResult(coverResult, extractionTime)
             
         } catch (e: Exception) {
+            val extractionTime = System.currentTimeMillis() - startTime
             android.util.Log.e("BookGridAdapter", "封面加载异常: ${epubFile.name}", e)
+            
+            // 记录异常情况
+            val errorResult = CoverResult.failure("异常: ${e.message}")
+            CoverExtractionStats.recordResult(errorResult, extractionTime)
+            
             // 出错时使用默认颜色
             setFallbackColor(imageView, epubFile.name)
         }
