@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.ImageButton
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.ibylin.app.R
@@ -21,8 +22,8 @@ class BookGridAdapter(
     
     class BookGridViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val ivCover: ImageView = itemView.findViewById(R.id.iv_book_cover)
-        val tvTitle: TextView = itemView.findViewById(R.id.tv_book_title)
-        val tvAuthor: TextView = itemView.findViewById(R.id.tv_book_author)
+        val tvReadingProgress: TextView = itemView.findViewById(R.id.tv_reading_progress)
+        val btnBookMenu: ImageButton = itemView.findViewById(R.id.btn_book_menu)
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookGridViewHolder {
@@ -39,32 +40,30 @@ class BookGridAdapter(
             val epubFile = epubFiles[position]
             android.util.Log.d("BookGridAdapter", "绑定ViewHolder: position=$position, 书名=${epubFile.name}, 路径=${epubFile.path}")
             
-            // 设置书名
-            val title = epubFile.metadata?.title ?: epubFile.name
-            holder.tvTitle.text = title
-            android.util.Log.d("BookGridAdapter", "设置书名: $title")
-            
-            // 设置作者
-            val author = epubFile.metadata?.author ?: "未知作者"
-            holder.tvAuthor.text = author
-            android.util.Log.d("BookGridAdapter", "设置作者: $author")
+            // 设置阅读进度（暂时显示0%，后续可以从数据库读取）
+            holder.tvReadingProgress.text = "0%"
             
             // 加载封面图片
             android.util.Log.d("BookGridAdapter", "开始加载封面: ${epubFile.name}")
             loadCoverImage(holder.ivCover, epubFile)
             
-            // 设置点击事件
-            holder.itemView.setOnClickListener {
-                android.util.Log.d("BookGridAdapter", "点击事件触发: ${epubFile.name}")
+            // 设置封面点击事件
+            holder.ivCover.setOnClickListener {
+                android.util.Log.d("BookGridAdapter", "封面点击事件触发: ${epubFile.name}")
                 onItemClick?.invoke(epubFile)
             }
             
-            android.util.Log.d("BookGridAdapter", "ViewHolder绑定完成: position=$position, 书名=$title")
+            // 设置菜单按钮点击事件
+            holder.btnBookMenu.setOnClickListener { view ->
+                android.util.Log.d("BookGridAdapter", "菜单按钮点击事件触发: ${epubFile.name}")
+                showBookMenu(view, epubFile)
+            }
+            
+            android.util.Log.d("BookGridAdapter", "ViewHolder绑定完成: position=$position, 书名=${epubFile.metadata?.title ?: epubFile.name}")
         } catch (e: Exception) {
             android.util.Log.e("BookGridAdapter", "绑定ViewHolder失败: position=$position", e)
             // 设置默认值，避免崩溃
-            holder.tvTitle.text = "加载失败"
-            holder.tvAuthor.text = "未知"
+            holder.tvReadingProgress.text = "0%"
             holder.ivCover.setBackgroundColor(android.graphics.Color.parseColor("#E0E0E0"))
         }
     }
@@ -157,5 +156,74 @@ class BookGridAdapter(
         imageView.setImageDrawable(null)
         
         android.util.Log.d("BookGridAdapter", "备用颜色设置完成: $fileName")
+    }
+    
+    /**
+     * 显示书籍菜单
+     */
+    private fun showBookMenu(anchorView: View, epubFile: EpubFile) {
+        val popupMenu = androidx.appcompat.widget.PopupMenu(anchorView.context, anchorView)
+        popupMenu.menuInflater.inflate(R.menu.menu_book_item, popupMenu.menu)
+        
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_open_book -> {
+                    onItemClick?.invoke(epubFile)
+                    true
+                }
+                R.id.action_book_info -> {
+                    showBookInfo(anchorView.context, epubFile)
+                    true
+                }
+                R.id.action_delete_book -> {
+                    showDeleteConfirmation(anchorView.context, epubFile)
+                    true
+                }
+                else -> false
+            }
+        }
+        
+        popupMenu.show()
+    }
+    
+    /**
+     * 显示书籍信息
+     */
+    private fun showBookInfo(context: android.content.Context, epubFile: EpubFile) {
+        val title = epubFile.metadata?.title ?: epubFile.name
+        val author = epubFile.metadata?.author ?: "未知作者"
+        val size = epubFile.getFormattedSize()
+        val date = epubFile.getFormattedDate()
+        
+        val message = """
+            书名: $title
+            作者: $author
+            大小: $size
+            修改时间: $date
+            路径: ${epubFile.path}
+        """.trimIndent()
+        
+        androidx.appcompat.app.AlertDialog.Builder(context)
+            .setTitle("书籍信息")
+            .setMessage(message)
+            .setPositiveButton("确定", null)
+            .show()
+    }
+    
+    /**
+     * 显示删除确认对话框
+     */
+    private fun showDeleteConfirmation(context: android.content.Context, epubFile: EpubFile) {
+        val title = epubFile.metadata?.title ?: epubFile.name
+        
+        androidx.appcompat.app.AlertDialog.Builder(context)
+            .setTitle("删除确认")
+            .setMessage("确定要删除《$title》吗？此操作不可撤销。")
+            .setPositiveButton("删除") { _, _ ->
+                // TODO: 实现删除逻辑
+                android.util.Log.d("BookGridAdapter", "用户确认删除: ${epubFile.name}")
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 }

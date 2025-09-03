@@ -32,34 +32,40 @@
 
         </FrameLayout>
 
-        <!-- 书名 -->
-        <TextView
-            android:id="@+id/tv_book_title"
+        <!-- 底部信息栏：阅读进度和菜单按钮 -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="horizontal"
             android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="书名"
-            android:textColor="@color/apple_books_text_primary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <!-- 作者 -->
-        <TextView
-            android:id="@+id/tv_book_author"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="作者"
-            android:textColor="@color/apple_books_text_secondary"
-            android:textSize="12sp" />
+            android:gravity="center_vertical"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+            
+            <!-- 阅读进度 -->
+            <TextView
+                android:id="@+id/tv_reading_progress"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="0%"
+                android:textSize="12sp"
+                android:textColor="@color/apple_books_text_secondary"
+                android:gravity="start"
+                android:textStyle="normal" />
+            
+            <!-- 菜单按钮 -->
+            <ImageButton
+                android:id="@+id/btn_book_menu"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_more_vertical"
+                android:background="@drawable/circle_button_background"
+                android:contentDescription="书籍菜单"
+                android:scaleType="fitCenter"
+                android:padding="4dp"
+                android:tint="@color/apple_books_text_secondary" />
+        </LinearLayout>
 
     </LinearLayout>
 
