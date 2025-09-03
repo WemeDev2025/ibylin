@@ -78,8 +78,8 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        // 设置网格布局，一行3个
-        val gridLayoutManager = GridLayoutManager(this, 3)
+        // 设置网格布局，一行2个
+        val gridLayoutManager = GridLayoutManager(this, 2)
         rvBooks.layoutManager = gridLayoutManager
         
         // 初始化适配器
