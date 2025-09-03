@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.ibylin.app.R
 import com.ibylin.app.adapter.EpubFileAdapter
-import com.ibylin.app.reader.ReadiumReaderActivity
+import com.ibylin.app.reader.ReadiumEpubReaderActivity
 import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.EpubScanner
 import kotlinx.coroutines.CoroutineScope
@@ -128,7 +128,7 @@ class LocalBooksActivity : AppCompatActivity() {
      */
     private fun openReadiumReader(bookPath: String) {
         try {
-            val intent = Intent(this, ReadiumReaderActivity::class.java).apply {
+            val intent = Intent(this, ReadiumEpubReaderActivity::class.java).apply {
                 putExtra("book_path", bookPath)
             }
             startActivity(intent)

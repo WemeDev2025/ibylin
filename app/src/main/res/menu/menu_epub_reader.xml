@@ -1,29 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 字体大小增加 -->
+    <!-- 字体大小控制 -->
     <item
         android:id="@+id/action_font_size_increase"
         android:title="增大字体"
-        app:showAsAction="never" />
+        android:showAsAction="ifRoom" />
 
-    <!-- 字体大小减少 -->
     <item
         android:id="@+id/action_font_size_decrease"
         android:title="减小字体"
-        app:showAsAction="never" />
+        android:showAsAction="ifRoom" />
 
     <!-- 主题切换 -->
     <item
         android:id="@+id/action_theme_toggle"
         android:title="切换主题"
-        app:showAsAction="never" />
+        android:showAsAction="ifRoom" />
+
+    <!-- 字体族切换 -->
+    <item
+        android:id="@+id/action_font_family"
+        android:title="切换字体"
+        android:showAsAction="ifRoom" />
+
+    <!-- 行高调整 -->
+    <item
+        android:id="@+id/action_line_height_increase"
+        android:title="增加行高"
+        android:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_line_height_decrease"
+        android:title="减少行高"
+        android:showAsAction="ifRoom" />
+
+    <!-- 页边距调整 -->
+    <item
+        android:id="@+id/action_margins_increase"
+        android:title="增加页边距"
+        android:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_margins_decrease"
+        android:title="减少页边距"
+        android:showAsAction="ifRoom" />
+
+    <!-- 书签功能 -->
+    <item
+        android:id="@+id/action_add_bookmark"
+        android:title="添加书签"
+        android:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_remove_bookmark"
+        android:title="移除书签"
+        android:showAsAction="ifRoom" />
+
+    <!-- 目录导航 -->
+    <item
+        android:id="@+id/action_table_of_contents"
+        android:title="目录"
+        android:showAsAction="ifRoom" />
+
+    <!-- 搜索功能 -->
+    <item
+        android:id="@+id/action_search"
+        android:title="搜索"
+        android:showAsAction="ifRoom" />
+
+    <!-- 阅读统计 -->
+    <item
+        android:id="@+id/action_reading_stats"
+        android:title="阅读统计"
+        android:showAsAction="ifRoom" />
 
     <!-- 更多选项 -->
     <item
         android:id="@+id/action_more"
         android:title="更多"
-        app:showAsAction="never" />
+        android:showAsAction="never" />
 
 </menu>

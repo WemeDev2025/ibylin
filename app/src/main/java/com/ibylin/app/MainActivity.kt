@@ -16,7 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
-import com.ibylin.app.reader.ReadiumReaderActivity
+import com.ibylin.app.reader.ReadiumEpubReaderActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -286,7 +286,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun openReadiumReader(bookPath: String) {
         try {
-            val intent = Intent(this, ReadiumReaderActivity::class.java).apply {
+            val intent = Intent(this, ReadiumEpubReaderActivity::class.java).apply {
                 putExtra("book_path", bookPath)
             }
             startActivity(intent)

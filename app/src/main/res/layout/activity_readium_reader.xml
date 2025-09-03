@@ -1,106 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context=".reader.ReadiumReaderActivity">
+    android:background="@color/reader_background"
+    tools:context=".reader.ReadiumEpubReaderActivity">
 
-    <!-- 工具栏 -->
+    <!-- 加载状态视图 -->
+    <LinearLayout
+        android:id="@+id/loading_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@color/reader_background"
+        android:visibility="visible">
 
-    <!-- 阅读器主容器 -->
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:indeterminateTint="@color/reader_accent" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="正在加载EPUB文件..."
+            android:textSize="16sp"
+            android:textColor="@color/reader_text_primary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="请稍候..."
+            android:textSize="14sp"
+            android:textColor="@color/reader_text_secondary" />
+
+    </LinearLayout>
+
+    <!-- 阅读器容器 -->
     <FrameLayout
+        android:id="@+id/reader_container"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <!-- 阅读器内容容器 -->
-        <FrameLayout
-            android:id="@+id/reader_container"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <!-- 这里将放置Librera Reader阅读器视图 -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:text="Librera Reader阅读器将在这里显示"
-                android:textSize="18sp"
-                android:textColor="@color/black" />
-
-        </FrameLayout>
-
-        <!-- 加载视图 -->
-        <LinearLayout
-            android:id="@+id/loading_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="visible">
-
-            <ProgressBar
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="44dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="正在加载书籍..."
-                android:textSize="16sp"
-                android:textColor="@color/black" />
-
-        </LinearLayout>
-
-    </FrameLayout>
+        android:layout_weight="1"
+        android:background="@color/reader_content_background"
+        android:visibility="gone" />
 
     <!-- 底部控制栏 -->
     <LinearLayout
+        android:id="@+id/bottom_controls"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="@color/white"
-        android:elevation="8dp"
+        android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp">
+        android:background="@color/reader_controls_background"
+        android:padding="16dp"
+        android:elevation="8dp"
+        android:visibility="gone">
 
-        <!-- 上一页按钮 -->
-        <ImageButton
-            android:id="@+id/btn_previous_page"
+        <!-- 字体大小控制 -->
+        <Button
+            android:id="@+id/btn_font_decrease"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="48dp"
             android:layout_weight="1"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="上一页"
-            android:src="@drawable/ic_arrow_left"
-            android:scaleType="centerInside" />
+            android:text="A-"
+            android:textSize="16sp"
+            android:background="@color/reader_accent"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="8dp" />
 
-        <!-- 页码显示 -->
-        <TextView
-            android:id="@+id/tv_page_info"
+        <Button
+            android:id="@+id/btn_font_increase"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="48dp"
             android:layout_weight="1"
-            android:gravity="center"
-            android:text="第 1 页 / 共 100 页"
-            android:textColor="@color/black"
-            android:textSize="14sp" />
+            android:text="A+"
+            android:textSize="16sp"
+            android:background="@color/reader_accent"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="16dp" />
 
-        <!-- 下一页按钮 -->
-        <ImageButton
-            android:id="@+id/btn_next_page"
+        <!-- 主题切换 -->
+        <Button
+            android:id="@+id/btn_theme"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="48dp"
             android:layout_weight="1"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="下一页"
-            android:src="@drawable/ic_arrow_right"
-            android:scaleType="centerInside" />
+            android:text="主题"
+            android:textSize="14sp"
+            android:background="@color/reader_accent"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="16dp" />
+
+        <!-- 字体族切换 -->
+        <Button
+            android:id="@+id/btn_font_family"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="字体"
+            android:textSize="14sp"
+            android:background="@color/reader_accent"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="16dp" />
+
+        <!-- 书签功能 -->
+        <Button
+            android:id="@+id/btn_bookmark"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="书签"
+            android:textSize="14sp"
+            android:background="@color/reader_accent"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="16dp" />
+
+        <!-- 目录导航 -->
+        <Button
+            android:id="@+id/btn_toc"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="目录"
+            android:textSize="14sp"
+            android:background="@color/reader_accent"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="16dp" />
+
+        <!-- 搜索功能 -->
+        <Button
+            android:id="@+id/btn_search"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="搜索"
+            android:textSize="14sp"
+            android:background="@color/reader_accent"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="8dp" />
 
     </LinearLayout>
+
+    <!-- 阅读进度条 -->
+    <SeekBar
+        android:id="@+id/reading_progress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
+        android:max="100"
+        android:progress="0"
+        android:progressTint="@color/reader_accent"
+        android:thumbTint="@color/reader_accent"
+        android:visibility="gone" />
+
+    <!-- 进度信息 -->
+    <TextView
+        android:id="@+id/progress_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginBottom="8dp"
+        android:text="0%"
+        android:textSize="12sp"
+        android:textColor="@color/reader_text_secondary"
+        android:visibility="gone" />
 
 </LinearLayout>
