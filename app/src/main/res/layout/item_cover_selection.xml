@@ -16,13 +16,14 @@
         <!-- 封面图片容器 -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="200dp">
 
             <!-- 圆角封面图片容器 -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="8dp"
+                android:layout_gravity="bottom"
+                app:cardCornerRadius="4dp"
                 app:cardElevation="0dp"
                 app:cardBackgroundColor="@android:color/transparent">
 
