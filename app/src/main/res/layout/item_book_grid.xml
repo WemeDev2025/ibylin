@@ -20,13 +20,15 @@
             android:layout_height="280dp"
             android:background="@android:color/transparent">
 
-            <!-- 封面图片 -->
-            <ImageView
-                android:id="@+id/iv_book_cover"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="fitEnd"
-                android:contentDescription="书籍封面" />
+                                 <!-- 封面图片 -->
+                     <ImageView
+                         android:id="@+id/iv_book_cover"
+                         android:layout_width="match_parent"
+                         android:layout_height="match_parent"
+                         android:scaleType="fitEnd"
+                         android:contentDescription="书籍封面"
+                         android:clipToOutline="true"
+                         android:background="@drawable/cover_rounded_background" />
 
 
 

@@ -42,8 +42,13 @@ class BookLibraryActivity : AppCompatActivity() {
     ) { permissions ->
         val allGranted = permissions.values.all { it }
         if (allGranted) {
-            // 权限已授予，开始扫描
-            startBookScan()
+            // 权限已授予，检查是否需要扫描
+            if (!isDataCached) {
+                android.util.Log.d("BookLibraryActivity", "权限授予，开始扫描")
+                startBookScan()
+            } else {
+                android.util.Log.d("BookLibraryActivity", "权限授予，但已有缓存，无需扫描")
+            }
         } else {
             // 权限被拒绝，显示设置引导
             showPermissionDeniedDialog()
@@ -56,6 +61,10 @@ class BookLibraryActivity : AppCompatActivity() {
         
         initViews()
         setupRecyclerView()
+        
+        // 尝试恢复缓存数据
+        restoreCacheData()
+        
         // 不在这里自动扫描，等权限确认后再扫描
     }
     
@@ -64,9 +73,9 @@ class BookLibraryActivity : AppCompatActivity() {
         
         android.util.Log.d("BookLibraryActivity", "onResume: isDataCached=$isDataCached, cachedEpubFiles.size=${cachedEpubFiles.size}")
         
-        // 优先使用缓存数据
+        // 如果有完整的缓存数据，直接显示
         if (isDataCached && cachedEpubFiles.isNotEmpty()) {
-            android.util.Log.d("BookLibraryActivity", "使用缓存数据，文件数量=${cachedEpubFiles.size}")
+            android.util.Log.d("BookLibraryActivity", "使用完整缓存数据，文件数量=${cachedEpubFiles.size}")
             showBooks(cachedEpubFiles)
             return
         }
@@ -83,6 +92,9 @@ class BookLibraryActivity : AppCompatActivity() {
     // 缓存相关
     private var cachedEpubFiles: List<EpubFile> = emptyList()
     private var isDataCached = false
+    
+    // 持久化缓存
+    private val sharedPreferences by lazy { getSharedPreferences("book_cache", MODE_PRIVATE) }
     
     private fun initViews() {
         rvBooks = findViewById(R.id.rv_books)
@@ -121,16 +133,15 @@ class BookLibraryActivity : AppCompatActivity() {
             return
         }
         
-        android.util.Log.d("BookLibraryActivity", "权限已授予，检查缓存: isDataCached=$isDataCached, cachedEpubFiles.size=${cachedEpubFiles.size}")
+        android.util.Log.d("BookLibraryActivity", "权限已授予，检查缓存状态: isDataCached=$isDataCached, cachedEpubFiles.size=${cachedEpubFiles.size}")
         
-        // 如果已经有缓存数据，直接使用缓存
+        // 如果已经有完整的缓存数据，避免重复扫描
         if (isDataCached && cachedEpubFiles.isNotEmpty()) {
-            android.util.Log.d("BookLibraryActivity", "已有缓存数据，直接使用，文件数量=${cachedEpubFiles.size}")
-            showBooks(cachedEpubFiles)
+            android.util.Log.d("BookLibraryActivity", "已有完整缓存数据，避免重复扫描")
             return
         }
         
-        android.util.Log.d("BookLibraryActivity", "没有缓存数据，开始扫描书籍")
+        android.util.Log.d("BookLibraryActivity", "需要扫描书籍（无缓存或缓存数据为空）")
         showScanningProgress()
         hasScanned = true
         
@@ -152,6 +163,9 @@ class BookLibraryActivity : AppCompatActivity() {
                     // 缓存数据
                     cachedEpubFiles = epubFiles
                     isDataCached = true
+                    
+                    // 保存缓存到SharedPreferences
+                    saveCacheData(epubFiles)
                     
                     showBooks(epubFiles)
                 }
@@ -228,11 +242,97 @@ class BookLibraryActivity : AppCompatActivity() {
         android.util.Log.d("BookLibraryActivity", "手动更新书籍列表")
         
         // 清除缓存，强制重新扫描
+        clearCacheData()
+        startBookScan()
+    }
+    
+    /**
+     * 保存缓存数据到SharedPreferences
+     */
+    private fun saveCacheData(epubFiles: List<EpubFile>) {
+        try {
+            val editor = sharedPreferences.edit()
+            editor.putBoolean("is_data_cached", true)
+            editor.putInt("cached_count", epubFiles.size)
+            editor.putLong("cache_timestamp", System.currentTimeMillis())
+            
+            // 保存书籍数据（简化版本，只保存关键信息）
+            epubFiles.forEachIndexed { index, epubFile ->
+                editor.putString("book_${index}_name", epubFile.name)
+                editor.putString("book_${index}_path", epubFile.path)
+                editor.putLong("book_${index}_size", epubFile.size)
+                editor.putLong("book_${index}_lastModified", epubFile.lastModified)
+            }
+            
+            editor.apply()
+            
+            android.util.Log.d("BookLibraryActivity", "完整缓存数据已保存: 文件数量=${epubFiles.size}")
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "保存缓存数据失败", e)
+        }
+    }
+    
+    /**
+     * 从SharedPreferences恢复缓存数据
+     */
+    private fun restoreCacheData() {
+        try {
+            val isCached = sharedPreferences.getBoolean("is_data_cached", false)
+            val cachedCount = sharedPreferences.getInt("cached_count", 0)
+            val cacheTimestamp = sharedPreferences.getLong("cache_timestamp", 0)
+            
+            if (isCached && cachedCount > 0) {
+                // 检查缓存是否过期（24小时）
+                val isExpired = System.currentTimeMillis() - cacheTimestamp > 24 * 60 * 60 * 1000
+                
+                if (!isExpired) {
+                    // 恢复书籍数据
+                    val restoredEpubFiles = mutableListOf<EpubFile>()
+                    for (i in 0 until cachedCount) {
+                        val name = sharedPreferences.getString("book_${i}_name", "") ?: ""
+                        val path = sharedPreferences.getString("book_${i}_path", "") ?: ""
+                        val size = sharedPreferences.getLong("book_${i}_size", 0)
+                        val lastModified = sharedPreferences.getLong("book_${i}_lastModified", System.currentTimeMillis())
+                        
+                        if (name.isNotEmpty() && path.isNotEmpty()) {
+                            val epubFile = EpubFile(name, path, size, lastModified)
+                            restoredEpubFiles.add(epubFile)
+                        }
+                    }
+                    
+                    if (restoredEpubFiles.isNotEmpty()) {
+                        cachedEpubFiles = restoredEpubFiles
+                        isDataCached = true
+                        android.util.Log.d("BookLibraryActivity", "恢复完整缓存数据: 文件数量=${restoredEpubFiles.size}")
+                    } else {
+                        android.util.Log.d("BookLibraryActivity", "恢复的缓存数据为空，清除缓存")
+                        clearCacheData()
+                    }
+                } else {
+                    android.util.Log.d("BookLibraryActivity", "缓存已过期，清除缓存")
+                    clearCacheData()
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "恢复缓存数据失败", e)
+        }
+    }
+    
+    /**
+     * 清除缓存数据
+     */
+    private fun clearCacheData() {
         isDataCached = false
         cachedEpubFiles = emptyList()
         
-        // 开始扫描
-        startBookScan()
+        try {
+            val editor = sharedPreferences.edit()
+            editor.clear()
+            editor.apply()
+            android.util.Log.d("BookLibraryActivity", "缓存数据已清除")
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "清除缓存数据失败", e)
+        }
     }
     
     /**

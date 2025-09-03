@@ -112,11 +112,25 @@ class BookGridAdapter(
                 imageView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 
                 android.util.Log.d("BookGridAdapter", "封面设置完成: ${epubFile.name}")
-            } else {
-                android.util.Log.w("BookGridAdapter", "封面解析失败: ${coverResult.errorMessage}")
-                // 使用备用颜色
-                setFallbackColor(imageView, epubFile.name)
-            }
+                               } else {
+                       android.util.Log.w("BookGridAdapter", "封面解析失败: ${coverResult.errorMessage}")
+                       
+                       // 尝试生成基于书名的默认封面
+                       val defaultCover = AdvancedCoverExtractor.generateDefaultCover(
+                           epubFile.metadata?.title ?: epubFile.name,
+                           epubFile.metadata?.author
+                       )
+                       
+                       if (defaultCover.isSuccess && defaultCover.bitmap != null) {
+                           android.util.Log.d("BookGridAdapter", "使用生成的默认封面: ${epubFile.name}")
+                           imageView.setImageBitmap(defaultCover.bitmap)
+                           imageView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                       } else {
+                           // 如果生成默认封面也失败，使用备用颜色
+                           android.util.Log.w("BookGridAdapter", "生成默认封面失败，使用备用颜色: ${epubFile.name}")
+                           setFallbackColor(imageView, epubFile.name)
+                       }
+                   }
             
             // 记录统计信息
             CoverExtractionStats.recordResult(coverResult, extractionTime)

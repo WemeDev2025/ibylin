@@ -63,6 +63,26 @@ class AdvancedCoverExtractor {
         }
         
         /**
+         * 生成基于书名的默认封面
+         */
+        fun generateDefaultCover(bookName: String, author: String? = null): CoverResult {
+            return try {
+                Log.d(TAG, "为无封面图书生成默认封面: $bookName")
+                
+                // 创建一个简单的文字封面
+                val bitmap = createTextBasedCover(bookName, author)
+                if (bitmap != null) {
+                    return CoverResult.success("generated_cover", bitmap, CoverDetectionMethod.FALLBACK_COLOR)
+                } else {
+                    return CoverResult.failure("生成默认封面失败")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "生成默认封面异常: ${e.message}", e)
+                CoverResult.failure("生成默认封面异常: ${e.message}")
+            }
+        }
+        
+        /**
          * 智能封面检测算法
          */
         private fun intelligentCoverDetection(zipFile: ZipFile, opfXml: String): CoverResult {
@@ -490,6 +510,99 @@ class AdvancedCoverExtractor {
             if (fileName.contains("images")) score += 3
             
             return score
+        }
+        
+        /**
+         * 创建基于文字的封面
+         */
+        private fun createTextBasedCover(bookName: String, author: String?): android.graphics.Bitmap? {
+            return try {
+                // 创建一个400x600的封面
+                val width = 400
+                val height = 600
+                val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(bitmap)
+                
+                // 设置背景色（渐变色）
+                val paint = android.graphics.Paint()
+                val gradient = android.graphics.LinearGradient(
+                    0f, 0f, 0f, height.toFloat(),
+                    android.graphics.Color.parseColor("#4A90E2"),
+                    android.graphics.Color.parseColor("#357ABD"),
+                    android.graphics.Shader.TileMode.CLAMP
+                )
+                paint.shader = gradient
+                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                
+                // 绘制书名
+                val titlePaint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.WHITE
+                    textSize = 32f
+                    isAntiAlias = true
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isFakeBoldText = true
+                }
+                
+                // 书名换行处理
+                val titleLines = splitTextIntoLines(bookName, titlePaint, width - 40)
+                val titleY = height / 2f - (titleLines.size * titlePaint.textSize) / 2
+                
+                titleLines.forEachIndexed { index, line ->
+                    canvas.drawText(line, width / 2f, titleY + index * titlePaint.textSize, titlePaint)
+                }
+                
+                // 绘制作者（如果有）
+                if (!author.isNullOrEmpty()) {
+                    val authorPaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.parseColor("#E8F4FD")
+                        textSize = 18f
+                        isAntiAlias = true
+                        textAlign = android.graphics.Paint.Align.CENTER
+                    }
+                    canvas.drawText("作者: $author", width / 2f, height * 0.8f, authorPaint)
+                }
+                
+                // 绘制装饰性图标
+                val iconPaint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.parseColor("#E8F4FD")
+                    textSize = 48f
+                    isAntiAlias = true
+                    textAlign = android.graphics.Paint.Align.CENTER
+                }
+                canvas.drawText("📚", iconPaint.textSize, height * 0.2f, iconPaint)
+                
+                bitmap
+            } catch (e: Exception) {
+                Log.e(TAG, "创建文字封面失败: ${e.message}", e)
+                null
+            }
+        }
+        
+        /**
+         * 将长文本分割成多行
+         */
+        private fun splitTextIntoLines(text: String, paint: android.graphics.Paint, maxWidth: Int): List<String> {
+            val lines = mutableListOf<String>()
+            val words = text.split("")
+            var currentLine = ""
+            
+            for (word in words) {
+                val testLine = currentLine + word
+                val testWidth = paint.measureText(testLine)
+                
+                if (testWidth > maxWidth && currentLine.isNotEmpty()) {
+                    lines.add(currentLine)
+                    currentLine = word
+                } else {
+                    currentLine = testLine
+                }
+            }
+            
+            if (currentLine.isNotEmpty()) {
+                lines.add(currentLine)
+            }
+            
+            return if (lines.isEmpty()) listOf(text) else lines
         }
     }
 }

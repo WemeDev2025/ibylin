@@ -11,7 +11,7 @@
     <color name="primary">#FF2196F3</color>
     
     <!-- Apple Books 风格配色 -->
-    <color name="apple_books_bg">#FF1C1C1E</color>           <!-- 主背景色 - 深灰黑 -->
+    <color name="apple_books_bg">#FF000000</color>           <!-- 主背景色 - 纯黑色 -->
     <color name="apple_books_card_bg">#FF2C2C2E</color>      <!-- 卡片背景色 - 中灰 -->
     <color name="apple_books_sidebar_bg">#FF2C2C2E</color>   <!-- 侧边栏背景色 - 中灰 -->
     <color name="apple_books_text_primary">#FFFFFFFF</color>  <!-- 主要文字 - 白色 -->
