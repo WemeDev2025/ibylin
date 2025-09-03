@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- 字体大小增加 -->
+    <item
+        android:id="@+id/action_font_size_increase"
+        android:title="增大字体"
+        app:showAsAction="never" />
+
+    <!-- 字体大小减少 -->
+    <item
+        android:id="@+id/action_font_size_decrease"
+        android:title="减小字体"
+        app:showAsAction="never" />
+
+    <!-- 主题切换 -->
+    <item
+        android:id="@+id/action_theme_toggle"
+        android:title="切换主题"
+        app:showAsAction="never" />
+
+    <!-- 更多选项 -->
+    <item
+        android:id="@+id/action_more"
+        android:title="更多"
+        app:showAsAction="never" />
+
+</menu>
