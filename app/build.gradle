@@ -8,12 +8,12 @@ plugins {
 
 android {
     namespace 'com.ibylin.app'
-    compileSdk 36
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.ibylin.app"
         minSdk 24
-        targetSdk 36
+        targetSdk 35
         versionCode 1
         versionName "1.0"
 
@@ -68,12 +68,15 @@ dependencies {
     implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     
-    // ✅ Readium Kotlin Toolkit 3.0.0 (严格按照官方文档配置)
+    // ✅ Readium Kotlin Toolkit 3.0.0 (使用兼容版本)
     implementation "org.readium.kotlin-toolkit:readium-shared:3.0.0"
     implementation "org.readium.kotlin-toolkit:readium-streamer:3.0.0"
     implementation "org.readium.kotlin-toolkit:readium-navigator:3.0.0"
     implementation "org.readium.kotlin-toolkit:readium-opds:3.0.0"
     implementation "org.readium.kotlin-toolkit:readium-lcp:3.0.0"
+    
+    // 暂时移除PDF适配器，避免依赖冲突
+    // implementation "org.readium.kotlin-toolkit:readium-adapter-pdfium:3.0.0"
     
     // Core library desugaring (Readium 3.0.0 要求，因为目标API 24 < 26)
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"

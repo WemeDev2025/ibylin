@@ -39,6 +39,11 @@
             android:theme="@style/Theme.Ibylin" />
             
         <activity
+            android:name=".reader.ReadiumEpubReaderActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Ibylin" />
+            
+        <activity
             android:name=".ui.LibreraSettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.Ibylin" />
