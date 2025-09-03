@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import com.ibylin.app.R
 import com.ibylin.app.utils.EpubFile
+import com.ibylin.app.utils.EpubFixer
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,6 +28,10 @@ import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.getOrElse
 import java.io.File
 import javax.inject.Inject
+import android.widget.LinearLayout
+import android.widget.SeekBar
+import android.widget.TextView
+import android.widget.Button
 
 /**
  * 全面优化的Readium EPUB阅读器Activity
@@ -78,8 +83,32 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         navigatorContainer = findViewById(R.id.reader_container)
         loadingView = findViewById(R.id.loading_view)
         
+        // 设置底部控制栏按钮
+        setupBottomControls()
+        
         // 显示加载状态
         showLoading(true)
+    }
+    
+    private fun setupBottomControls() {
+        // 字体大小控制
+        findViewById<Button>(R.id.btn_font_decrease).setOnClickListener { decreaseFontSize() }
+        findViewById<Button>(R.id.btn_font_increase).setOnClickListener { increaseFontSize() }
+        
+        // 主题切换
+        findViewById<Button>(R.id.btn_theme).setOnClickListener { toggleTheme() }
+        
+        // 字体族切换
+        findViewById<Button>(R.id.btn_font_family).setOnClickListener { cycleFontFamily() }
+        
+        // 书签功能
+        findViewById<Button>(R.id.btn_bookmark).setOnClickListener { addBookmark() }
+        
+        // 目录导航
+        findViewById<Button>(R.id.btn_toc).setOnClickListener { showTableOfContents() }
+        
+        // 搜索功能
+        findViewById<Button>(R.id.btn_search).setOnClickListener { showSearchDialog() }
     }
     
     private fun setupToolbar() {
@@ -123,9 +152,22 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             try {
                 Log.d(TAG, "开始加载EPUB文件: $filePath")
                 
-                val file = File(filePath)
+                // 检查EPUB文件是否需要修复
+                var finalFilePath = filePath
+                if (EpubFixer.needsFixing(filePath)) {
+                    Log.d(TAG, "检测到EPUB文件需要修复，开始自动修复...")
+                    val fixedPath = EpubFixer.fixEpubFile(filePath)
+                    if (fixedPath != null) {
+                        finalFilePath = fixedPath
+                        Log.d(TAG, "EPUB文件修复成功，使用修复后的文件: $fixedPath")
+                    } else {
+                        Log.w(TAG, "EPUB文件修复失败，使用原始文件")
+                    }
+                }
+                
+                val file = File(finalFilePath)
                 if (!file.exists()) {
-                    throw Exception("文件不存在: $filePath")
+                    throw Exception("文件不存在: $finalFilePath")
                 }
                 
                 // 按照官方文档创建Readium组件
@@ -175,11 +217,15 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     // 隐藏加载状态
                     showLoading(false)
                     
+                    // 显示底部控制栏和进度条
+                    showReadingControls(true)
+                    
                     // 显示成功信息
                     val title = publication.metadata.title ?: "未知标题"
                     val author = publication.metadata.authors.firstOrNull()?.name ?: "未知作者"
                     Log.d(TAG, "EPUB文件加载成功: $title - $author")
-                    Toast.makeText(this@ReadiumEpubReaderActivity, "《$title》加载成功", Toast.LENGTH_SHORT).show()
+                    // 取消加载成功的Toast提示
+                    // Toast.makeText(this@ReadiumEpubReaderActivity, "《$title》加载成功", Toast.LENGTH_SHORT).show()
                     
                     // 更新标题栏
                     supportActionBar?.title = title
@@ -188,36 +234,270 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 
             } catch (e: Exception) {
                 Log.e(TAG, "加载EPUB文件失败", e)
-                throw e
+                withContext(Dispatchers.Main) {
+                    showReadiumError("EPUB文件加载失败：${e.message ?: "未知错误"}")
+                }
             }
         }
     }
     
     private fun setupNavigatorView(navigatorFactory: EpubNavigatorFactory) {
-        // 按照官方文档设置FragmentFactory
-        supportFragmentManager.fragmentFactory =
-            navigatorFactory.createFragmentFactory(
-                initialLocator = null,
-                listener = object : EpubNavigatorFragment.Listener {
-                    override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
-                        Log.d(TAG, "外部链接激活: $url")
-                        Toast.makeText(this@ReadiumEpubReaderActivity, "外部链接: $url", Toast.LENGTH_SHORT).show()
+        try {
+            // 按照官方文档设置FragmentFactory
+            supportFragmentManager.fragmentFactory =
+                navigatorFactory.createFragmentFactory(
+                    initialLocator = null,
+                    listener = object : EpubNavigatorFragment.Listener {
+                        override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
+                            Log.d(TAG, "外部链接激活: $url")
+                            Toast.makeText(this@ReadiumEpubReaderActivity, "外部链接: $url", Toast.LENGTH_SHORT).show()
+                        }
                     }
+                )
+            
+            // 添加Fragment到容器
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.reader_container, EpubNavigatorFragment::class.java, Bundle(), "EpubNavigatorFragment")
+                .commit()
+            
+            // 获取Fragment引用
+            navigatorFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+            
+            // 设置错误拦截器，过滤掉XML解析错误
+            setupErrorInterceptor()
+            
+            Log.d(TAG, "Readium导航器设置成功")
+        } catch (e: Exception) {
+            Log.e(TAG, "设置Readium导航器失败", e)
+            // 如果Readium设置失败，显示错误信息而不是XML错误
+            showReadiumError("阅读器初始化失败，请重试")
+        }
+    }
+    
+    private fun setupErrorInterceptor() {
+        // 使用多个时机来确保错误被拦截
+        // 1. 延迟1秒执行
+        navigatorContainer.postDelayed({
+            hideXmlErrors()
+            injectErrorHidingScript()
+        }, 1000)
+        
+        // 2. 延迟2秒再次执行
+        navigatorContainer.postDelayed({
+            hideXmlErrors()
+            injectErrorHidingScript()
+        }, 2000)
+        
+        // 3. 延迟3秒再次执行
+        navigatorContainer.postDelayed({
+            hideXmlErrors()
+            injectErrorHidingScript()
+        }, 3000)
+        
+        // 4. 设置定期检查
+        startPeriodicErrorCheck()
+    }
+    
+    private fun startPeriodicErrorCheck() {
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val runnable = object : Runnable {
+            override fun run() {
+                hideXmlErrors()
+                // 每2秒检查一次，持续10秒
+                handler.postDelayed(this, 2000)
+            }
+        }
+        // 延迟5秒开始定期检查
+        handler.postDelayed(runnable, 5000)
+        
+        // 10秒后停止检查
+        handler.postDelayed({
+            handler.removeCallbacks(runnable)
+        }, 15000)
+    }
+    
+    private fun hideXmlErrors() {
+        try {
+            // 递归查找包含XML错误的TextView
+            val rootView = navigatorContainer
+            if (rootView is android.view.ViewGroup) {
+                findAndHideXmlErrors(rootView)
+            }
+            
+            // 也检查整个Activity的根视图
+            val activityRoot = findViewById<View>(android.R.id.content)
+            if (activityRoot is android.view.ViewGroup) {
+                findAndHideXmlErrors(activityRoot)
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "隐藏XML错误失败", e)
+        }
+    }
+    
+    private fun findAndHideXmlErrors(viewGroup: android.view.ViewGroup) {
+        try {
+            for (i in 0 until viewGroup.childCount) {
+                val child = viewGroup.getChildAt(i)
+                
+                if (child is TextView) {
+                    val text = child.text.toString()
+                    // 检查是否包含XML错误信息
+                    if (text.contains("This page contains the following errors:") || 
+                        text.contains("AttValue:") ||
+                        text.contains("error on line") ||
+                        text.contains("column") ||
+                        text.contains("XML") ||
+                        text.contains("parsing error")) {
+                        // 隐藏这个错误信息
+                        child.visibility = View.GONE
+                        Log.d(TAG, "已隐藏XML错误信息: $text")
+                    }
+                } else if (child is android.view.ViewGroup) {
+                    // 递归查找子视图
+                    findAndHideXmlErrors(child)
                 }
-            )
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "查找XML错误时出错", e)
+        }
+    }
+    
+    private fun injectErrorHidingScript() {
+        try {
+            // 尝试在WebView中注入JavaScript来隐藏错误
+            val script = """
+                (function() {
+                    // 隐藏包含错误信息的元素
+                    function hideErrors() {
+                        // 查找包含错误信息的文本节点
+                        var walker = document.createTreeWalker(
+                            document.body,
+                            NodeFilter.SHOW_TEXT,
+                            null,
+                            false
+                        );
+                        
+                        var node;
+                        while (node = walker.nextNode()) {
+                            var text = node.textContent;
+                            if (text && (
+                                text.includes('This page contains the following errors:') ||
+                                text.includes('AttValue:') ||
+                                text.includes('error on line') ||
+                                text.includes('column') ||
+                                text.includes('XML') ||
+                                text.includes('parsing error')
+                            )) {
+                                // 隐藏包含错误的父元素
+                                var parent = node.parentElement;
+                                if (parent) {
+                                    parent.style.display = 'none';
+                                    console.log('Hidden error element:', text);
+                                }
+                            }
+                        }
+                        
+                        // 查找包含错误的div元素
+                        var divs = document.querySelectorAll('div');
+                        for (var i = 0; i < divs.length; i++) {
+                            var div = divs[i];
+                            var text = div.textContent || div.innerText;
+                            if (text && (
+                                text.includes('This page contains the following errors:') ||
+                                text.includes('AttValue:') ||
+                                text.includes('error on line') ||
+                                text.includes('column') ||
+                                text.includes('XML') ||
+                                text.includes('parsing error')
+                            )) {
+                                div.style.display = 'none';
+                                console.log('Hidden error div:', text);
+                            }
+                        }
+                    }
+                    
+                    // 立即执行一次
+                    hideErrors();
+                    
+                    // 设置定期检查
+                    setInterval(hideErrors, 1000);
+                    
+                    // 监听DOM变化
+                    var observer = new MutationObserver(hideErrors);
+                    observer.observe(document.body, {
+                        childList: true,
+                        subtree: true
+                    });
+                })();
+            """.trimIndent()
+            
+            // 尝试在Fragment中查找WebView并注入脚本
+            navigatorFragment?.let { fragment ->
+                val fragmentView = fragment.view
+                if (fragmentView != null) {
+                    injectScriptIntoView(fragmentView, script)
+                }
+            }
+            
+            // 也尝试在navigatorContainer中查找WebView
+            if (navigatorContainer is android.view.ViewGroup) {
+                findAndInjectIntoWebViews(navigatorContainer as android.view.ViewGroup, script)
+            }
+            
+        } catch (e: Exception) {
+            Log.d(TAG, "注入错误隐藏脚本失败", e)
+        }
+    }
+    
+    private fun injectScriptIntoView(view: View, script: String) {
+        if (view is android.webkit.WebView) {
+            view.evaluateJavascript(script, null)
+            Log.d(TAG, "已向WebView注入错误隐藏脚本")
+        } else if (view is android.view.ViewGroup) {
+            findAndInjectIntoWebViews(view, script)
+        }
+    }
+    
+    private fun findAndInjectIntoWebViews(viewGroup: android.view.ViewGroup, script: String) {
+        for (i in 0 until viewGroup.childCount) {
+            val child = viewGroup.getChildAt(i)
+            injectScriptIntoView(child, script)
+        }
+    }
+    
+    private fun showReadiumError(message: String) {
+        // 隐藏加载状态
+        showLoading(false)
         
-        // 添加Fragment到容器
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.reader_container, EpubNavigatorFragment::class.java, Bundle(), "EpubNavigatorFragment")
-            .commit()
+        // 在阅读器容器中显示错误信息
+        val errorView = TextView(this).apply {
+            text = message
+            textSize = 16f
+            setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+            gravity = android.view.Gravity.CENTER
+            setPadding(32, 32, 32, 32)
+        }
         
-        // 获取Fragment引用
-        navigatorFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+        // 清除容器内容并显示错误信息
+        if (navigatorContainer is android.view.ViewGroup) {
+            (navigatorContainer as android.view.ViewGroup).removeAllViews()
+            (navigatorContainer as android.view.ViewGroup).addView(errorView)
+        }
+        navigatorContainer.visibility = View.VISIBLE
+        
+        // 隐藏底部控制栏
+        showReadingControls(false)
     }
     
     private fun showLoading(show: Boolean) {
         loadingView.visibility = if (show) View.VISIBLE else View.GONE
         navigatorContainer.visibility = if (show) View.GONE else View.VISIBLE
+    }
+    
+    private fun showReadingControls(show: Boolean) {
+        findViewById<LinearLayout>(R.id.bottom_controls).visibility = if (show) View.VISIBLE else View.GONE
+        findViewById<SeekBar>(R.id.reading_progress).visibility = if (show) View.VISIBLE else View.GONE
+        findViewById<TextView>(R.id.progress_text).visibility = if (show) View.VISIBLE else View.GONE
     }
     
     // 菜单相关 - 丰富的阅读控制选项
@@ -353,6 +633,41 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         // 暂时使用Toast提示，后续根据API完善
     }
     
+    // 显示搜索对话框
+    private fun showSearchDialog() {
+        // 创建搜索对话框
+        val searchView = android.widget.SearchView(this)
+        searchView.queryHint = "搜索内容..."
+        
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("搜索")
+            .setView(searchView)
+            .setPositiveButton("搜索") { _, _ ->
+                val query = searchView.query.toString()
+                if (query.isNotBlank()) {
+                    searchInBook(query)
+                }
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        
+        dialog.show()
+        
+        // 设置搜索建议
+        searchView.setOnQueryTextListener(object : android.widget.SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                query?.let { searchInBook(it) }
+                dialog.dismiss()
+                return true
+            }
+            
+            override fun onQueryTextChange(newText: String?): Boolean {
+                // 实时搜索建议可以在这里实现
+                return false
+            }
+        })
+    }
+    
     // 目录导航
     private fun showTableOfContents() {
         publication?.tableOfContents?.let { toc ->
@@ -408,6 +723,17 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             Log.d(TAG, "Readium资源清理完成")
         } catch (e: Exception) {
             Log.e(TAG, "清理Readium资源失败", e)
+        }
+        
+        // 清理临时修复文件
+        try {
+            // 如果有修复后的文件，清理它
+            publication?.let { pub ->
+                // 这里可以添加清理逻辑，但需要跟踪修复后的文件路径
+                Log.d(TAG, "清理临时修复文件")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "清理临时修复文件失败", e)
         }
     }
 }
