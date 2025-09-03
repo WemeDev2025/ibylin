@@ -33,18 +33,18 @@
         </FrameLayout>
 
         <!-- 底部信息栏：阅读进度和菜单按钮 -->
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical">
+            android:layout_marginTop="8dp">
             
             <!-- 阅读进度 -->
             <TextView
                 android:id="@+id/tv_reading_progress"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
                 android:text="0%"
                 android:textSize="10sp"
                 android:textColor="@color/apple_books_text_secondary"
@@ -56,15 +56,15 @@
                 android:id="@+id/btn_book_menu"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
                 android:src="@drawable/ic_more_vertical"
                 android:background="@android:color/transparent"
                 android:contentDescription="书籍菜单"
                 android:scaleType="fitCenter"
                 android:padding="4dp"
-                android:tint="@color/apple_books_text_secondary"
-                android:layout_gravity="end"
-                android:layout_marginEnd="-4dp" />
-        </LinearLayout>
+                android:tint="@color/apple_books_text_secondary" />
+        </RelativeLayout>
 
     </LinearLayout>
 
