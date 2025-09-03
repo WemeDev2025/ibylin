@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 书库按钮专属样式 -->
+    <style name="BookLibraryButtonStyle" parent="Widget.MaterialComponents.Button">
+        <!-- 背景颜色 -->
+        <item name="android:background">@color/book_library_button</item>
+        <item name="backgroundTint">@color/book_library_button</item>
+        
+        <!-- 文字样式 -->
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        
+        <!-- 按钮尺寸和边距 -->
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">88dp</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        
+        <!-- 圆角 -->
+        <item name="cornerRadius">12dp</item>
+        
+        <!-- 阴影 -->
+        <item name="elevation">4dp</item>
+        
+        <!-- 触摸反馈 -->
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:foreground">?attr/selectableItemBackgroundBorderless</item>
+    </style>
+    
+    <!-- 书库按钮按下状态样式 -->
+    <style name="BookLibraryButtonStyle.Pressed" parent="BookLibraryButtonStyle">
+        <item name="android:background">@color/book_library_button_pressed</item>
+        <item name="backgroundTint">@color/book_library_button_pressed</item>
+        <item name="elevation">2dp</item>
+    </style>
+</resources>

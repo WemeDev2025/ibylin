@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 底部阴影层 - 模拟书籍底部阴影 -->
+    <item android:gravity="bottom">
+        <shape android:shape="rectangle">
+            <solid android:color="#40000000" />
+            <corners android:radius="8dp" />
+            <padding
+                android:bottom="2dp"
+                android:left="2dp"
+                android:right="2dp"
+                android:top="0dp" />
+        </shape>
+    </item>
+    
+    <!-- 右侧阴影层 - 模拟书籍右侧阴影 -->
+    <item android:gravity="end">
+        <shape android:shape="rectangle">
+            <solid android:color="#30000000" />
+            <corners android:radius="8dp" />
+            <padding
+                android:bottom="0dp"
+                android:left="0dp"
+                android:right="2dp"
+                android:top="2dp" />
+        </shape>
+    </item>
+    
+    <!-- 主封面层 -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+</layer-list>

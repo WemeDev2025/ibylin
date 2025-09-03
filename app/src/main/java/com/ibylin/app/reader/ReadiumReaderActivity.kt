@@ -8,6 +8,9 @@ import androidx.appcompat.app.AppCompatActivity
 import com.ibylin.app.R
 import com.ibylin.app.databinding.ActivityReadiumReaderBinding
 import com.ibylin.app.utils.LibreraHelper
+import com.ibylin.app.utils.ReadingHistoryManager
+import com.ibylin.app.utils.EpubFile
+import com.ibylin.app.utils.EpubScanner
 import com.ibylin.app.ui.LibreraSettingsActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -25,6 +28,7 @@ class ReadiumReaderActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityReadiumReaderBinding
     private var currentBookPath: String? = null
+    private lateinit var readingHistoryManager: ReadingHistoryManager
     
     @Inject
     lateinit var libreraHelper: LibreraHelper
@@ -39,6 +43,9 @@ class ReadiumReaderActivity : AppCompatActivity() {
         // 获取传入的书籍路径
         currentBookPath = intent.getStringExtra("book_path")
         
+        // 初始化阅读历史管理器
+        readingHistoryManager = ReadingHistoryManager.getInstance(this)
+        
         initViews()
         setupLibreraReader()
         // 延迟加载书籍，确保 LibreraHelper 完全初始化
@@ -48,22 +55,9 @@ class ReadiumReaderActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        // 设置工具栏
-        setSupportActionBar(binding.toolbar)
+        // 设置标题栏
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "Librera Reader"
-        
-        // 添加设置菜单按钮
-        binding.toolbar.inflateMenu(R.menu.menu_reader)
-        binding.toolbar.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.action_settings -> {
-                    openSettings()
-                    true
-                }
-                else -> false
-            }
-        }
         
         // 设置阅读器容器
         binding.readerContainer.visibility = View.GONE
@@ -197,9 +191,44 @@ class ReadiumReaderActivity : AppCompatActivity() {
                 val currentPage = libreraHelper.getCurrentPage()
                 val totalPages = libreraHelper.getTotalPages()
                 binding.tvPageInfo.text = "第 $currentPage 页 / 共 $totalPages 页"
+                
+                // 记录阅读行为
+                recordReadingProgress(currentPage, totalPages)
             }
         } catch (e: Exception) {
             binding.tvPageInfo.text = "页码信息获取失败"
+        }
+    }
+    
+    /**
+     * 记录阅读进度
+     */
+    private fun recordReadingProgress(currentPage: Int, totalPages: Int) {
+        try {
+            currentBookPath?.let { path ->
+                // 获取书籍信息
+                val epubFile = EpubScanner().getEpubFileInfo(path)
+                if (epubFile != null) {
+                    val readProgress = if (totalPages > 0) {
+                        currentPage.toFloat() / totalPages.toFloat()
+                    } else 0f
+                    
+                    // 记录阅读行为
+                    readingHistoryManager.recordReading(
+                        context = this@ReadiumReaderActivity,
+                        bookPath = path,
+                        bookTitle = epubFile.metadata?.title ?: epubFile.name,
+                        bookAuthor = epubFile.metadata?.author,
+                        currentPage = currentPage,
+                        totalPages = totalPages,
+                        readProgress = readProgress
+                    )
+                    
+                    android.util.Log.d("ReadiumReader", "阅读进度已记录: 第${currentPage}页/共${totalPages}页, 进度: ${(readProgress * 100).toInt()}%")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ReadiumReader", "记录阅读进度失败", e)
         }
     }
 

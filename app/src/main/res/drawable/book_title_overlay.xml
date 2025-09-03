@@ -5,11 +5,11 @@
     <!-- 半透明黑色背景 -->
     <solid android:color="#80000000" />
     
-    <!-- 顶部圆角，底部直角 -->
+    <!-- 顶部直角，底部圆角 - 与封面图片圆角保持一致 -->
     <corners
         android:topLeftRadius="0dp"
         android:topRightRadius="0dp"
-        android:bottomLeftRadius="0dp"
-        android:bottomRightRadius="0dp" />
+        android:bottomLeftRadius="4dp"
+        android:bottomRightRadius="4dp" />
     
 </shape>

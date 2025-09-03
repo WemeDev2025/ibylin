@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.ibylin.app.R
 import com.ibylin.app.utils.PexelsManager
@@ -26,29 +27,33 @@ class PexelsTestActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_pexels_test)
+        // setContentView(R.layout.activity_pexels_test) // 暂时注释掉，布局文件缺失
         
-        initViews()
-        setupListeners()
+        // 暂时显示一个简单的提示
+        Toast.makeText(this, "Pexels测试功能暂未实现", Toast.LENGTH_LONG).show()
+        finish()
+        
+        // initViews()
+        // setupListeners()
     }
     
-    private fun initViews() {
-        btnTestSearch = findViewById(R.id.btn_test_search)
-        btnTestCurated = findViewById(R.id.btn_test_curated)
-        tvResult = findViewById(R.id.tv_result)
-        
-        title = "Pexels API 测试"
-    }
-    
-    private fun setupListeners() {
-        btnTestSearch.setOnClickListener {
-            testSearchAPI()
-        }
-        
-        btnTestCurated.setOnClickListener {
-            testCuratedAPI()
-        }
-    }
+    // private fun initViews() {
+    //     btnTestSearch = findViewById(R.id.btn_test_search)
+    //     btnTestCurated = findViewById(R.id.btn_test_curated)
+    //     tvResult = findViewById(R.id.tv_result)
+    //     
+    //     title = "Pexels API 测试"
+    // }
+    // 
+    // private fun setupListeners() {
+    //     btnTestSearch.setOnClickListener {
+    //         testSearchAPI()
+    //     }
+    //     
+    //     btnTestCurated.setOnClickListener {
+    //         testSearchAPI()
+    //     }
+    // }
     
     private fun testSearchAPI() {
         tvResult.text = "正在测试搜索API..."

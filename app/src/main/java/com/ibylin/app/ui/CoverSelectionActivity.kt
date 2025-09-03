@@ -8,7 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
+import androidx.appcompat.widget.SearchView
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -48,8 +48,7 @@ class CoverSelectionActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvStatus: TextView
-    private lateinit var etSearch: EditText
-    private lateinit var btnSearch: Button
+    private lateinit var searchView: SearchView
     private lateinit var btnLoadMore: Button
     private lateinit var adapter: CoverSelectionAdapter
     private val pexelsManager = PexelsManager.getInstance()
@@ -75,15 +74,13 @@ class CoverSelectionActivity : AppCompatActivity() {
     private fun initViews() {
         recyclerView = findViewById(R.id.rv_covers)
         progressBar = findViewById(R.id.progress_bar)
-        tvStatus = findViewById(R.id.tv_status)
-        etSearch = findViewById(R.id.et_search)
-        btnSearch = findViewById(R.id.btn_search)
+        searchView = findViewById(R.id.search_view)
         btnLoadMore = findViewById(R.id.btn_load_more)
         
         title = "为《${book.metadata?.title ?: book.name}》选择封面"
         
         // 不设置默认搜索关键词，让用户自由输入
-        etSearch.setText("")
+        searchView.setQuery("", false)
         currentSearchQuery = ""
     }
     
@@ -114,24 +111,92 @@ class CoverSelectionActivity : AppCompatActivity() {
         recyclerView.layoutManager = GridLayoutManager(this, 2)
         recyclerView.adapter = adapter
         
-        // 设置搜索按钮点击事件
-        btnSearch.setOnClickListener {
-            performSearch()
-        }
+        // iOS 风格的滑动优化
+        setupIOSStyleScrolling()
+        
+        // 设置搜索视图监听器
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                query?.let { performSearch() }
+                return true
+            }
+            
+            override fun onQueryTextChange(newText: String?): Boolean {
+                // 可以在这里实现实时搜索，暂时不实现
+                return false
+            }
+        })
         
         // 设置加载更多按钮点击事件
         btnLoadMore.setOnClickListener {
             loadMoreImages()
         }
+    }
+    
+    private fun setupIOSStyleScrolling() {
+        // 使用 Android 原生最新动画
+        recyclerView.setItemAnimator(androidx.recyclerview.widget.DefaultItemAnimator().apply {
+            addDuration = 300L
+            removeDuration = 300L
+            moveDuration = 300L
+            changeDuration = 300L
+        })
         
-        // 设置搜索框回车键事件
-        etSearch.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
-                performSearch()
-                true
-            } else {
-                false
+        // 设置滑动行为
+        recyclerView.setHasFixedSize(true)
+        
+        // 使用系统默认的过度滚动效果
+        recyclerView.setOverScrollMode(android.view.View.OVER_SCROLL_IF_CONTENT_SCROLLS)
+        
+        // 添加滑动监听器，在滑动结束时播放原生弹性动画
+        setupScrollListener()
+        
+        Log.d(TAG, "Android 原生动画滑动配置完成")
+    }
+    
+    private fun setupScrollListener() {
+        recyclerView.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            private var isScrolling = false
+            
+            override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
+                when (newState) {
+                    androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE -> {
+                        if (isScrolling) {
+                            // 滑动结束时播放原生弹性动画
+                            playNativeBounceAnimation(recyclerView)
+                            isScrolling = false
+                            Log.d(TAG, "滑动结束，播放原生弹性动画")
+                        }
+                    }
+                    androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING -> {
+                        isScrolling = true
+                    }
+                    androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_SETTLING -> {
+                        isScrolling = true
+                    }
+                }
             }
+        })
+    }
+    
+
+    
+    private fun playNativeBounceAnimation(view: View) {
+        try {
+            // 使用 Android 原生的弹性动画
+            val bounceAnimation = android.view.animation.AnimationUtils.loadAnimation(
+                this,
+                android.R.anim.overshoot_interpolator
+            ).apply {
+                duration = 400L
+                interpolator = android.view.animation.OvershootInterpolator(1.5f)
+            }
+            
+            view.startAnimation(bounceAnimation)
+            Log.d(TAG, "原生弹性动画播放完成")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "播放原生弹性动画失败", e)
         }
     }
     
@@ -146,7 +211,7 @@ class CoverSelectionActivity : AppCompatActivity() {
     }
     
     private fun performSearch() {
-        val originalQuery = etSearch.text.toString().trim()
+        val originalQuery = searchView.query.toString().trim()
         if (originalQuery.isEmpty()) {
             Toast.makeText(this, "请输入搜索关键词", Toast.LENGTH_SHORT).show()
             return

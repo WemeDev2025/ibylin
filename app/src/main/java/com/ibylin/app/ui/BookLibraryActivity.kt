@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.ibylin.app.R
 import com.ibylin.app.adapter.BookGridAdapter
 import com.ibylin.app.reader.ReadiumReaderActivity
@@ -29,9 +30,14 @@ import kotlinx.coroutines.withContext
 class BookLibraryActivity : AppCompatActivity() {
     
     private lateinit var rvBooks: RecyclerView
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var llScanning: android.widget.LinearLayout
     private lateinit var llNoBooks: android.widget.LinearLayout
     private lateinit var bookGridAdapter: BookGridAdapter
+    private lateinit var llHeader: android.widget.LinearLayout
+    private lateinit var tvTitle: TextView
+
+
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     
@@ -58,6 +64,9 @@ class BookLibraryActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_book_library)
+        
+        // 设置状态栏透明，确保背景图片透明度正确显示
+        setupTransparentStatusBar()
         
         initViews()
         setupRecyclerView()
@@ -92,32 +101,218 @@ class BookLibraryActivity : AppCompatActivity() {
     // 缓存相关
     private var cachedEpubFiles: List<EpubFile> = emptyList()
     private var isDataCached = false
+    private var isUpdatingFromDelete = false // 防止删除后的重复计数更新
     
     // 持久化缓存
-    private val sharedPreferences by lazy { getSharedPreferences("book_cache", MODE_PRIVATE) }
+    private val sharedPreferences by lazy { getSharedPreferences("book_cache", MODE_PRIVATE)     }
+    
+    private fun setupTransparentStatusBar() {
+        // 设置状态栏透明
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            window.decorView.systemUiVisibility = 
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        }
+    }
     
     private fun initViews() {
         rvBooks = findViewById(R.id.rv_books)
+        swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout)
         llScanning = findViewById(R.id.tv_scanning)
         llNoBooks = findViewById(R.id.tv_no_books)
-        
-        // 设置更新按钮点击事件
-        findViewById<android.widget.ImageButton>(R.id.btn_settings).setOnClickListener {
-            manualUpdate()
-        }
+        llHeader = findViewById(R.id.ll_header)
+        tvTitle = findViewById(R.id.tv_title)
     }
+    
+
+    
+
     
     private fun setupRecyclerView() {
         // 设置网格布局，一行2个
         val gridLayoutManager = GridLayoutManager(this, 2)
         rvBooks.layoutManager = gridLayoutManager
         
+        // 添加自定义间距装饰器，减少垂直间距40%
+        val spacing = resources.getDimensionPixelSize(R.dimen.grid_spacing)
+        rvBooks.addItemDecoration(GridSpacingItemDecoration(2, spacing, true))
+        
+        // iOS 风格的滑动优化
+        setupIOSStyleScrolling()
+        
         // 初始化适配器
-        bookGridAdapter = BookGridAdapter { epubFile ->
-            // 点击书籍时跳转到阅读器
-            openReadiumReader(epubFile.path)
-        }
+        bookGridAdapter = BookGridAdapter(
+            onItemClick = { epubFile ->
+                // 点击书籍时跳转到阅读器
+                openReadiumReader(epubFile.path)
+            },
+            onBookDeleted = { newCount ->
+                // 书籍删除后更新计数和缓存
+                android.util.Log.d("BookLibraryActivity", "收到书籍删除通知，新数量: $newCount")
+                
+                // 设置删除更新标志，防止重复计数更新
+                isUpdatingFromDelete = true
+                
+                // 直接使用适配器返回的新数量，避免重复计算
+                android.util.Log.d("BookLibraryActivity", "使用适配器返回的新数量: $newCount")
+                
+                // 更新缓存的书籍列表，过滤掉不存在的文件
+                val originalCacheSize = cachedEpubFiles.size
+                val filteredEpubFiles = cachedEpubFiles.filter { epubFile ->
+                    val file = java.io.File(epubFile.path)
+                    val exists = file.exists()
+                    if (!exists) {
+                        android.util.Log.d("BookLibraryActivity", "缓存中发现已删除的文件: ${epubFile.name}")
+                    }
+                    exists
+                }
+                
+                // 按最后修改时间排序：最新添加的书籍显示在最前面
+                val sortedFilteredEpubFiles = filteredEpubFiles.sortedByDescending { it.lastModified }
+                cachedEpubFiles = sortedFilteredEpubFiles
+                
+                android.util.Log.d("BookLibraryActivity", "缓存过滤完成: 原始缓存数量=$originalCacheSize, 过滤后缓存数量=${filteredEpubFiles.size}, 排序后数量=${sortedFilteredEpubFiles.size}")
+                
+                // 保存更新后的缓存
+                saveCacheData(cachedEpubFiles)
+                
+                // 使用适配器返回的新数量更新标题，确保计数一致
+                updateTitle(newCount)
+                
+                android.util.Log.d("BookLibraryActivity", "删除后更新完成: 标题数量=$newCount, 缓存数量=${cachedEpubFiles.size}")
+                
+                // 延迟重置标志，确保其他可能的更新操作完成
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    isUpdatingFromDelete = false
+                    android.util.Log.d("BookLibraryActivity", "删除更新标志已重置")
+                }, 1000) // 1秒后重置
+            }
+        )
         rvBooks.adapter = bookGridAdapter
+        
+        // 配置下拉刷新
+        setupSwipeRefresh()
+    }
+    
+    private fun setupIOSStyleScrolling() {
+        // 使用 Android 原生最新动画
+        rvBooks.setItemAnimator(androidx.recyclerview.widget.DefaultItemAnimator().apply {
+            addDuration = 300L
+            removeDuration = 300L
+            moveDuration = 300L
+            changeDuration = 300L
+        })
+        
+        // 设置滑动行为
+        rvBooks.setHasFixedSize(true)
+        
+        // 使用系统默认的过度滚动效果
+        rvBooks.setOverScrollMode(android.view.View.OVER_SCROLL_IF_CONTENT_SCROLLS)
+        
+        // 添加滑动监听器，在滑动结束时播放原生弹性动画
+        setupScrollListener()
+        
+        android.util.Log.d("BookLibraryActivity", "Android 原生动画滑动配置完成")
+    }
+    
+    /**
+     * 配置下拉刷新
+     */
+    private fun setupSwipeRefresh() {
+        // 设置下拉刷新的颜色
+        swipeRefreshLayout.setColorSchemeResources(
+            R.color.apple_books_primary,
+            R.color.apple_books_secondary,
+            R.color.apple_books_accent
+        )
+        
+        // 设置下拉刷新的背景颜色
+        swipeRefreshLayout.setProgressBackgroundColorSchemeResource(R.color.apple_books_bg)
+        
+        // 设置下拉刷新的监听器
+        swipeRefreshLayout.setOnRefreshListener {
+            android.util.Log.d("BookLibraryActivity", "下拉刷新触发")
+            // 开始刷新
+            startRefresh()
+        }
+        
+        android.util.Log.d("BookLibraryActivity", "下拉刷新配置完成")
+    }
+    
+    /**
+     * 开始刷新
+     */
+    private fun startRefresh() {
+        // 清除缓存，强制重新扫描
+        clearCacheData()
+        
+        // 开始扫描书籍
+        startBookScan()
+    }
+    
+    private fun setupScrollListener() {
+        rvBooks.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            private var isScrolling = false
+            
+            override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
+                when (newState) {
+                    androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE -> {
+                        if (isScrolling) {
+                            // 滑动结束时播放原生弹性动画
+                            playNativeBounceAnimation(rvBooks)
+                            isScrolling = false
+                            android.util.Log.d("BookLibraryActivity", "滑动结束，播放原生弹性动画")
+                        }
+                    }
+                    androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING -> {
+                        isScrolling = true
+                    }
+                    androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_SETTLING -> {
+                        isScrolling = true
+                    }
+                }
+            }
+        })
+    }
+    
+    private fun playNativeBounceAnimation(view: View) {
+        try {
+            // 使用 Android 原生的弹性动画
+            val bounceAnimation = android.view.animation.AnimationUtils.loadAnimation(
+                this,
+                android.R.anim.overshoot_interpolator
+            ).apply {
+                duration = 400L
+                interpolator = android.view.animation.OvershootInterpolator(1.5f)
+            }
+            
+            view.startAnimation(bounceAnimation)
+            android.util.Log.d("BookLibraryActivity", "原生弹性动画播放完成")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "播放原生弹性动画失败", e)
+        }
+    }
+    
+    /**
+     * 更新标题，显示书籍计数
+     */
+    private fun updateTitle(bookCount: Int) {
+        // 如果正在从删除操作更新，跳过计数更新，避免重复
+        if (isUpdatingFromDelete) {
+            android.util.Log.d("BookLibraryActivity", "跳过计数更新，正在从删除操作更新: $bookCount")
+            return
+        }
+        
+        val titleText = if (bookCount > 0) {
+            "书库（$bookCount）"
+        } else {
+            "书库"
+        }
+        tvTitle.text = titleText
+        android.util.Log.d("BookLibraryActivity", "标题已更新: $titleText")
     }
     
     /**
@@ -160,20 +355,39 @@ class BookLibraryActivity : AppCompatActivity() {
                     android.util.Log.d("BookLibraryActivity", "切换到主线程，开始显示书籍")
                     hideScanningProgress()
                     
+                    // 停止下拉刷新动画
+                    swipeRefreshLayout.isRefreshing = false
+                    
+                    // 过滤掉不存在的文件，确保数据一致性
+                    val validEpubFiles = epubFiles.filter { epubFile ->
+                        val file = java.io.File(epubFile.path)
+                        val exists = file.exists()
+                        if (!exists) {
+                            android.util.Log.w("BookLibraryActivity", "扫描发现已删除的文件: ${epubFile.name}")
+                        }
+                        exists
+                    }
+                    
+                    android.util.Log.d("BookLibraryActivity", "扫描完成: 原始数量=${epubFiles.size}, 有效数量=${validEpubFiles.size}")
+                    
                     // 缓存数据
-                    cachedEpubFiles = epubFiles
+                    cachedEpubFiles = validEpubFiles
                     isDataCached = true
                     
                     // 保存缓存到SharedPreferences
-                    saveCacheData(epubFiles)
+                    saveCacheData(validEpubFiles)
                     
-                    showBooks(epubFiles)
+                    showBooks(validEpubFiles)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("BookLibraryActivity", "扫描书籍时发生异常", e)
                 withContext(Dispatchers.Main) {
                     android.util.Log.d("BookLibraryActivity", "异常处理：隐藏扫描进度，显示无书籍")
                     hideScanningProgress()
+                    
+                    // 停止下拉刷新动画
+                    swipeRefreshLayout.isRefreshing = false
+                    
                     showNoBooks()
                 }
             }
@@ -202,17 +416,35 @@ class BookLibraryActivity : AppCompatActivity() {
     private fun showBooks(epubFiles: List<EpubFile>) {
         android.util.Log.d("BookLibraryActivity", "showBooks被调用: 文件数量=${epubFiles.size}")
         
-        if (epubFiles.isEmpty()) {
-            android.util.Log.d("BookLibraryActivity", "文件列表为空，显示无书籍提示")
+        // 确保数据一致性：再次过滤不存在的文件
+        val finalEpubFiles = epubFiles.filter { epubFile ->
+            val file = java.io.File(epubFile.path)
+            val exists = file.exists()
+            if (!exists) {
+                android.util.Log.w("BookLibraryActivity", "showBooks中发现已删除的文件: ${epubFile.name}")
+            }
+            exists
+        }
+        
+        // 按最后修改时间排序：最新添加的书籍显示在最前面
+        val sortedEpubFiles = finalEpubFiles.sortedByDescending { it.lastModified }
+        
+        android.util.Log.d("BookLibraryActivity", "最终显示: 原始数量=${epubFiles.size}, 最终数量=${finalEpubFiles.size}, 排序后数量=${sortedEpubFiles.size}")
+        
+        // 更新标题显示书籍计数
+        updateTitle(sortedEpubFiles.size)
+        
+        if (sortedEpubFiles.isEmpty()) {
+            android.util.Log.d("BookLibraryActivity", "最终文件列表为空，显示无书籍提示")
             showNoBooks()
         } else {
-            android.util.Log.d("BookLibraryActivity", "文件列表不为空，显示书籍列表")
+            android.util.Log.d("BookLibraryActivity", "最终文件列表不为空，显示书籍列表")
             android.util.Log.d("BookLibraryActivity", "设置llNoBooks为GONE, rvBooks为VISIBLE")
             llNoBooks.visibility = View.GONE
             rvBooks.visibility = View.VISIBLE
             
             android.util.Log.d("BookLibraryActivity", "调用bookGridAdapter.updateEpubFiles")
-            bookGridAdapter.updateEpubFiles(epubFiles)
+            bookGridAdapter.updateEpubFiles(sortedEpubFiles)
             android.util.Log.d("BookLibraryActivity", "bookGridAdapter.updateEpubFiles调用完成")
         }
     }
@@ -221,6 +453,9 @@ class BookLibraryActivity : AppCompatActivity() {
      * 显示无书籍提示
      */
     private fun showNoBooks() {
+        // 更新标题显示无书籍
+        updateTitle(0)
+        
         llNoBooks.visibility = View.VISIBLE
         rvBooks.visibility = View.GONE
     }
@@ -301,9 +536,11 @@ class BookLibraryActivity : AppCompatActivity() {
                     }
                     
                     if (restoredEpubFiles.isNotEmpty()) {
-                        cachedEpubFiles = restoredEpubFiles
+                        // 按最后修改时间排序：最新添加的书籍显示在最前面
+                        val sortedRestoredEpubFiles = restoredEpubFiles.sortedByDescending { it.lastModified }
+                        cachedEpubFiles = sortedRestoredEpubFiles
                         isDataCached = true
-                        android.util.Log.d("BookLibraryActivity", "恢复完整缓存数据: 文件数量=${restoredEpubFiles.size}")
+                        android.util.Log.d("BookLibraryActivity", "恢复完整缓存数据: 文件数量=${restoredEpubFiles.size}, 排序后数量=${sortedRestoredEpubFiles.size}")
                     } else {
                         android.util.Log.d("BookLibraryActivity", "恢复的缓存数据为空，清除缓存")
                         clearCacheData()
@@ -440,6 +677,47 @@ class BookLibraryActivity : AppCompatActivity() {
         bookGridAdapter?.let { adapter ->
             adapter.notifyDataSetChanged()
             android.util.Log.d("BookLibraryActivity", "书架封面已刷新")
+        }
+    }
+    
+    /**
+     * 自定义网格间距装饰器
+     */
+    private class GridSpacingItemDecoration(
+        private val spanCount: Int,
+        private val spacing: Int,
+        private val includeEdge: Boolean
+    ) : RecyclerView.ItemDecoration() {
+        
+        override fun getItemOffsets(
+            outRect: android.graphics.Rect,
+            view: View,
+            parent: RecyclerView,
+            state: RecyclerView.State
+        ) {
+            val position = parent.getChildAdapterPosition(view)
+            val column = position % spanCount
+            
+            if (includeEdge) {
+                // 设置左右间距
+                outRect.left = spacing - column * spacing / spanCount
+                outRect.right = (column + 1) * spacing / spanCount
+                
+                // 设置上下间距 - 增加25dp
+                if (position < spanCount) {
+                    outRect.top = 25  // 顶部间距增加25dp
+                }
+                outRect.bottom = 25   // 底部间距增加25dp
+            } else {
+                // 设置左右间距
+                outRect.left = column * spacing / spanCount
+                outRect.right = spacing - (column + 1) * spacing / spanCount
+                
+                // 设置上下间距 - 增加25dp
+                if (position >= spanCount) {
+                    outRect.top = 25  // 顶部间距增加25dp
+                }
+            }
         }
     }
 }

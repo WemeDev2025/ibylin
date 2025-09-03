@@ -15,6 +15,28 @@ class EpubScanner {
     }
     
     /**
+     * 获取单个EPUB文件信息
+     */
+    fun getEpubFileInfo(filePath: String): EpubFile? {
+        return try {
+            val file = File(filePath)
+            if (file.exists() && isEpubFile(file.name)) {
+                val metadata = tryParseEpubMetadata(file.absolutePath)
+                EpubFile(
+                    name = file.name,
+                    path = file.absolutePath,
+                    size = file.length(),
+                    lastModified = file.lastModified(),
+                    metadata = metadata
+                )
+            } else null
+        } catch (e: Exception) {
+            Log.e(TAG, "获取EPUB文件信息失败: $filePath", e)
+            null
+        }
+    }
+    
+    /**
      * 扫描设备上的所有EPUB文件
      */
     suspend fun scanEpubFiles(context: Context): List<EpubFile> = withContext(Dispatchers.IO) {

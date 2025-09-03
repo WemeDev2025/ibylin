@@ -3,6 +3,7 @@ package com.ibylin.app.ui
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -27,23 +28,27 @@ class LocalBooksActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_local_books)
+        // setContentView(R.layout.activity_local_books) // 暂时注释掉，布局文件缺失
         
-        initViews()
-        setupRecyclerView()
-        startBookScan()
+        // 暂时显示一个简单的提示
+        Toast.makeText(this, "LocalBooks功能暂未实现", Toast.LENGTH_LONG).show()
+        finish()
+        
+        // initViews()
+        // setupRecyclerView()
+        // startBookScan()
     }
     
-    private fun initViews() {
-        rvEpubFiles = findViewById(R.id.rv_epub_files)
-        llScanning = findViewById(R.id.ll_scanning)
-        llNoFiles = findViewById(R.id.ll_no_files)
-        
-        // 设置扫描按钮点击事件
-        findViewById<android.widget.ImageButton>(R.id.btn_scan).setOnClickListener {
-            startBookScan()
-        }
-    }
+    // private fun initViews() {
+    //     rvEpubFiles = findViewById(R.id.rv_epub_files)
+    //     llScanning = findViewById(R.id.ll_scanning)
+    //     llNoFiles = findViewById(R.id.ll_no_files)
+    //     
+    //     // 设置扫描按钮点击事件
+    //     findViewById<android.widget.ImageButton>(R.id.btn_scan).setOnClickListener {
+    //         startBookScan()
+    //     }
+    // }
     
     private fun setupRecyclerView() {
         // 设置线性布局

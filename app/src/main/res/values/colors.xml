@@ -17,6 +17,12 @@
     <color name="apple_books_text_primary">#FFFFFFFF</color>  <!-- 主要文字 - 白色 -->
     <color name="apple_books_text_secondary">#FF8E8E93</color> <!-- 次要文字 - 浅灰 -->
     <color name="apple_books_accent">#FF007AFF</color>        <!-- 强调色 - 苹果蓝 -->
+    <color name="apple_books_primary">#FF007AFF</color>       <!-- 主要颜色 - 苹果蓝 -->
+    <color name="apple_books_secondary">#FF8E8E93</color>    <!-- 次要颜色 - 浅灰 -->
     <color name="apple_books_border">#FF3A3A3C</color>       <!-- 边框色 - 深灰 -->
     <color name="apple_books_read_bg">#FF3A3A3C</color>      <!-- 已读图书背景 - 更深的灰 -->
+    
+    <!-- 书库按钮颜色 -->
+    <color name="book_library_button">#FF1EB4A2</color>      <!-- 书库按钮颜色 - 青绿色 -->
+    <color name="book_library_button_pressed">#FF1A9A8A</color>  <!-- 书库按钮按下状态 - 深青绿色 -->
 </resources>

@@ -21,7 +21,8 @@ import java.io.File
 
 class BookGridAdapter(
     private var epubFiles: List<EpubFile> = emptyList(),
-    private val onItemClick: ((EpubFile) -> Unit)? = null
+    private val onItemClick: ((EpubFile) -> Unit)? = null,
+    private val onBookDeleted: ((Int) -> Unit)? = null
 ) : RecyclerView.Adapter<BookGridAdapter.BookGridViewHolder>() {
     
     class BookGridViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -69,10 +70,15 @@ class BookGridAdapter(
             android.util.Log.d("BookGridAdapter", "开始加载封面: ${epubFile.name}")
             loadCoverImage(holder.ivCover, epubFile)
             
-            // 设置封面点击事件
+            // 设置封面点击事件，添加缩放动画
             holder.ivCover.setOnClickListener {
                 android.util.Log.d("BookGridAdapter", "封面点击事件触发: ${epubFile.name}")
-                onItemClick?.invoke(epubFile)
+                
+                // 执行点击缩放动画
+                performClickAnimation(holder.ivCover) {
+                    // 动画完成后执行点击回调
+                    onItemClick?.invoke(epubFile)
+                }
             }
             
             // 设置菜单按钮点击事件
@@ -86,7 +92,7 @@ class BookGridAdapter(
             android.util.Log.e("BookGridAdapter", "绑定ViewHolder失败: position=$position", e)
             // 设置默认值，避免崩溃
             holder.tvReadingProgress.text = "0%"
-            holder.ivCover.setBackgroundColor(android.graphics.Color.parseColor("#E0E0E0"))
+            holder.ivCover.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         }
     }
     
@@ -325,6 +331,7 @@ class BookGridAdapter(
                     updateEpubFiles(currentList)
                     
                     Toast.makeText(context, "《${epubFile.metadata?.title ?: epubFile.name}》已删除", Toast.LENGTH_SHORT).show()
+                    onBookDeleted?.invoke(currentList.size) // 通知Activity更新计数
                 } else {
                     android.util.Log.e("BookGridAdapter", "文件删除失败: ${epubFile.path}")
                     Toast.makeText(context, "删除失败，请检查文件权限", Toast.LENGTH_SHORT).show()
@@ -336,6 +343,41 @@ class BookGridAdapter(
         } catch (e: Exception) {
             android.util.Log.e("BookGridAdapter", "删除文件时发生异常: ${epubFile.path}", e)
             Toast.makeText(context, "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 执行封面点击缩放动画
+     * 使用Android原生ViewPropertyAnimator实现流畅的缩放效果
+     */
+    private fun performClickAnimation(view: View, onAnimationComplete: () -> Unit) {
+        try {
+            // 使用ViewPropertyAnimator实现流畅的缩放动画
+            view.animate()
+                .scaleX(0.9f)  // 缩小到90%
+                .scaleY(0.9f)  // 缩小到90%
+                .setDuration(150) // 150毫秒缩小
+                .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+                .withEndAction {
+                    // 缩小完成后，恢复原大小
+                    view.animate()
+                        .scaleX(1.0f)  // 恢复到100%
+                        .scaleY(1.0f)  // 恢复到100%
+                        .setDuration(150) // 150毫秒恢复
+                        .setInterpolator(android.view.animation.OvershootInterpolator(0.8f)) // 弹性效果
+                        .withEndAction {
+                            // 动画完全结束后执行回调
+                            onAnimationComplete()
+                        }
+                        .start()
+                }
+                .start()
+                
+            android.util.Log.d("BookGridAdapter", "封面点击动画开始执行")
+        } catch (e: Exception) {
+            android.util.Log.e("BookGridAdapter", "执行封面点击动画失败", e)
+            // 如果动画失败，直接执行回调
+            onAnimationComplete()
         }
     }
 }

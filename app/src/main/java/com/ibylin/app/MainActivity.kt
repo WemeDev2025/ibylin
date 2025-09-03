@@ -26,10 +26,9 @@ import kotlinx.coroutines.withContext
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     
-    private lateinit var rectangle1: View
+
     private lateinit var btnBookLibrary: android.widget.Button
-    private lateinit var btnLocalBooks: android.widget.Button
-    private lateinit var btnReaderSettings: android.widget.Button
+
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     
@@ -60,33 +59,20 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun initViews() {
-        rectangle1 = findViewById(R.id.rectangle_1)
+
         btnBookLibrary = findViewById(R.id.btn_book_library)
-        btnLocalBooks = findViewById(R.id.btn_local_books)
-        btnReaderSettings = findViewById(R.id.btn_reader_settings)
+
     }
     
     private fun setupClickListeners() {
-        // 卡片点击事件
-        rectangle1.setOnClickListener {
-            // 卡片点击后可以跳转到本地图书页面
-            openLocalBooks()
-        }
+
         
         // 书架按钮点击事件
         btnBookLibrary.setOnClickListener {
             openBookLibrary()
         }
         
-        // 本地图书按钮点击事件
-        btnLocalBooks.setOnClickListener {
-            openLocalBooks()
-        }
-        
-        // 阅读器设置按钮点击事件
-        btnReaderSettings.setOnClickListener {
-            openReaderSettings()
-        }
+
     }
     
     private fun showPermissionDialog(title: String, message: String) {

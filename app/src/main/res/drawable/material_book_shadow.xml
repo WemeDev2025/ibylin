@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 最外层阴影 - 模拟环境光 -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#15000000" />
+            <corners android:radius="12dp" />
+            <padding
+                android:bottom="6dp"
+                android:left="6dp"
+                android:right="6dp"
+                android:top="6dp" />
+        </shape>
+    </item>
+    
+    <!-- 中层阴影 - 模拟直接光 -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#25000000" />
+            <corners android:radius="10dp" />
+            <padding
+                android:bottom="4dp"
+                android:left="4dp"
+                android:right="4dp"
+                android:top="4dp" />
+        </shape>
+    </item>
+    
+    <!-- 内层阴影 - 模拟接触阴影 -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#35000000" />
+            <corners android:radius="8dp" />
+            <padding
+                android:bottom="2dp"
+                android:left="2dp"
+                android:right="2dp"
+                android:top="2dp" />
+        </shape>
+    </item>
+    
+    <!-- 主封面层 -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+</layer-list>
