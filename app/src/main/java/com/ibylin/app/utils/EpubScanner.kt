@@ -292,13 +292,15 @@ class EpubScanner {
 /**
  * EPUB文件信息数据类
  */
+@androidx.annotation.Keep
+@kotlinx.parcelize.Parcelize
 data class EpubFile(
     val name: String,
     val path: String,
     val size: Long,
     val lastModified: Long,
     val metadata: EpubFileMetadata? = null
-) {
+) : android.os.Parcelable {
     /**
      * 获取文件大小的人类可读格式
      */
@@ -324,10 +326,12 @@ data class EpubFile(
 /**
  * EPUB文件元数据信息数据类
  */
+@androidx.annotation.Keep
+@kotlinx.parcelize.Parcelize
 data class EpubFileMetadata(
     val title: String,
     val author: String?,
     val coverImagePath: String?,
     val description: String?,
     val version: String? = null
-)
+) : android.os.Parcelable

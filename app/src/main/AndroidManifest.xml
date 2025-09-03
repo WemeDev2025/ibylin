@@ -51,6 +51,11 @@
             android:name=".ui.LocalBooksActivity"
             android:exported="false"
             android:theme="@style/Theme.Ibylin" />
+            
+        <activity
+            android:name=".ui.CoverSelectionActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Ibylin" />
     </application>
 
 </manifest>

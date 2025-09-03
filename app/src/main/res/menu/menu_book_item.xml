@@ -9,6 +9,12 @@
         app:showAsAction="never" />
     
     <item
+        android:id="@+id/action_change_cover"
+        android:title="更换封面"
+        android:icon="@drawable/ic_image"
+        app:showAsAction="never" />
+    
+    <item
         android:id="@+id/action_book_info"
         android:title="书籍信息"
         android:icon="@drawable/ic_info"

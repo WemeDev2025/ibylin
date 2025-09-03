@@ -188,6 +188,10 @@ class BookGridAdapter(
                     onItemClick?.invoke(epubFile)
                     true
                 }
+                R.id.action_change_cover -> {
+                    changeBookCover(anchorView.context, epubFile)
+                    true
+                }
                 R.id.action_book_info -> {
                     showBookInfo(anchorView.context, epubFile)
                     true
@@ -242,6 +246,22 @@ class BookGridAdapter(
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    /**
+     * 更换书籍封面
+     */
+    private fun changeBookCover(context: android.content.Context, epubFile: EpubFile) {
+        try {
+            // 启动封面选择Activity
+            val intent = android.content.Intent(context, com.ibylin.app.ui.CoverSelectionActivity::class.java).apply {
+                putExtra("extra_book", epubFile as android.os.Parcelable)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("BookGridAdapter", "启动封面选择失败", e)
+            Toast.makeText(context, "启动封面选择失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     /**
