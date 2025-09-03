@@ -38,16 +38,13 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp">
+            android:gravity="center_vertical">
             
             <!-- 阅读进度 -->
             <TextView
                 android:id="@+id/tv_reading_progress"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:text="0%"
                 android:textSize="10sp"
                 android:textColor="@color/apple_books_text_secondary"
@@ -64,7 +61,8 @@
                 android:contentDescription="书籍菜单"
                 android:scaleType="fitCenter"
                 android:padding="4dp"
-                android:tint="@color/apple_books_text_secondary" />
+                android:tint="@color/apple_books_text_secondary"
+                android:layout_gravity="end" />
         </LinearLayout>
 
     </LinearLayout>
