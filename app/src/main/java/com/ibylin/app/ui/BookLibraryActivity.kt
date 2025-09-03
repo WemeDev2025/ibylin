@@ -416,4 +416,30 @@ class BookLibraryActivity : AppCompatActivity() {
             .setCancelable(false)
             .show()
     }
+    
+    /**
+     * 处理封面更新的结果
+     */
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        
+        if (requestCode == com.ibylin.app.ui.CoverSelectionActivity.RESULT_COVER_UPDATED && 
+            resultCode == com.ibylin.app.ui.CoverSelectionActivity.RESULT_COVER_UPDATED) {
+            
+            // 封面已更新，刷新书架显示
+            android.util.Log.d("BookLibraryActivity", "封面已更新，刷新书架")
+            refreshBookCovers()
+        }
+    }
+    
+    /**
+     * 刷新书籍封面显示
+     */
+    private fun refreshBookCovers() {
+        // 通知适配器刷新封面显示
+        bookGridAdapter?.let { adapter ->
+            adapter.notifyDataSetChanged()
+            android.util.Log.d("BookLibraryActivity", "书架封面已刷新")
+        }
+    }
 }

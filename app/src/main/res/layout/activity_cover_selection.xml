@@ -5,13 +5,51 @@
     android:orientation="vertical"
     android:background="@color/apple_books_bg">
 
+    <!-- 搜索区域 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="@color/apple_books_card_bg"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/et_search"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="输入搜索关键词..."
+            android:textColor="@android:color/black"
+            android:textColorHint="@color/apple_books_text_secondary"
+            android:background="@drawable/search_input_background"
+            android:padding="12dp"
+            android:textSize="16sp"
+            android:imeOptions="actionSearch"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/btn_search"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="搜索"
+            android:textColor="@color/white"
+            android:background="@drawable/button_background"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp" />
+
+    </LinearLayout>
+
     <!-- 状态栏 -->
     <TextView
         android:id="@+id/tv_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp"
-        android:text="正在搜索封面图片..."
+        android:text="输入关键词搜索封面图片，如：高山、大海、科幻、简约等"
         android:textColor="@color/apple_books_text_primary"
         android:textSize="16sp"
         android:gravity="center"
@@ -24,7 +62,8 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginTop="32dp"
-        android:indeterminateTint="@color/apple_books_accent" />
+        android:indeterminateTint="@color/apple_books_accent"
+        android:visibility="gone" />
 
     <!-- 封面图片网格 -->
     <androidx.recyclerview.widget.RecyclerView
@@ -34,5 +73,17 @@
         android:layout_weight="1"
         android:padding="8dp"
         android:clipToPadding="false" />
+
+    <!-- 加载更多按钮 -->
+    <Button
+        android:id="@+id/btn_load_more"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:text="加载更多图片"
+        android:textColor="@color/white"
+        android:background="@drawable/button_background"
+        android:padding="12dp"
+        android:visibility="gone" />
 
 </LinearLayout>

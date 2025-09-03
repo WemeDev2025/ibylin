@@ -15,6 +15,7 @@ import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.AdvancedCoverExtractor
 import com.ibylin.app.utils.CoverResult
 import com.ibylin.app.utils.CoverExtractionStats
+import com.ibylin.app.utils.CoverManager
 import java.util.zip.ZipFile
 import java.io.File
 
@@ -102,7 +103,24 @@ class BookGridAdapter(
         val startTime = System.currentTimeMillis()
         
         try {
-            // 使用高级封面解析器
+            // 首先检查是否有自定义封面
+            val customCoverPath = CoverManager.getBookCover(imageView.context, epubFile.name)
+            if (customCoverPath != null && File(customCoverPath).exists()) {
+                android.util.Log.d("BookGridAdapter", "使用自定义封面: $customCoverPath")
+                
+                // 使用Glide加载自定义封面
+                com.bumptech.glide.Glide.with(imageView.context)
+                    .load(customCoverPath)
+                    .placeholder(R.drawable.placeholder_cover)
+                    .error(R.drawable.placeholder_cover)
+                    .into(imageView)
+                
+                imageView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                android.util.Log.d("BookGridAdapter", "自定义封面设置完成: ${epubFile.name}")
+                return
+            }
+            
+            // 如果没有自定义封面，使用高级封面解析器
             val coverResult = AdvancedCoverExtractor.extractCover(epubFile.path)
             
             val extractionTime = System.currentTimeMillis() - startTime
@@ -254,10 +272,18 @@ class BookGridAdapter(
     private fun changeBookCover(context: android.content.Context, epubFile: EpubFile) {
         try {
             // 启动封面选择Activity
-            val intent = android.content.Intent(context, com.ibylin.app.ui.CoverSelectionActivity::class.java).apply {
-                putExtra("extra_book", epubFile as android.os.Parcelable)
+            if (context is androidx.appcompat.app.AppCompatActivity) {
+                val intent = android.content.Intent(context, com.ibylin.app.ui.CoverSelectionActivity::class.java).apply {
+                    putExtra("extra_book", epubFile as android.os.Parcelable)
+                }
+                context.startActivityForResult(intent, com.ibylin.app.ui.CoverSelectionActivity.RESULT_COVER_UPDATED)
+            } else {
+                // 如果不是Activity，使用普通方式启动
+                val intent = android.content.Intent(context, com.ibylin.app.ui.CoverSelectionActivity::class.java).apply {
+                    putExtra("extra_book", epubFile as android.os.Parcelable)
+                }
+                context.startActivity(intent)
             }
-            context.startActivity(intent)
         } catch (e: Exception) {
             android.util.Log.e("BookGridAdapter", "启动封面选择失败", e)
             Toast.makeText(context, "启动封面选择失败: ${e.message}", Toast.LENGTH_SHORT).show()
