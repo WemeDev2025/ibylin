@@ -60,20 +60,32 @@ class BookLibraryActivity : AppCompatActivity() {
     
     override fun onResume() {
         super.onResume()
-        // 如果还没有扫描过，且权限已授予，则开始扫描
+        
+        // 优先使用缓存数据
+        if (isDataCached && cachedEpubFiles.isNotEmpty()) {
+            android.util.Log.d("BookLibraryActivity", "使用缓存数据，文件数量=${cachedEpubFiles.size}")
+            showBooks(cachedEpubFiles)
+            return
+        }
+        
+        // 如果没有缓存数据，且权限已授予，则开始扫描
         if (!hasScanned && checkPermissions()) {
             startBookScan()
         }
     }
+    
+    // 缓存相关
+    private var cachedEpubFiles: List<EpubFile> = emptyList()
+    private var isDataCached = false
     
     private fun initViews() {
         rvBooks = findViewById(R.id.rv_books)
         llScanning = findViewById(R.id.tv_scanning)
         llNoBooks = findViewById(R.id.tv_no_books)
         
-        // 设置按钮点击事件
+        // 设置更新按钮点击事件
         findViewById<android.widget.ImageButton>(R.id.btn_settings).setOnClickListener {
-            openReaderSettings()
+            manualUpdate()
         }
     }
     
@@ -118,6 +130,11 @@ class BookLibraryActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     android.util.Log.d("BookLibraryActivity", "切换到主线程，开始显示书籍")
                     hideScanningProgress()
+                    
+                    // 缓存数据
+                    cachedEpubFiles = epubFiles
+                    isDataCached = true
+                    
                     showBooks(epubFiles)
                 }
             } catch (e: Exception) {
@@ -184,6 +201,20 @@ class BookLibraryActivity : AppCompatActivity() {
             putExtra("book_path", bookPath)
         }
         startActivity(intent)
+    }
+    
+    /**
+     * 手动更新书籍列表
+     */
+    private fun manualUpdate() {
+        android.util.Log.d("BookLibraryActivity", "手动更新书籍列表")
+        
+        // 清除缓存，强制重新扫描
+        isDataCached = false
+        cachedEpubFiles = emptyList()
+        
+        // 开始扫描
+        startBookScan()
     }
     
     /**
