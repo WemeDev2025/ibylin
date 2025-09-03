@@ -1,0 +1,191 @@
+package com.ibylin.app.adapter
+
+import android.graphics.BitmapFactory
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.ibylin.app.R
+import com.ibylin.app.utils.EpubFile
+import java.util.zip.ZipFile
+
+class BookGridAdapter(
+    private var epubFiles: List<EpubFile> = emptyList(),
+    private val onItemClick: ((EpubFile) -> Unit)? = null
+) : RecyclerView.Adapter<BookGridAdapter.BookGridViewHolder>() {
+    
+    class BookGridViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val ivCover: ImageView = itemView.findViewById(R.id.iv_book_cover)
+        val tvTitle: TextView = itemView.findViewById(R.id.tv_book_title)
+        val tvAuthor: TextView = itemView.findViewById(R.id.tv_book_author)
+    }
+    
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookGridViewHolder {
+        android.util.Log.d("BookGridAdapter", "创建ViewHolder: viewType=$viewType")
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_book_grid, parent, false)
+        return BookGridViewHolder(view)
+    }
+    
+    override fun onBindViewHolder(holder: BookGridViewHolder, position: Int) {
+        android.util.Log.d("BookGridAdapter", "开始绑定ViewHolder: position=$position, totalItems=${epubFiles.size}")
+        
+        try {
+            val epubFile = epubFiles[position]
+            android.util.Log.d("BookGridAdapter", "绑定ViewHolder: position=$position, 书名=${epubFile.name}, 路径=${epubFile.path}")
+            
+            // 设置书名
+            val title = epubFile.metadata?.title ?: epubFile.name
+            holder.tvTitle.text = title
+            android.util.Log.d("BookGridAdapter", "设置书名: $title")
+            
+            // 设置作者
+            val author = epubFile.metadata?.author ?: "未知作者"
+            holder.tvAuthor.text = author
+            android.util.Log.d("BookGridAdapter", "设置作者: $author")
+            
+            // 加载封面图片
+            android.util.Log.d("BookGridAdapter", "开始加载封面: ${epubFile.name}")
+            loadCoverImage(holder.ivCover, epubFile)
+            
+            // 设置点击事件
+            holder.itemView.setOnClickListener {
+                android.util.Log.d("BookGridAdapter", "点击事件触发: ${epubFile.name}")
+                onItemClick?.invoke(epubFile)
+            }
+            
+            android.util.Log.d("BookGridAdapter", "ViewHolder绑定完成: position=$position, 书名=$title")
+        } catch (e: Exception) {
+            android.util.Log.e("BookGridAdapter", "绑定ViewHolder失败: position=$position", e)
+            // 设置默认值，避免崩溃
+            holder.tvTitle.text = "加载失败"
+            holder.tvAuthor.text = "未知"
+            holder.ivCover.setBackgroundColor(android.graphics.Color.parseColor("#E0E0E0"))
+        }
+    }
+    
+    override fun getItemCount(): Int {
+        android.util.Log.d("BookGridAdapter", "getItemCount被调用: 返回${epubFiles.size}")
+        return epubFiles.size
+    }
+    
+    fun updateEpubFiles(newEpubFiles: List<EpubFile>) {
+        android.util.Log.d("BookGridAdapter", "updateEpubFiles被调用: 新文件数量=${newEpubFiles.size}")
+        
+        // 去重复逻辑：基于书名和作者去重
+        val uniqueEpubFiles = newEpubFiles.distinctBy { 
+            "${it.metadata?.title ?: it.name}_${it.metadata?.author ?: "未知作者"}" 
+        }
+        
+        android.util.Log.d("BookGridAdapter", "去重后文件数量: ${uniqueEpubFiles.size}")
+        
+        epubFiles = uniqueEpubFiles
+        android.util.Log.d("BookGridAdapter", "epubFiles已更新: 数量=${epubFiles.size}")
+        
+        notifyDataSetChanged()
+        android.util.Log.d("BookGridAdapter", "notifyDataSetChanged已调用")
+    }
+    
+    /**
+     * 加载封面图片
+     */
+    private fun loadCoverImage(imageView: ImageView, epubFile: EpubFile) {
+        android.util.Log.d("BookGridAdapter", "开始加载封面图片: ${epubFile.name}")
+        
+        try {
+            val zipFile = ZipFile(epubFile.path)
+            android.util.Log.d("BookGridAdapter", "ZipFile创建成功: ${epubFile.path}")
+            
+            // 尝试从元数据中查找封面
+            val coverImagePath = epubFile.metadata?.coverImagePath
+            android.util.Log.d("BookGridAdapter", "元数据封面路径: $coverImagePath")
+            
+            if (coverImagePath != null) {
+                val coverEntry = zipFile.getEntry(coverImagePath)
+                android.util.Log.d("BookGridAdapter", "查找封面条目: $coverImagePath, 结果: ${coverEntry != null}")
+                
+                if (coverEntry != null) {
+                    val inputStream = zipFile.getInputStream(coverEntry)
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    
+                    if (bitmap != null) {
+                        android.util.Log.d("BookGridAdapter", "封面图片解析成功: ${bitmap.width}x${bitmap.height}")
+                        imageView.setImageBitmap(bitmap)
+                        imageView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        inputStream.close()
+                        zipFile.close()
+                        android.util.Log.d("BookGridAdapter", "封面设置完成: ${epubFile.name}")
+                        return
+                    } else {
+                        android.util.Log.w("BookGridAdapter", "封面图片解码失败: $coverImagePath")
+                        inputStream.close()
+                    }
+                }
+            }
+            
+            // 尝试查找常见的封面文件名
+            val coverNames = listOf("cover.jpg", "cover.png", "cover.jpeg", "Cover.jpg", "Cover.png", "Cover.jpeg")
+            android.util.Log.d("BookGridAdapter", "尝试常见封面文件名: $coverNames")
+            
+            for (coverName in coverNames) {
+                val coverEntry = zipFile.getEntry(coverName)
+                android.util.Log.d("BookGridAdapter", "查找封面: $coverName, 结果: ${coverEntry != null}")
+                
+                if (coverEntry != null) {
+                    val inputStream = zipFile.getInputStream(coverEntry)
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    
+                    if (bitmap != null) {
+                        android.util.Log.d("BookGridAdapter", "常见封面图片解析成功: $coverName, 尺寸: ${bitmap.width}x${bitmap.height}")
+                        imageView.setImageBitmap(bitmap)
+                        imageView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        inputStream.close()
+                        zipFile.close()
+                        android.util.Log.d("BookGridAdapter", "常见封面设置完成: ${epubFile.name}")
+                        return
+                    } else {
+                        android.util.Log.w("BookGridAdapter", "常见封面图片解码失败: $coverName")
+                        inputStream.close()
+                    }
+                }
+            }
+            
+            zipFile.close()
+            android.util.Log.d("BookGridAdapter", "未找到封面图片，使用备用颜色: ${epubFile.name}")
+            
+            // 如果找不到封面，使用基于文件名的颜色
+            setFallbackColor(imageView, epubFile.name)
+            
+        } catch (e: Exception) {
+            android.util.Log.e("BookGridAdapter", "封面加载异常: ${epubFile.name}", e)
+            // 出错时使用默认颜色
+            setFallbackColor(imageView, epubFile.name)
+        }
+    }
+    
+    /**
+     * 设置备用颜色
+     */
+    private fun setFallbackColor(imageView: ImageView, fileName: String) {
+        android.util.Log.d("BookGridAdapter", "设置备用颜色: $fileName")
+        
+        // 使用基于文件名的颜色作为备用
+        val colorSeed = (fileName.hashCode() % 360).toFloat()
+        val hue = if (colorSeed < 0) colorSeed + 360 else colorSeed
+        val saturation = 0.3f  // 低饱和度，避免太鲜艳
+        val value = 0.8f        // 高亮度，确保可见性
+        
+        // 将HSV转换为RGB颜色
+        val color = android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value))
+        
+        android.util.Log.d("BookGridAdapter", "备用颜色计算: hue=$hue, saturation=$saturation, value=$value, color=$color")
+        
+        // 设置封面背景色作为备用
+        imageView.setBackgroundColor(color)
+        imageView.setImageDrawable(null)
+        
+        android.util.Log.d("BookGridAdapter", "备用颜色设置完成: $fileName")
+    }
+}

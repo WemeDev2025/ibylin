@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_settings"
+        android:title="设置"
+        android:icon="@drawable/ic_settings"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_fullscreen"
+        android:title="全屏"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_night_mode"
+        android:title="夜间模式"
+        app:showAsAction="never" />
+
+</menu>
