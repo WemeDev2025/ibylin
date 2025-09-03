@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.provider.Settings
 import android.view.View
 import android.widget.TextView
@@ -61,6 +62,8 @@ class BookLibraryActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         
+        android.util.Log.d("BookLibraryActivity", "onResume: isDataCached=$isDataCached, cachedEpubFiles.size=${cachedEpubFiles.size}")
+        
         // 优先使用缓存数据
         if (isDataCached && cachedEpubFiles.isNotEmpty()) {
             android.util.Log.d("BookLibraryActivity", "使用缓存数据，文件数量=${cachedEpubFiles.size}")
@@ -69,8 +72,11 @@ class BookLibraryActivity : AppCompatActivity() {
         }
         
         // 如果没有缓存数据，且权限已授予，则开始扫描
-        if (!hasScanned && checkPermissions()) {
+        if (checkPermissions()) {
+            android.util.Log.d("BookLibraryActivity", "权限已授予，开始扫描")
             startBookScan()
+        } else {
+            android.util.Log.d("BookLibraryActivity", "权限未授予")
         }
     }
     
@@ -106,13 +112,25 @@ class BookLibraryActivity : AppCompatActivity() {
      * 开始扫描书籍
      */
     private fun startBookScan() {
+        android.util.Log.d("BookLibraryActivity", "startBookScan: 开始检查权限")
+        
         // 检查权限
         if (!checkPermissions()) {
+            android.util.Log.d("BookLibraryActivity", "权限未授予，请求权限")
             requestPermissions()
             return
         }
         
-        android.util.Log.d("BookLibraryActivity", "开始扫描书籍")
+        android.util.Log.d("BookLibraryActivity", "权限已授予，检查缓存: isDataCached=$isDataCached, cachedEpubFiles.size=${cachedEpubFiles.size}")
+        
+        // 如果已经有缓存数据，直接使用缓存
+        if (isDataCached && cachedEpubFiles.isNotEmpty()) {
+            android.util.Log.d("BookLibraryActivity", "已有缓存数据，直接使用，文件数量=${cachedEpubFiles.size}")
+            showBooks(cachedEpubFiles)
+            return
+        }
+        
+        android.util.Log.d("BookLibraryActivity", "没有缓存数据，开始扫描书籍")
         showScanningProgress()
         hasScanned = true
         
@@ -231,14 +249,7 @@ class BookLibraryActivity : AppCompatActivity() {
     private fun checkPermissions(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             // Android 11+ 检查MANAGE_EXTERNAL_STORAGE权限
-            try {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                intent.data = Uri.parse("package:$packageName")
-                // 如果能找到这个Activity，说明权限可能已授予
-                packageManager.resolveActivity(intent, 0) != null
-            } catch (e: Exception) {
-                false
-            }
+            Environment.isExternalStorageManager()
         } else {
             // Android 10及以下使用传统权限
             ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
