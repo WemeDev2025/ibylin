@@ -830,6 +830,18 @@ class BookLibraryActivity : AppCompatActivity() {
         val popupMenu = android.widget.PopupMenu(this, anchorView)
         popupMenu.inflate(R.menu.menu_book_item_long_press)
         
+        // 根据当前封面状态动态设置菜单项
+        val changeCoverMenuItem = popupMenu.menu.findItem(R.id.action_change_cover)
+        if (com.ibylin.app.utils.CoverManager.hasCustomCover(this, epubFile.name)) {
+            // 如果有自定义封面，显示"恢复默认"
+            changeCoverMenuItem.title = "恢复默认"
+            changeCoverMenuItem.setIcon(R.drawable.ic_restore)
+        } else {
+            // 如果没有自定义封面，显示"更换封面"
+            changeCoverMenuItem.title = "更换封面"
+            changeCoverMenuItem.setIcon(R.drawable.ic_image)
+        }
+        
         // 设置菜单项点击事件
         popupMenu.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
@@ -839,8 +851,13 @@ class BookLibraryActivity : AppCompatActivity() {
                     true
                 }
                 R.id.action_change_cover -> {
-                    android.util.Log.d("BookLibraryActivity", "长按菜单：更换封面")
-                    openCoverSelection(epubFile)
+                    if (com.ibylin.app.utils.CoverManager.hasCustomCover(this, epubFile.name)) {
+                        android.util.Log.d("BookLibraryActivity", "长按菜单：恢复默认封面")
+                        restoreDefaultCover(epubFile)
+                    } else {
+                        android.util.Log.d("BookLibraryActivity", "长按菜单：更换封面")
+                        openCoverSelection(epubFile)
+                    }
                     true
                 }
                 R.id.action_share_book -> {
@@ -888,6 +905,34 @@ class BookLibraryActivity : AppCompatActivity() {
             putExtra(com.ibylin.app.ui.CoverSelectionActivity.EXTRA_BOOK, epubFile)
         }
         startActivity(intent)
+    }
+    
+    /**
+     * 恢复默认封面
+     */
+    private fun restoreDefaultCover(epubFile: EpubFile) {
+        try {
+            android.util.Log.d("BookLibraryActivity", "开始恢复默认封面: ${epubFile.name}")
+            
+            // 检查是否有自定义封面
+            if (!com.ibylin.app.utils.CoverManager.hasCustomCover(this, epubFile.name)) {
+                android.widget.Toast.makeText(this, "当前封面已经是默认封面", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            // 删除自定义封面
+            com.ibylin.app.utils.CoverManager.removeBookCover(this, epubFile.name)
+            
+            // 刷新书籍列表
+            bookGridAdapter.notifyDataSetChanged()
+            
+            android.widget.Toast.makeText(this, "已恢复默认封面", android.widget.Toast.LENGTH_SHORT).show()
+            android.util.Log.d("BookLibraryActivity", "默认封面恢复成功: ${epubFile.name}")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "恢复默认封面失败", e)
+            android.widget.Toast.makeText(this, "恢复默认封面失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
     
     /**

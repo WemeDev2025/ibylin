@@ -34,8 +34,33 @@
             </intent-filter>
         </activity>
         
+        <!-- 支持其他应用打开文件 -->
         <activity
             android:name=".reader.ReadiumEpubReaderActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Ibylin">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/epub+zip" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+        
+
+            
+        <activity
+            android:name=".reader.WebViewActivity"
             android:exported="false"
             android:theme="@style/Theme.Ibylin" />
             

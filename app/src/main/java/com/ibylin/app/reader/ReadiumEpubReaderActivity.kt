@@ -1,5 +1,6 @@
 package com.ibylin.app.reader
 
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -200,9 +201,46 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     
     private fun loadEpub() {
         // 兼容多种传入方式
-        val epubPath = intent.getStringExtra(EXTRA_EPUB_PATH)
-        val epubFile = intent.getParcelableExtra<EpubFile>(EXTRA_EPUB_FILE)
-        val bookPath = intent.getStringExtra(EXTRA_BOOK_PATH)
+        var epubPath = intent.getStringExtra(EXTRA_EPUB_PATH)
+        var epubFile = intent.getParcelableExtra<EpubFile>(EXTRA_EPUB_FILE)
+        var bookPath = intent.getStringExtra(EXTRA_BOOK_PATH)
+        
+        // 处理从其他应用打开文件的情况
+        if (epubPath.isNullOrEmpty() && epubFile == null && bookPath.isNullOrEmpty()) {
+            // 检查是否是VIEW action
+            if (intent.action == Intent.ACTION_VIEW) {
+                val data = intent.data
+                if (data != null) {
+                    when (data.scheme) {
+                        "file" -> {
+                            val filePath = data.path
+                            if (filePath != null) {
+                                Log.d(TAG, "从其他应用打开文件: $filePath")
+                                if (filePath.endsWith(".epub", true)) {
+                                    epubPath = filePath
+                                } else {
+                                    bookPath = filePath
+                                }
+                            }
+                        }
+                        "content" -> {
+                            // 处理content URI
+                            try {
+                                val inputStream = contentResolver.openInputStream(data)
+                                val tempFile = File.createTempFile("temp_book", ".epub", cacheDir)
+                                tempFile.outputStream().use { outputStream ->
+                                    inputStream?.copyTo(outputStream)
+                                }
+                                epubPath = tempFile.absolutePath
+                                Log.d(TAG, "从content URI创建临时文件: $epubPath")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "处理content URI失败", e)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         
         val filePath = epubPath ?: epubFile?.path ?: bookPath
         
@@ -338,12 +376,20 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             Log.d(TAG, "开始创建FragmentFactory，initialLocator: $savedLocator")
             val fragmentFactory = navigatorFactory.createFragmentFactory(
                 initialLocator = savedLocator,
-                listener = object : EpubNavigatorFragment.Listener {
-                    override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
-                        Log.d(TAG, "外部链接激活: $url")
-                        Toast.makeText(this@ReadiumEpubReaderActivity, "外部链接: $url", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                                        listener = object : EpubNavigatorFragment.Listener {
+                            override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
+                                Log.d(TAG, "外部链接激活: $url")
+                                try {
+                                    // 调用系统浏览器打开链接
+                                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url.toString()))
+                                    startActivity(intent)
+                                    Log.d(TAG, "已调用系统浏览器打开链接: $url")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "调用系统浏览器失败", e)
+                                    Toast.makeText(this@ReadiumEpubReaderActivity, "无法打开链接: $url", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
             )
             Log.d(TAG, "FragmentFactory创建成功")
             
@@ -505,17 +551,17 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 tvChapterTitle.text = chapterTitle
                 
                 // 更新页码信息
-                val totalPages = getTotalPages()
+                val chapterTotalPages = getCurrentChapterTotalPages()
                 if (isMenuVisible) {
                     // 菜单显示时显示详细信息
                     val remainingPages = getRemainingPages()
                     tvPageInfo.text = "本章还剩${remainingPages}页"
                 } else {
-                    // 菜单隐藏时显示简单信息
-                    tvPageInfo.text = "$currentPage / $totalPages"
+                    // 菜单隐藏时显示简单信息：当前页/当前章节总页数
+                    tvPageInfo.text = "$currentPage / $chapterTotalPages"
                 }
                 
-                Log.d(TAG, "UI更新: 章节=$chapterTitle, 页码=$currentPage/$totalPages")
+                Log.d(TAG, "UI更新: 章节=$chapterTitle, 页码=$currentPage/$chapterTotalPages")
             }
         } catch (e: Exception) {
             Log.w(TAG, "更新章节和页码信息失败", e)
@@ -2395,6 +2441,34 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             100
         } catch (e: Exception) {
             Log.w(TAG, "获取总页数失败", e)
+            100
+        }
+    }
+    
+    /**
+     * 获取当前章节总页数
+     */
+    private fun getCurrentChapterTotalPages(): Int {
+        return try {
+            val currentLocator = navigatorFragment?.currentLocator?.value
+            if (currentLocator != null) {
+                // 尝试从Locator获取当前章节的总页数
+                currentLocator.locations.otherLocations["chapterTotalPages"]?.toString()?.toIntOrNull()?.let { total ->
+                    if (total > 0) return total
+                }
+                
+                // 如果没有，尝试从publication的readingOrder获取
+                publication?.readingOrder?.size?.let { size ->
+                    if (size > 0) return size
+                }
+                
+                // 默认返回100
+                100
+            } else {
+                100
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "获取当前章节总页数失败", e)
             100
         }
     }

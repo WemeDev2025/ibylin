@@ -7,7 +7,7 @@
         android:title="图书信息"
         android:icon="@drawable/ic_info" />
 
-    <!-- 更换封面 -->
+    <!-- 更换封面/恢复默认 -->
     <item
         android:id="@+id/action_change_cover"
         android:title="更换封面"
