@@ -29,7 +29,15 @@ class MainActivity : AppCompatActivity() {
     
 
     private lateinit var btnBookLibrary: android.widget.Button
-
+    
+    // 最后阅读图书相关视图
+    private lateinit var llLastReadCard: android.widget.LinearLayout
+    private lateinit var llWelcomeContainer: android.widget.LinearLayout
+    private lateinit var ivLastReadCover: android.widget.ImageView
+    private lateinit var tvLastReadTitle: android.widget.TextView
+    private lateinit var tvLastReadProgress: android.widget.TextView
+    private lateinit var tvLastReadTime: android.widget.TextView
+    private lateinit var btnContinueReading: android.widget.Button
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     
@@ -56,13 +64,21 @@ class MainActivity : AppCompatActivity() {
     
     override fun onResume() {
         super.onResume()
-        // 不在这里检查权限，改为在点击书架时检查
+        // 检查并显示最后阅读的图书
+        checkAndShowLastReadBook()
     }
     
     private fun initViews() {
-
         btnBookLibrary = findViewById(R.id.btn_book_library)
-
+        
+        // 初始化最后阅读图书相关视图
+        llLastReadCard = findViewById(R.id.ll_last_read_card)
+        llWelcomeContainer = findViewById(R.id.ll_welcome_container)
+        ivLastReadCover = findViewById(R.id.iv_last_read_cover)
+        tvLastReadTitle = findViewById(R.id.tv_last_read_title)
+        tvLastReadProgress = findViewById(R.id.tv_last_read_progress)
+        tvLastReadTime = findViewById(R.id.tv_last_read_time)
+        btnContinueReading = findViewById(R.id.btn_continue_reading)
     }
     
     private fun setupClickListeners() {
@@ -70,6 +86,11 @@ class MainActivity : AppCompatActivity() {
         // 书架按钮点击事件
         btnBookLibrary.setOnClickListener {
             openBookLibrary()
+        }
+        
+        // 继续阅读按钮点击事件
+        btnContinueReading.setOnClickListener {
+            openLastReadBook()
         }
         
 
@@ -305,6 +326,121 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         } catch (e: Exception) {
             Toast.makeText(this, "无法打开阅读器: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 检查并显示最后阅读的图书
+     */
+    private fun checkAndShowLastReadBook() {
+        try {
+            val lastReadBook = com.ibylin.app.utils.ReadingProgressManager.getLastReadBook(this)
+            
+            if (lastReadBook != null) {
+                // 显示最后阅读图书卡片
+                showLastReadBookCard(lastReadBook)
+            } else {
+                // 显示默认欢迎界面
+                showWelcomeInterface()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "检查最后阅读图书失败", e)
+            showWelcomeInterface()
+        }
+    }
+    
+    /**
+     * 显示最后阅读图书卡片
+     */
+    private fun showLastReadBookCard(lastReadBook: com.ibylin.app.utils.LastReadBook) {
+        try {
+            // 设置图书信息
+            tvLastReadTitle.text = lastReadBook.name
+            tvLastReadProgress.text = lastReadBook.getProgressText()
+            tvLastReadTime.text = lastReadBook.getFormattedLastReadTime()
+            
+            // 尝试加载图书封面
+            loadBookCover(lastReadBook.path)
+            
+            // 显示最后阅读卡片，隐藏欢迎界面
+            llLastReadCard.visibility = android.view.View.VISIBLE
+            llWelcomeContainer.visibility = android.view.View.GONE
+            
+            android.util.Log.d("MainActivity", "显示最后阅读图书卡片: ${lastReadBook.name}")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "显示最后阅读图书卡片失败", e)
+            showWelcomeInterface()
+        }
+    }
+    
+    /**
+     * 显示欢迎界面
+     */
+    private fun showWelcomeInterface() {
+        llLastReadCard.visibility = android.view.View.GONE
+        llWelcomeContainer.visibility = android.view.View.VISIBLE
+        android.util.Log.d("MainActivity", "显示欢迎界面")
+    }
+    
+    /**
+     * 加载图书封面
+     */
+    private fun loadBookCover(bookPath: String) {
+        coroutineScope.launch {
+            try {
+                // 检查是否有自定义封面
+                val hasCustomCover = com.ibylin.app.utils.CoverManager.hasCustomCover(
+                    this@MainActivity, 
+                    java.io.File(bookPath).name
+                )
+                
+                if (hasCustomCover) {
+                    // 加载自定义封面
+                    val customCoverPath = com.ibylin.app.utils.CoverManager.getBookCover(
+                        this@MainActivity, 
+                        java.io.File(bookPath).name
+                    )
+                    
+                    if (customCoverPath != null) {
+                        val bitmap = android.graphics.BitmapFactory.decodeFile(customCoverPath)
+                        if (bitmap != null) {
+                            ivLastReadCover.setImageBitmap(bitmap)
+                            return@launch
+                        }
+                    }
+                }
+                
+                // 如果没有自定义封面，尝试从EPUB文件中提取
+                val coverResult = com.ibylin.app.utils.AdvancedCoverExtractor.extractCover(bookPath)
+                if (coverResult.isSuccess && coverResult.bitmap != null) {
+                    ivLastReadCover.setImageBitmap(coverResult.bitmap)
+                } else {
+                    // 使用默认封面
+                    ivLastReadCover.setImageResource(R.drawable.placeholder_cover)
+                }
+                
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "加载图书封面失败", e)
+                ivLastReadCover.setImageResource(R.drawable.placeholder_cover)
+            }
+        }
+    }
+    
+    /**
+     * 打开最后阅读的图书
+     */
+    private fun openLastReadBook() {
+        try {
+            val lastReadBook = com.ibylin.app.utils.ReadingProgressManager.getLastReadBook(this)
+            if (lastReadBook != null) {
+                openReadiumReader(lastReadBook.path)
+            } else {
+                Toast.makeText(this, "未找到最后阅读的图书", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "打开最后阅读图书失败", e)
+            Toast.makeText(this, "打开图书失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

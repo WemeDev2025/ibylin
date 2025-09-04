@@ -1559,6 +1559,34 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         }
     }
     
+    /**
+     * 记录阅读进度到主页
+     */
+    private fun recordReadingProgressForMainPage() {
+        try {
+            val bookPath = intent.getStringExtra(EXTRA_EPUB_PATH) ?: intent.getStringExtra(EXTRA_BOOK_PATH)
+            
+            if (bookPath != null) {
+                // 获取当前阅读进度
+                val currentPage = getCurrentPage()
+                val totalPages = getTotalPages()
+                val progress = if (totalPages > 0) (currentPage.toFloat() / totalPages.toFloat()) else 0f
+                
+                // 记录到主页的阅读进度管理器
+                com.ibylin.app.utils.ReadingProgressManager.recordReadingProgress(
+                    context = this,
+                    bookPath = bookPath,
+                    position = progress.toDouble(),
+                    timestamp = System.currentTimeMillis()
+                )
+                
+                Log.d(TAG, "阅读进度已记录到主页: $bookPath, 进度: ${(progress * 100).toInt()}%")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "记录阅读进度到主页失败", e)
+        }
+    }
+    
     // 显示配置面板
     private fun showConfigPanel() {
         val dialog = MaterialAlertDialogBuilder(this)
@@ -1828,6 +1856,9 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         
         // 保存阅读进度
         saveReadingProgress()
+        
+        // 记录阅读进度到主页
+        recordReadingProgressForMainPage()
         
         // 停止自动保存定时器
         autoSaveTimer?.cancel()
