@@ -147,6 +147,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     }
     
     private fun setupToolbar() {
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
             title = "Readium EPUB阅读器"
