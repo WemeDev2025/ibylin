@@ -148,16 +148,9 @@ class BookLibraryActivity : AppCompatActivity() {
         // 设置菜单项点击事件
         toolbar.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.action_search -> {
-                    // TODO: 实现搜索功能
-                    true
-                }
                 R.id.action_settings -> {
-                    // TODO: 打开设置页面
-                    true
-                }
-                R.id.action_more -> {
-                    // TODO: 显示更多选项
+                    // 打开设置页面
+                    openSettings()
                     true
                 }
                 else -> false
@@ -660,8 +653,8 @@ class BookLibraryActivity : AppCompatActivity() {
      * 打开阅读器设置页面
      */
     private fun openReaderSettings() {
-        val intent = Intent(this, com.ibylin.app.ui.ReadiumSettingsActivity::class.java)
-        startActivity(intent)
+        // 旧的设置页面已删除，现在使用阅读器内部的配置面板
+        Toast.makeText(this, "请进入阅读器使用配置面板", Toast.LENGTH_LONG).show()
     }
     
     /**
@@ -969,5 +962,13 @@ class BookLibraryActivity : AppCompatActivity() {
             android.util.Log.e("BookLibraryActivity", "删除书籍异常", e)
             android.widget.Toast.makeText(this, "删除失败：${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+    
+    /**
+     * 打开设置页面
+     */
+    private fun openSettings() {
+        // 旧的设置页面已删除，现在使用阅读器内部的配置面板
+        Toast.makeText(this, "请进入阅读器使用配置面板", Toast.LENGTH_LONG).show()
     }
 }

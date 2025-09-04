@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.ibylin.app.R
 import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.EpubFixer
+import com.ibylin.app.utils.ReadiumPreferencesManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,6 +21,8 @@ import kotlinx.coroutines.withContext
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubDefaults
+import org.readium.r2.navigator.preferences.Configurable
+import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.http.DefaultHttpClient
@@ -53,9 +56,15 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     private var navigatorFactory: EpubNavigatorFactory? = null
     private var navigatorFragment: EpubNavigatorFragment? = null
     
+
+    
     // UI组件
     private lateinit var navigatorContainer: View
     private lateinit var loadingView: View
+    
+    // Readium配置管理器注入
+    @Inject
+    lateinit var preferencesManager: ReadiumPreferencesManager
     
     // 阅读状态和设置
     private var currentLocation: String? = null
@@ -74,9 +83,14 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_readium_epub_reader)
         
+        Log.d(TAG, "ReadiumEpubReaderActivity onCreate 开始")
+        
         setupViews()
         setupToolbar()
+        loadConfiguration() // 加载配置
         loadEpub()
+        
+        Log.d(TAG, "ReadiumEpubReaderActivity onCreate 完成")
     }
     
     private fun setupViews() {
@@ -137,6 +151,41 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             setDisplayHomeAsUpEnabled(true)
             title = "Readium EPUB阅读器"
             setSubtitle("专业级EPUB阅读体验")
+        }
+    }
+    
+    /**
+     * 从ReadiumConfigManager加载配置
+     */
+    private fun loadConfiguration() {
+        try {
+            Log.d(TAG, "开始加载配置...")
+            
+            // 直接从ReadiumPreferencesManager获取配置，严格按照开发实例
+            val preferences = preferencesManager.getCurrentPreferences()
+            
+            // 更新本地变量
+            currentFontSize = (preferences.fontSize ?: 1.0) * 16.0
+            currentTheme = when (preferences.theme) {
+                org.readium.r2.navigator.preferences.Theme.SEPIA -> "sepia"
+                org.readium.r2.navigator.preferences.Theme.DARK -> "night"
+                else -> "default"
+            }
+            currentFontFamily = preferences.fontFamily?.name ?: "sans-serif"
+            currentLineHeight = preferences.lineHeight ?: 1.6
+            currentPageMargins = preferences.pageMargins ?: 1.4
+            
+            Log.d(TAG, "配置加载成功: 字体=${currentFontSize}pt, 主题=$currentTheme, 字体族=$currentFontFamily")
+            Log.d(TAG, "EpubPreferences: $preferences")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "加载配置失败", e)
+            // 使用默认配置
+            currentFontSize = 18.0
+            currentTheme = "default"
+            currentFontFamily = "sans-serif"
+            currentLineHeight = 1.6
+            currentPageMargins = 1.4
         }
     }
     
@@ -216,16 +265,18 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     throw Exception("无法解析EPUB文件: $error")
                 }
                 
-                // 创建EPUB导航器工厂 - 使用优化的配置
+                // 创建EPUB导航器工厂 - 使用Readium原生配置
                 val navigatorFactory = EpubNavigatorFactory(
                     publication = publication,
                     configuration = EpubNavigatorFactory.Configuration(
                         defaults = EpubDefaults(
-                            pageMargins = currentPageMargins,
-                            // 可以添加更多默认设置
+                            pageMargins = currentPageMargins.toDouble(),
+                            // 使用Readium原生配置
                         )
                     )
                 )
+                
+
                 
                 withContext(Dispatchers.Main) {
                     this@ReadiumEpubReaderActivity.publication = publication
@@ -300,19 +351,16 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         // 1. 延迟1秒执行
         navigatorContainer.postDelayed({
             hideXmlErrors()
-            injectErrorHidingScript()
         }, 1000)
         
         // 2. 延迟2秒再次执行
         navigatorContainer.postDelayed({
             hideXmlErrors()
-            injectErrorHidingScript()
         }, 2000)
         
         // 3. 延迟3秒再次执行
         navigatorContainer.postDelayed({
             hideXmlErrors()
-            injectErrorHidingScript()
         }, 3000)
         
         // 4. 设置定期检查
@@ -383,108 +431,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         }
     }
     
-    private fun injectErrorHidingScript() {
-        try {
-            // 尝试在WebView中注入JavaScript来隐藏错误
-            val script = """
-                (function() {
-                    // 隐藏包含错误信息的元素
-                    function hideErrors() {
-                        // 查找包含错误信息的文本节点
-                        var walker = document.createTreeWalker(
-                            document.body,
-                            NodeFilter.SHOW_TEXT,
-                            null,
-                            false
-                        );
-                        
-                        var node;
-                        while (node = walker.nextNode()) {
-                            var text = node.textContent;
-                            if (text && (
-                                text.includes('This page contains the following errors:') ||
-                                text.includes('AttValue:') ||
-                                text.includes('error on line') ||
-                                text.includes('column') ||
-                                text.includes('XML') ||
-                                text.includes('parsing error')
-                            )) {
-                                // 隐藏包含错误的父元素
-                                var parent = node.parentElement;
-                                if (parent) {
-                                    parent.style.display = 'none';
-                                    console.log('Hidden error element:', text);
-                                }
-                            }
-                        }
-                        
-                        // 查找包含错误的div元素
-                        var divs = document.querySelectorAll('div');
-                        for (var i = 0; i < divs.length; i++) {
-                            var div = divs[i];
-                            var text = div.textContent || div.innerText;
-                            if (text && (
-                                text.includes('This page contains the following errors:') ||
-                                text.includes('AttValue:') ||
-                                text.includes('error on line') ||
-                                text.includes('column') ||
-                                text.includes('XML') ||
-                                text.includes('parsing error')
-                            )) {
-                                div.style.display = 'none';
-                                console.log('Hidden error div:', text);
-                            }
-                        }
-                    }
-                    
-                    // 立即执行一次
-                    hideErrors();
-                    
-                    // 设置定期检查
-                    setInterval(hideErrors, 1000);
-                    
-                    // 监听DOM变化
-                    var observer = new MutationObserver(hideErrors);
-                    observer.observe(document.body, {
-                        childList: true,
-                        subtree: true
-                    });
-                })();
-            """.trimIndent()
-            
-            // 尝试在Fragment中查找WebView并注入脚本
-            navigatorFragment?.let { fragment ->
-                val fragmentView = fragment.view
-                if (fragmentView != null) {
-                    injectScriptIntoView(fragmentView, script)
-                }
-            }
-            
-            // 也尝试在navigatorContainer中查找WebView
-            if (navigatorContainer is android.view.ViewGroup) {
-                findAndInjectIntoWebViews(navigatorContainer as android.view.ViewGroup, script)
-            }
-            
-        } catch (e: Exception) {
-            Log.d(TAG, "注入错误隐藏脚本失败", e)
-        }
-    }
-    
-    private fun injectScriptIntoView(view: View, script: String) {
-        if (view is android.webkit.WebView) {
-            view.evaluateJavascript(script, null)
-            Log.d(TAG, "已向WebView注入错误隐藏脚本")
-        } else if (view is android.view.ViewGroup) {
-            findAndInjectIntoWebViews(view, script)
-        }
-    }
-    
-    private fun findAndInjectIntoWebViews(viewGroup: android.view.ViewGroup, script: String) {
-        for (i in 0 until viewGroup.childCount) {
-            val child = viewGroup.getChildAt(i)
-            injectScriptIntoView(child, script)
-        }
-    }
+    // 注意：Readium使用WebView来渲染EPUB内容，这是设计上的选择
+    // 我们通过Readium的原生API来配置阅读器，而不是通过WebView hack
     
     private fun showReadiumError(message: String) {
         // 隐藏加载状态
@@ -516,9 +464,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     }
     
     private fun showReadingControls(show: Boolean) {
-        findViewById<LinearLayout>(R.id.bottom_controls).visibility = if (show) View.VISIBLE else View.GONE
-        findViewById<SeekBar>(R.id.reading_progress).visibility = if (show) View.VISIBLE else View.GONE
-        findViewById<TextView>(R.id.progress_text).visibility = if (show) View.VISIBLE else View.GONE
+        // 底部工具栏已删除，不再需要显示控制
+        // 阅读器现在使用全屏模式
     }
     
     // 菜单相关 - 丰富的阅读控制选项
@@ -539,6 +486,10 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             }
             R.id.action_theme_toggle -> {
                 toggleTheme()
+                true
+            }
+            R.id.action_config_panel -> {
+                showConfigPanel()
                 true
             }
             android.R.id.home -> {
@@ -572,6 +523,110 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         }
         applyReadingPreferences()
         Toast.makeText(this, "主题: $currentTheme", Toast.LENGTH_SHORT).show()
+    }
+    
+    /**
+     * 应用主题到Readium阅读器
+     */
+    private fun applyTheme(theme: String) {
+        try {
+            // 使用Readium原生API应用主题
+            navigatorFragment?.let { fragment ->
+                // 这里应该使用Readium的官方API来应用主题
+                // 暂时记录日志，后续根据官方文档完善
+                Log.d(TAG, "应用主题到Readium: $theme")
+                
+                // 重新创建navigatorFactory以应用新配置
+                applyReadiumConfiguration()
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "应用主题失败", e)
+        }
+    }
+    
+    /**
+     * 应用Readium配置 - 严格按照开发实例的方式
+     */
+    private fun applyReadiumConfiguration() {
+        try {
+            Log.d(TAG, "开始应用Readium配置...")
+            
+            publication?.let { pub ->
+                // 直接从ReadiumPreferencesManager获取当前配置
+                val preferences = preferencesManager.getCurrentPreferences()
+                Log.d(TAG, "当前配置: $preferences")
+                
+                // 重新创建navigatorFactory以应用新配置
+                val newNavigatorFactory = EpubNavigatorFactory(
+                    publication = pub,
+                    configuration = EpubNavigatorFactory.Configuration(
+                        defaults = EpubDefaults(
+                            pageMargins = currentPageMargins.toDouble(),
+                            fontSize = (currentFontSize / 16.0), // 转换为百分比
+                            lineHeight = currentLineHeight.toDouble(),
+                            // 其他配置通过preferences应用
+                        )
+                    )
+                )
+                
+                Log.d(TAG, "创建新的NavigatorFactory")
+                
+                // 更新navigatorFactory
+                navigatorFactory = newNavigatorFactory
+                
+                // 重新设置FragmentFactory
+                supportFragmentManager.fragmentFactory = newNavigatorFactory.createFragmentFactory(
+                    initialLocator = null, // 暂时使用null
+                    listener = object : EpubNavigatorFragment.Listener {
+                        override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
+                            Log.d(TAG, "外部链接激活: $url")
+                            Toast.makeText(this@ReadiumEpubReaderActivity, "外部链接: $url", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+                
+                // 重新创建Fragment
+                val newFragment = supportFragmentManager.fragmentFactory.instantiate(
+                    EpubNavigatorFragment::class.java.classLoader!!,
+                    EpubNavigatorFragment::class.java.name
+                ) as EpubNavigatorFragment
+                
+                Log.d(TAG, "创建新的Fragment: $newFragment")
+                
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.reader_container, newFragment, "EpubNavigatorFragment")
+                    .commit()
+                
+                navigatorFragment = newFragment
+                
+                // 等待Fragment创建完成后应用配置
+                newFragment.view?.post {
+                    try {
+                        Log.d(TAG, "Fragment视图已创建，尝试应用配置")
+                        
+                        // 严格按照开发实例，使用Configurable接口
+                        val configurableFragment = newFragment as? Configurable<*, EpubPreferences>
+                        if (configurableFragment != null) {
+                            configurableFragment.submitPreferences(preferences)
+                            Log.d(TAG, "Readium配置已通过Configurable接口应用: $preferences")
+                        } else {
+                            Log.w(TAG, "Fragment未实现Configurable接口，无法直接应用配置")
+                            Log.d(TAG, "Fragment类型: ${newFragment.javaClass.name}")
+                            Log.d(TAG, "Fragment接口: ${newFragment.javaClass.interfaces.joinToString()}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "通过Configurable接口应用配置失败", e)
+                    }
+                }
+                
+                Log.d(TAG, "Readium配置已重新应用")
+                
+            } ?: Log.w(TAG, "Publication为空，无法应用配置")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "应用Readium配置失败", e)
+        }
     }
     
     // 字体族切换
@@ -608,16 +663,54 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         Toast.makeText(this, "页边距: ${String.format("%.1f", currentPageMargins)}", Toast.LENGTH_SHORT).show()
     }
     
-    // 应用阅读偏好设置
+    // 应用阅读偏好设置 - 严格按照开发实例的方式
     private fun applyReadingPreferences() {
-        navigatorFragment?.let { nav ->
-            try {
-                // 这里需要根据实际的Readium API来应用设置
-                // 暂时使用Toast提示，后续根据API完善
-                Log.d(TAG, "应用阅读偏好: 字体=${currentFontSize}pt, 主题=$currentTheme, 字体族=$currentFontFamily")
-            } catch (e: Exception) {
-                Log.e(TAG, "应用阅读偏好失败", e)
+        try {
+            Log.d(TAG, "开始应用阅读偏好...")
+            
+            // 直接更新ReadiumPreferencesManager，严格按照开发实例
+            preferencesManager.setFontSize(currentFontSize.toFloat())
+            preferencesManager.setTheme(currentTheme)
+            preferencesManager.setFontFamily(currentFontFamily)
+            preferencesManager.setLineHeight(currentLineHeight.toFloat())
+            preferencesManager.setPageMargins(currentPageMargins.toFloat())
+            
+            Log.d(TAG, "配置已更新到ReadiumPreferencesManager")
+            
+            // 获取当前配置并直接应用到Fragment
+            val preferences = preferencesManager.getCurrentPreferences()
+            Log.d(TAG, "当前配置: $preferences")
+            
+            // 尝试直接应用配置到当前的navigatorFragment
+            navigatorFragment?.let { fragment ->
+                Log.d(TAG, "Fragment存在，尝试应用配置")
+                try {
+                    // 严格按照开发实例，使用Configurable接口
+                    val configurableFragment = fragment as? Configurable<*, EpubPreferences>
+                    if (configurableFragment != null) {
+                        configurableFragment.submitPreferences(preferences)
+                        Log.d(TAG, "配置已通过Configurable接口应用: $preferences")
+                    } else {
+                        Log.w(TAG, "Fragment未实现Configurable接口，重新创建Fragment")
+                        applyReadiumConfiguration()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "应用配置失败，重新创建Fragment", e)
+                    applyReadiumConfiguration()
+                }
+            } ?: run {
+                Log.w(TAG, "Fragment不存在，重新创建Fragment")
+                applyReadiumConfiguration()
             }
+            
+            Log.d(TAG, "应用阅读偏好完成: 字体=${currentFontSize}pt, 主题=$currentTheme, 字体族=$currentFontFamily")
+            
+            // 通知用户设置已保存
+            Toast.makeText(this, "设置已保存并应用", Toast.LENGTH_SHORT).show()
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "应用阅读偏好失败", e)
+            Toast.makeText(this, "保存设置失败", Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -705,6 +798,225 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             Log.d(TAG, "保存阅读进度: $location")
             Toast.makeText(this, "阅读进度已保存", Toast.LENGTH_SHORT).show()
         }
+    }
+    
+    // 显示配置面板
+    private fun showConfigPanel() {
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("阅读器配置")
+            .setView(createConfigPanelView())
+            .setPositiveButton("应用") { _, _ ->
+                // 配置已经在面板中实时应用了
+                Toast.makeText(this, "配置已应用", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("关闭", null)
+            .create()
+        
+        dialog.show()
+    }
+    
+    // 创建配置面板视图
+    private fun createConfigPanelView(): View {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 24, 32, 24)
+        }
+        
+        // 字体大小设置
+        val fontSizeLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        
+        val fontSizeLabel = TextView(this).apply {
+            text = "字体大小: ${currentFontSize}pt"
+            textSize = 16f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        
+        val fontSizeSeekBar = SeekBar(this).apply {
+            max = 20 // 12-32pt
+            progress = (currentFontSize - 12).toInt()
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f)
+            
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        currentFontSize = 12.0 + progress
+                        fontSizeLabel.text = "字体大小: ${currentFontSize.toInt()}pt"
+                        applyReadingPreferences()
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+        
+        fontSizeLayout.addView(fontSizeLabel)
+        fontSizeLayout.addView(fontSizeSeekBar)
+        layout.addView(fontSizeLayout)
+        
+        // 分隔线
+        layout.addView(View(this).apply {
+            setBackgroundColor(resources.getColor(android.R.color.darker_gray, null))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+            setPadding(0, 16, 0, 16)
+        })
+        
+        // 主题选择
+        val themeLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        
+        val themeLabel = TextView(this).apply {
+            text = "主题: $currentTheme"
+            textSize = 16f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        
+        val themeButton = Button(this).apply {
+            text = "切换"
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            
+            setOnClickListener {
+                currentTheme = when (currentTheme) {
+                    "light" -> "sepia"
+                    "sepia" -> "night"
+                    "night" -> "light"
+                    else -> "light"
+                }
+                themeLabel.text = "主题: $currentTheme"
+                applyReadingPreferences()
+            }
+        }
+        
+        themeLayout.addView(themeLabel)
+        themeLayout.addView(themeButton)
+        layout.addView(themeLayout)
+        
+        // 分隔线
+        layout.addView(View(this).apply {
+            setBackgroundColor(resources.getColor(android.R.color.darker_gray, null))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+            setPadding(0, 16, 0, 16)
+        })
+        
+        // 字体族选择
+        val fontFamilyLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        
+        val fontFamilyLabel = TextView(this).apply {
+            text = "字体: $currentFontFamily"
+            textSize = 16f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        
+        val fontFamilyButton = Button(this).apply {
+            text = "切换"
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            
+            setOnClickListener {
+                currentFontFamily = when (currentFontFamily) {
+                    "sans-serif" -> "serif"
+                    "serif" -> "monospace"
+                    "monospace" -> "cursive"
+                    else -> "sans-serif"
+                }
+                fontFamilyLabel.text = "字体: $currentFontFamily"
+                applyReadingPreferences()
+            }
+        }
+        
+        fontFamilyLayout.addView(fontFamilyLabel)
+        fontFamilyLayout.addView(fontFamilyButton)
+        layout.addView(fontFamilyLayout)
+        
+        // 分隔线
+        layout.addView(View(this).apply {
+            setBackgroundColor(resources.getColor(android.R.color.darker_gray, null))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+            setPadding(0, 16, 0, 16)
+        })
+        
+        // 行高设置
+        val lineHeightLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        
+        val lineHeightLabel = TextView(this).apply {
+            text = "行高: ${String.format("%.1f", currentLineHeight)}"
+            textSize = 16f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        
+        val lineHeightSeekBar = SeekBar(this).apply {
+            max = 15 // 1.0-2.5
+            progress = ((currentLineHeight - 1.0) * 10).toInt()
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f)
+            
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        currentLineHeight = 1.0 + progress * 0.1
+                        lineHeightLabel.text = "行高: ${String.format("%.1f", currentLineHeight)}"
+                        applyReadingPreferences()
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+        
+        lineHeightLayout.addView(lineHeightLabel)
+        lineHeightLayout.addView(lineHeightSeekBar)
+        layout.addView(lineHeightLayout)
+        
+        // 分隔线
+        layout.addView(View(this).apply {
+            setBackgroundColor(resources.getColor(android.R.color.darker_gray, null))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+            setPadding(0, 16, 0, 16)
+        })
+        
+        // 页边距设置
+        val marginsLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        
+        val marginsLabel = TextView(this).apply {
+            text = "页边距: ${String.format("%.1f", currentPageMargins)}"
+            textSize = 16f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        
+        val marginsSeekBar = SeekBar(this).apply {
+            max = 15 // 0.5-2.0
+            progress = ((currentPageMargins - 0.5) * 10).toInt()
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f)
+            
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        currentPageMargins = 0.5 + progress * 0.1
+                        marginsLabel.text = "页边距: ${String.format("%.1f", currentPageMargins)}"
+                        applyReadingPreferences()
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+        
+        marginsLayout.addView(marginsLabel)
+        marginsLayout.addView(marginsSeekBar)
+        layout.addView(marginsLayout)
+        
+        return layout
     }
     
     // 阅读统计

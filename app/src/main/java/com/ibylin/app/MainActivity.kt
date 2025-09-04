@@ -29,6 +29,8 @@ class MainActivity : AppCompatActivity() {
     
 
     private lateinit var btnBookLibrary: android.widget.Button
+    private lateinit var btnConfigTest: android.widget.Button
+    private lateinit var btnSettings: android.widget.ImageButton
 
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
@@ -62,6 +64,8 @@ class MainActivity : AppCompatActivity() {
     private fun initViews() {
 
         btnBookLibrary = findViewById(R.id.btn_book_library)
+        btnConfigTest = findViewById(R.id.btn_config_test)
+        btnSettings = findViewById(R.id.btn_settings)
 
     }
     
@@ -72,6 +76,15 @@ class MainActivity : AppCompatActivity() {
             openBookLibrary()
         }
         
+        // 配置测试按钮点击事件
+        btnConfigTest.setOnClickListener {
+            openConfigTest()
+        }
+        
+        // 设置按钮点击事件
+        btnSettings.setOnClickListener {
+            openReaderSettings()
+        }
 
     }
     
@@ -295,7 +308,15 @@ class MainActivity : AppCompatActivity() {
      * 打开阅读器设置页面
      */
     private fun openReaderSettings() {
-                    val intent = Intent(this, com.ibylin.app.ui.ReadiumSettingsActivity::class.java)
+                    // 旧的设置页面已删除，现在使用阅读器内部的配置面板
+        Toast.makeText(this, "请进入阅读器使用配置面板", Toast.LENGTH_LONG).show()
+    }
+    
+    /**
+     * 打开配置测试页面
+     */
+    private fun openConfigTest() {
+        val intent = Intent(this, com.ibylin.app.ui.ReadiumSimpleTestActivity::class.java)
         startActivity(intent)
     }
     

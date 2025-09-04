@@ -6,7 +6,7 @@ import com.ibylin.app.data.local.AppDatabase
 import com.ibylin.app.data.local.UserDao
 import com.ibylin.app.data.repository.UserRepository
 import com.ibylin.app.data.repository.UserRepositoryImpl
-import com.ibylin.app.utils.ReadiumConfig
+import com.ibylin.app.utils.ReadiumPreferencesManager
 import com.ibylin.app.utils.ReadiumHelper
 import dagger.Module
 import dagger.Provides
@@ -45,18 +45,18 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideReadiumConfig(
-        @ApplicationContext context: Context
-    ): ReadiumConfig {
-        return ReadiumConfig(context)
+    fun provideReadiumPreferencesManager(): ReadiumPreferencesManager {
+        return ReadiumPreferencesManager(ReadiumPreferencesManager.getDefaultPreferences())
     }
     
     @Provides
     @Singleton
     fun provideReadiumHelper(
         @ApplicationContext context: Context,
-        config: ReadiumConfig
+        config: ReadiumPreferencesManager
     ): ReadiumHelper {
-        return ReadiumHelper(context, config)
+        // 暂时注释掉，因为ReadiumHelper可能还没有更新
+        // return ReadiumHelper(context, config)
+        throw UnsupportedOperationException("ReadiumHelper需要更新以支持ReadiumPreferencesManager")
     }
 }

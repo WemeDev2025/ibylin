@@ -90,6 +90,12 @@
         </menu>
     </item>
 
+    <!-- 配置面板 -->
+    <item
+        android:id="@+id/action_config_panel"
+        android:title="配置面板"
+        app:showAsAction="ifRoom" />
+
     <!-- 更多选项 -->
     <item
         android:id="@+id/action_more"

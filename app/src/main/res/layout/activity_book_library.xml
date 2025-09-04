@@ -11,6 +11,7 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
+        android:layout_marginTop="25dp"
         android:background="@color/material_surface"
         android:elevation="4dp"
         app:title="我的书库"
@@ -18,7 +19,12 @@
         app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineSmall"
         app:menu="@menu/menu_book_library_toolbar"
         app:navigationIcon="@drawable/ic_arrow_left"
-        app:navigationIconTint="@color/material_on_surface" />
+        app:navigationIconTint="@color/material_on_surface"
+        app:popupTheme="@style/ThemeOverlay.Material3.Light"
+        android:minHeight="?attr/actionBarSize"
+        app:contentInsetStart="16dp"
+        app:contentInsetEnd="16dp"
+        app:contentInsetStartWithNavigation="16dp" />
 
     <!-- 内容区域 -->
     <RelativeLayout

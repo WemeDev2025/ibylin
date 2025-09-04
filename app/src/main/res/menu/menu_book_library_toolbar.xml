@@ -2,25 +2,11 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <!-- 搜索按钮 -->
-    <item
-        android:id="@+id/action_search"
-        android:title="搜索"
-        android:icon="@drawable/ic_search"
-        app:showAsAction="ifRoom" />
-
     <!-- 设置按钮 -->
     <item
         android:id="@+id/action_settings"
         android:title="设置"
-        android:icon="@drawable/ic_settings"
-        app:showAsAction="ifRoom" />
-
-    <!-- 更多选项 -->
-    <item
-        android:id="@+id/action_more"
-        android:title="更多"
-        android:icon="@drawable/ic_more_vertical"
-        app:showAsAction="ifRoom" />
+        android:icon="@drawable/ic_setting"
+        app:showAsAction="always" />
 
 </menu>
