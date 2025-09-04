@@ -35,8 +35,7 @@
         android:textColor="@color/white"
         android:textSize="14sp"
         android:gravity="center"
-        android:minHeight="32dp"
-        android:fontFamily="@font/mashanzheng_font" />
+        android:minHeight="32dp" />
 
     <!-- 进度条 - 覆盖在图片列表上，垂直居中 -->
     <FrameLayout

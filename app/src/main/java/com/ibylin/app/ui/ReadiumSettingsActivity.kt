@@ -17,7 +17,7 @@ import javax.inject.Inject
  * 提供阅读器的各种配置选项
  */
 @AndroidEntryPoint
-class LibreraSettingsActivity : AppCompatActivity() {
+class ReadiumSettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLibreraSettingsBinding
     

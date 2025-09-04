@@ -29,7 +29,7 @@ class BookGridAdapter(
     
     class BookGridViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val ivCover: ImageView = itemView.findViewById(R.id.iv_book_cover)
-        val tvFormat: TextView = itemView.findViewById(R.id.tv_format)
+
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookGridViewHolder {
@@ -66,14 +66,7 @@ class BookGridAdapter(
             android.util.Log.d("BookGridAdapter", "开始加载封面: ${epubFile.name}")
             loadCoverImage(holder.ivCover, epubFile)
             
-            // 显示格式标签
-            val format = getBookFormat(epubFile.name)
-            if (format != null) {
-                holder.tvFormat.text = format
-                holder.tvFormat.visibility = View.VISIBLE
-            } else {
-                holder.tvFormat.visibility = View.GONE
-            }
+
             
             // 设置封面点击事件，添加缩放动画
             holder.ivCover.setOnClickListener {
@@ -117,19 +110,7 @@ class BookGridAdapter(
         android.util.Log.d("BookGridAdapter", "notifyDataSetChanged已调用")
     }
     
-    /**
-     * 根据文件名获取书籍格式
-     */
-    private fun getBookFormat(fileName: String): String? {
-        return when {
-            fileName.endsWith(".epub", ignoreCase = true) -> "EPUB"
-            fileName.endsWith(".mobi", ignoreCase = true) -> "MOBI"
-            fileName.endsWith(".azw", ignoreCase = true) -> "AZW"
-            fileName.endsWith(".azw3", ignoreCase = true) -> "AZW3"
-            fileName.endsWith(".pdf", ignoreCase = true) -> "PDF"
-            else -> null
-        }
-    }
+
     
     /**
      * 加载封面图片

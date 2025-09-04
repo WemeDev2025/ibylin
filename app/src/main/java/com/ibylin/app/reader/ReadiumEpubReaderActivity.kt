@@ -72,7 +72,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_readium_reader)
+        setContentView(R.layout.activity_readium_epub_reader)
         
         setupViews()
         setupToolbar()

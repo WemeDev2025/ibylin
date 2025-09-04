@@ -6,8 +6,8 @@ import com.ibylin.app.data.local.AppDatabase
 import com.ibylin.app.data.local.UserDao
 import com.ibylin.app.data.repository.UserRepository
 import com.ibylin.app.data.repository.UserRepositoryImpl
-import com.ibylin.app.utils.LibreraConfig
-import com.ibylin.app.utils.LibreraHelper
+import com.ibylin.app.utils.ReadiumConfig
+import com.ibylin.app.utils.ReadiumHelper
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -45,18 +45,18 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideLibreraConfig(
+    fun provideReadiumConfig(
         @ApplicationContext context: Context
-    ): LibreraConfig {
-        return LibreraConfig(context)
+    ): ReadiumConfig {
+        return ReadiumConfig(context)
     }
     
     @Provides
     @Singleton
-    fun provideLibreraHelper(
+    fun provideReadiumHelper(
         @ApplicationContext context: Context,
-        config: LibreraConfig
-    ): LibreraHelper {
-        return LibreraHelper(context, config)
+        config: ReadiumConfig
+    ): ReadiumHelper {
+        return ReadiumHelper(context, config)
     }
 }

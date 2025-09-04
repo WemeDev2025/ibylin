@@ -22,23 +22,7 @@
         android:contentDescription="书籍封面"
         android:scaleType="centerCrop" />
     
-    <!-- 格式标签 -->
-    <TextView
-        android:id="@+id/tv_format"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|end"
-        android:layout_margin="8dp"
-        android:background="@drawable/format_badge_background"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp"
-        android:text="EPUB"
-        android:textColor="@color/white"
-        android:textSize="10sp"
-        android:textStyle="bold"
-        android:visibility="gone" />
+    
 
 </com.google.android.material.card.MaterialCardView>
 

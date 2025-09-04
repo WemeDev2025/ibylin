@@ -10,6 +10,8 @@ import android.os.Environment
 import android.provider.Settings
 import android.view.View
 import android.widget.TextView
+import android.widget.Toast
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -22,8 +24,11 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.ibylin.app.R
 import com.ibylin.app.adapter.BookGridAdapter
 import com.ibylin.app.reader.ReadiumEpubReaderActivity
+
 import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.BookScanner
+import com.ibylin.app.utils.ReadiumHelper
+import com.ibylin.app.utils.ReadiumConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -174,9 +179,23 @@ class BookLibraryActivity : AppCompatActivity() {
         
         // 初始化适配器
         bookGridAdapter = BookGridAdapter(
-            onItemClick = { epubFile ->
-                // 点击书籍时跳转到阅读器
-                openReadiumReader(epubFile.path)
+            onItemClick = { bookFile ->
+                // 根据文件格式选择正确的阅读器
+                when {
+                    bookFile.path.endsWith(".epub", ignoreCase = true) -> {
+                        // EPUB文件使用ReadiumEpubReaderActivity
+                        openReadiumReader(bookFile.path)
+                    }
+
+                    bookFile.path.endsWith(".pdf", ignoreCase = true) -> {
+                        // PDF文件使用PDF阅读器
+                        openPdfReader(bookFile.path)
+                    }
+                    else -> {
+                        // 其他格式使用通用阅读器
+                        openGenericReader(bookFile.path)
+                    }
+                }
             },
             onBookDeleted = { newCount ->
                 // 书籍删除后更新计数和缓存
@@ -506,7 +525,7 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     /**
-     * 打开Readium阅读器
+     * 打开Readium阅读器 (EPUB格式)
      */
     private fun openReadiumReader(bookPath: String) {
         val intent = Intent(this, ReadiumEpubReaderActivity::class.java).apply {
@@ -514,6 +533,26 @@ class BookLibraryActivity : AppCompatActivity() {
         }
         startActivity(intent)
     }
+    
+
+    
+    /**
+     * 打开PDF阅读器
+     */
+    private fun openPdfReader(bookPath: String) {
+        Toast.makeText(this, "PDF阅读器功能开发中", Toast.LENGTH_SHORT).show()
+        // TODO: 实现PDF阅读器
+    }
+    
+    /**
+     * 打开通用阅读器
+     */
+    private fun openGenericReader(bookPath: String) {
+        Toast.makeText(this, "通用阅读器功能开发中", Toast.LENGTH_SHORT).show()
+        // TODO: 实现通用阅读器
+    }
+    
+
     
     /**
      * 手动更新书籍列表

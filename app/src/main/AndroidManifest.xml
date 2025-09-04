@@ -34,11 +34,6 @@
         </activity>
         
         <activity
-            android:name=".reader.ReadiumReaderActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Ibylin" />
-            
-        <activity
             android:name=".reader.ReadiumEpubReaderActivity"
             android:exported="false"
             android:theme="@style/Theme.Ibylin" />
@@ -52,6 +47,8 @@
             android:name=".ui.BookLibraryActivity"
             android:exported="false"
             android:theme="@style/Theme.Ibylin" />
+            
+
             
         <activity
             android:name=".ui.LocalBooksActivity"

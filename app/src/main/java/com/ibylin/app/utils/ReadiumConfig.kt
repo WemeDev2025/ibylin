@@ -7,11 +7,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Librera Reader 配置管理类
+ * Readium 阅读器配置管理类
  * 负责管理阅读器的各种设置和偏好
  */
 @Singleton
-class LibreraConfig @Inject constructor(
+class ReadiumConfig @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     

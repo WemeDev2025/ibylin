@@ -49,30 +49,7 @@ class BookScanner {
                 ))
             }
             
-            // 扫描MOBI文件
-            val mobiScanner = MobiScanner()
-            val mobiFiles = mobiScanner.scanMobiFiles(context)
-            Log.d(TAG, "MOBI扫描完成，找到 ${mobiFiles.size} 个文件")
-            
-            // 将MOBI文件转换为统一的BookFile格式
-            mobiFiles.forEach { mobiFile ->
-                allBooks.add(BookFile(
-                    name = mobiFile.name,
-                    path = mobiFile.path,
-                    size = mobiFile.size,
-                    lastModified = mobiFile.lastModified,
-                    format = BookFormat.MOBI,
-                    metadata = mobiFile.metadata?.let { metadata ->
-                        BookMetadata(
-                            title = metadata.title,
-                            author = metadata.author,
-                            coverImagePath = metadata.coverImagePath,
-                            description = metadata.description,
-                            version = metadata.version
-                        )
-                    }
-                ))
-            }
+
             
             Log.d(TAG, "所有格式扫描完成，总计 ${allBooks.size} 个文件")
             
@@ -111,28 +88,7 @@ class BookScanner {
                     )
                 }
             }
-            BookFormat.MOBI -> {
-                val mobiScanner = MobiScanner()
-                val mobiFiles = mobiScanner.scanMobiFiles(context)
-                mobiFiles.map { mobiFile ->
-                    BookFile(
-                        name = mobiFile.name,
-                        path = mobiFile.path,
-                        size = mobiFile.size,
-                        lastModified = mobiFile.lastModified,
-                        format = BookFormat.MOBI,
-                        metadata = mobiFile.metadata?.let { metadata ->
-                            BookMetadata(
-                                title = metadata.title,
-                                author = metadata.author,
-                                coverImagePath = metadata.coverImagePath,
-                                description = metadata.description,
-                                version = metadata.version
-                            )
-                        }
-                    )
-                }
-            }
+
         }
     }
     
@@ -140,15 +96,14 @@ class BookScanner {
      * 获取支持的文件扩展名
      */
     fun getSupportedExtensions(): List<String> {
-        return listOf(".epub", ".EPUB", ".mobi", ".MOBI", ".azw", ".AZW", ".azw3", ".AZW3")
+        return listOf(".epub", ".EPUB")
     }
     
     /**
      * 检查文件是否是支持的电子书格式
      */
     fun isSupportedBookFormat(fileName: String): Boolean {
-        val supportedExtensions = getSupportedExtensions()
-        return supportedExtensions.any { fileName.endsWith(it) }
+        return fileName.endsWith(".epub", ignoreCase = true)
     }
     
     /**
@@ -157,9 +112,6 @@ class BookScanner {
     fun getBookFormatByExtension(fileName: String): BookFormat? {
         return when {
             fileName.endsWith(".epub", ignoreCase = true) -> BookFormat.EPUB
-            fileName.endsWith(".mobi", ignoreCase = true) -> BookFormat.MOBI
-            fileName.endsWith(".azw", ignoreCase = true) -> BookFormat.MOBI
-            fileName.endsWith(".azw3", ignoreCase = true) -> BookFormat.MOBI
             else -> null
         }
     }
@@ -169,8 +121,7 @@ class BookScanner {
  * 电子书格式枚举
  */
 enum class BookFormat(val displayName: String, val fileExtensions: List<String>) {
-    EPUB("EPUB", listOf(".epub", ".EPUB")),
-    MOBI("MOBI", listOf(".mobi", ".MOBI", ".azw", ".AZW", ".azw3", ".AZW3"))
+    EPUB("EPUB", listOf(".epub", ".EPUB"))
 }
 
 /**

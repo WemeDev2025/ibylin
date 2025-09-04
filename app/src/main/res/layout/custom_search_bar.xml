@@ -42,8 +42,7 @@
             android:maxLines="1"
             android:singleLine="true"
             android:padding="0dp"
-            android:gravity="center_vertical"
-            android:fontFamily="@font/mashanzheng_font" />
+            android:gravity="center_vertical" />
 
         <!-- 清除按钮 -->
         <ImageView
