@@ -315,5 +315,105 @@ class EpubFixer {
                 Log.e(TAG, "清理临时文件时出错", e)
             }
         }
+        
+        /**
+         * 清理重复的修复文件
+         * 删除所有 _fixed.epub 文件，保留原文件
+         */
+        fun cleanupDuplicateFixedFiles(directory: String) {
+            try {
+                val dir = File(directory)
+                if (!dir.exists() || !dir.isDirectory) {
+                    Log.w(TAG, "目录不存在或不是目录: $directory")
+                    return
+                }
+                
+                val fixedFiles = dir.listFiles { file ->
+                    file.name.endsWith("_fixed.epub")
+                }
+                
+                fixedFiles?.forEach { file ->
+                    try {
+                        if (file.delete()) {
+                            Log.d(TAG, "重复的修复文件已删除: ${file.name}")
+                        } else {
+                            Log.w(TAG, "删除重复文件失败: ${file.name}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "删除重复文件时出错: ${file.name}", e)
+                    }
+                }
+                
+                Log.d(TAG, "重复文件清理完成，共删除 ${fixedFiles?.size ?: 0} 个文件")
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "清理重复文件时出错", e)
+            }
+        }
+        
+        /**
+         * 智能清理：保留修复后的文件，删除原文件
+         * 用于清理已经存在的重复文件
+         */
+        fun smartCleanupDuplicates(directory: String) {
+            try {
+                val dir = File(directory)
+                if (!dir.exists() || !dir.isDirectory) {
+                    Log.w(TAG, "目录不存在或不是目录: $directory")
+                    return
+                }
+                
+                val allFiles = dir.listFiles { file ->
+                    file.name.endsWith(".epub")
+                } ?: return
+                
+                val fileGroups = mutableMapOf<String, MutableList<File>>()
+                
+                // 按书名分组
+                allFiles.forEach { file ->
+                    val baseName = file.name.replace("_fixed.epub", ".epub").replace(".epub", "")
+                    fileGroups.getOrPut(baseName) { mutableListOf() }.add(file)
+                }
+                
+                // 处理每组文件
+                fileGroups.forEach { (baseName, files) ->
+                    if (files.size > 1) {
+                        Log.d(TAG, "发现重复文件组: $baseName, 文件数量: ${files.size}")
+                        
+                        // 找到修复后的文件
+                        val fixedFile = files.find { it.name.endsWith("_fixed.epub") }
+                        val originalFile = files.find { !it.name.endsWith("_fixed.epub") }
+                        
+                        if (fixedFile != null && originalFile != null) {
+                            try {
+                                // 删除原文件
+                                if (originalFile.delete()) {
+                                    Log.d(TAG, "原文件已删除: ${originalFile.name}")
+                                    
+                                    // 重命名修复后的文件
+                                    val newName = originalFile.name
+                                    val newFile = File(originalFile.parent, newName)
+                                    
+                                    if (fixedFile.renameTo(newFile)) {
+                                        Log.d(TAG, "修复文件已重命名: ${fixedFile.name} -> $newName")
+                                    } else {
+                                        Log.w(TAG, "重命名失败: ${fixedFile.name}")
+                                    }
+                                } else {
+                                    Log.w(TAG, "删除原文件失败: ${originalFile.name}")
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "处理重复文件时出错: $baseName", e)
+                            }
+                        }
+                    }
+                }
+                
+                Log.d(TAG, "智能清理完成")
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "智能清理重复文件时出错", e)
+            }
+        }
     }
 }

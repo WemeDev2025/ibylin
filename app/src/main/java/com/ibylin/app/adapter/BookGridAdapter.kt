@@ -22,7 +22,8 @@ import java.io.File
 class BookGridAdapter(
     private var epubFiles: List<EpubFile> = emptyList(),
     private val onItemClick: ((EpubFile) -> Unit)? = null,
-    private val onBookDeleted: ((Int) -> Unit)? = null
+    private val onBookDeleted: ((Int) -> Unit)? = null,
+    private val onItemLongClick: ((EpubFile, View) -> Unit)? = null
 ) : RecyclerView.Adapter<BookGridAdapter.BookGridViewHolder>() {
     
     class BookGridViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -74,7 +75,12 @@ class BookGridAdapter(
                 }
             }
             
-            // 菜单按钮已移除，只保留封面点击功能
+            // 设置长按事件，弹出菜单
+            holder.ivCover.setOnLongClickListener {
+                android.util.Log.d("BookGridAdapter", "封面长按事件触发: ${epubFile.name}")
+                onItemLongClick?.invoke(epubFile, holder.itemView)
+                true // 返回 true 表示消费了长按事件
+            }
             
             android.util.Log.d("BookGridAdapter", "ViewHolder绑定完成: position=$position, 书名=${epubFile.metadata?.title ?: epubFile.name}")
         } catch (e: Exception) {

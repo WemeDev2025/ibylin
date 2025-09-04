@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 打开阅读 -->
+    <item
+        android:id="@+id/action_open_book"
+        android:title="打开阅读"
+        android:icon="@drawable/ic_open_book" />
+
+    <!-- 书籍信息 -->
+    <item
+        android:id="@+id/action_book_info"
+        android:title="书籍信息"
+        android:icon="@drawable/ic_info" />
+
+    <!-- 自定义封面 -->
+    <item
+        android:id="@+id/action_custom_cover"
+        android:title="自定义封面"
+        android:icon="@drawable/ic_image" />
+
+    <!-- 分享书籍 -->
+    <item
+        android:id="@+id/action_share_book"
+        android:title="分享书籍"
+        android:icon="@drawable/ic_share" />
+
+    <!-- 删除书籍 -->
+    <item
+        android:id="@+id/action_delete_book"
+        android:title="删除书籍"
+        android:icon="@drawable/ic_delete" />
+
+</menu>

@@ -175,6 +175,10 @@ class BookLibraryActivity : AppCompatActivity() {
                 android.util.Log.d("BookLibraryActivity", "删除后更新完成: 新数量=$newCount, 缓存数量=${cachedEpubFiles.size}")
                 
                 android.util.Log.d("BookLibraryActivity", "删除后更新完成: 标题数量=$newCount, 缓存数量=${cachedEpubFiles.size}")
+            },
+            onItemLongClick = { epubFile, view ->
+                // 长按书籍时弹出菜单
+                showBookLongPressMenu(epubFile, view)
             }
         )
         rvBooks.adapter = bookGridAdapter
@@ -442,8 +446,11 @@ class BookLibraryActivity : AppCompatActivity() {
         // 更新标题显示无书籍
         updateTitle(0)
         
+        // 显示简单的无书籍提示
         llNoBooks.visibility = View.VISIBLE
         rvBooks.visibility = View.GONE
+        
+        android.util.Log.d("BookLibraryActivity", "显示无书籍提示")
     }
     
     /**
@@ -707,30 +714,155 @@ class BookLibraryActivity : AppCompatActivity() {
         }
     }
     
-    /**
-     * 测试图标显示
-     */
-    fun testIconDisplay(view: View) {
-        android.util.Log.d("BookLibraryActivity", "测试图标显示被调用")
-        
-        // 强制显示无书籍状态
-        showNoBooks()
-        
-        // 显示提示
-        android.widget.Toast.makeText(this, "强制显示书架图标", android.widget.Toast.LENGTH_SHORT).show()
+
+    
+
+
+    fun cleanupDuplicateFiles(view: View) {
+        android.util.Log.d("BookLibraryActivity", "清理重复文件被调用")
+
+        val uniqueEpubFiles = cachedEpubFiles.distinctBy { it.path.lowercase().trim() }
+        val originalCount = cachedEpubFiles.size
+        val newCount = uniqueEpubFiles.size
+
+        if (newCount < originalCount) {
+            android.util.Log.d("BookLibraryActivity", "发现重复文件，清理前数量: $originalCount, 清理后数量: $newCount")
+            cachedEpubFiles = uniqueEpubFiles
+            saveCacheData(cachedEpubFiles)
+            showBooks(cachedEpubFiles)
+            android.util.Log.d("BookLibraryActivity", "重复文件清理完成，缓存已更新")
+        } else {
+            android.util.Log.d("BookLibraryActivity", "没有发现重复文件，缓存数量保持不变")
+            android.widget.Toast.makeText(this, "没有发现重复文件", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
     
     /**
-     * 测试缓存刷新
+     * 显示书籍长按菜单
      */
-    fun testCacheRefresh(view: View) {
-        android.util.Log.d("BookLibraryActivity", "测试缓存刷新被调用")
+    private fun showBookLongPressMenu(epubFile: EpubFile, anchorView: View) {
+        android.util.Log.d("BookLibraryActivity", "显示书籍长按菜单: ${epubFile.name}")
         
-        // 强制刷新缓存
-        clearCacheData()
-        startBookScan()
+        val popupMenu = android.widget.PopupMenu(this, anchorView)
+        popupMenu.inflate(R.menu.menu_book_item_long_press)
         
-        // 显示提示
-        android.widget.Toast.makeText(this, "缓存已刷新，重新扫描中", android.widget.Toast.LENGTH_SHORT).show()
+        // 设置菜单项点击事件
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_open_book -> {
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：打开阅读")
+                    openReadiumReader(epubFile.path)
+                    true
+                }
+                R.id.action_book_info -> {
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：显示书籍信息")
+                    showBookInfo(epubFile)
+                    true
+                }
+                R.id.action_custom_cover -> {
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：自定义封面")
+                    openCoverSelection(epubFile)
+                    true
+                }
+                R.id.action_share_book -> {
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：分享书籍")
+                    shareBook(epubFile)
+                    true
+                }
+                R.id.action_delete_book -> {
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：删除书籍")
+                    showDeleteBookDialog(epubFile)
+                    true
+                }
+                else -> false
+            }
+        }
+        
+        // 显示菜单
+        popupMenu.show()
+    }
+    
+    /**
+     * 显示书籍信息
+     */
+    private fun showBookInfo(epubFile: EpubFile) {
+        val message = """
+            书名：${epubFile.metadata?.title ?: epubFile.name}
+            作者：${epubFile.metadata?.author ?: "未知"}
+            文件大小：${android.text.format.Formatter.formatFileSize(this, epubFile.size)}
+            文件路径：${epubFile.path}
+            最后修改：${android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", epubFile.lastModified)}
+        """.trimIndent()
+        
+        android.app.AlertDialog.Builder(this)
+            .setTitle("书籍信息")
+            .setMessage(message)
+            .setPositiveButton("确定", null)
+            .show()
+    }
+    
+    /**
+     * 打开封面选择
+     */
+    private fun openCoverSelection(epubFile: EpubFile) {
+        val intent = Intent(this, com.ibylin.app.ui.CoverSelectionActivity::class.java).apply {
+            putExtra("book_name", epubFile.name)
+        }
+        startActivity(intent)
+    }
+    
+    /**
+     * 分享书籍
+     */
+    private fun shareBook(epubFile: EpubFile) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/epub+zip"
+            putExtra(Intent.EXTRA_STREAM, android.net.Uri.fromFile(java.io.File(epubFile.path)))
+            putExtra(Intent.EXTRA_SUBJECT, "分享书籍：${epubFile.metadata?.title ?: epubFile.name}")
+            putExtra(Intent.EXTRA_TEXT, "我正在阅读《${epubFile.metadata?.title ?: epubFile.name}》，推荐给你！")
+        }
+        
+        try {
+            startActivity(Intent.createChooser(shareIntent, "分享书籍"))
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "分享书籍失败", e)
+            android.widget.Toast.makeText(this, "分享失败：${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 显示删除书籍确认对话框
+     */
+    private fun showDeleteBookDialog(epubFile: EpubFile) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("删除确认")
+            .setMessage("确定要删除《${epubFile.metadata?.title ?: epubFile.name}》吗？\n\n此操作不可撤销。")
+            .setPositiveButton("删除") { _, _ ->
+                deleteBook(epubFile)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+    
+    /**
+     * 删除书籍
+     */
+    private fun deleteBook(epubFile: EpubFile) {
+        try {
+            val file = java.io.File(epubFile.path)
+            if (file.exists() && file.delete()) {
+                android.util.Log.d("BookLibraryActivity", "书籍删除成功: ${epubFile.name}")
+                android.widget.Toast.makeText(this, "书籍删除成功", android.widget.Toast.LENGTH_SHORT).show()
+                
+                // 刷新书籍列表
+                startBookScan()
+            } else {
+                android.util.Log.e("BookLibraryActivity", "书籍删除失败: ${epubFile.name}")
+                android.widget.Toast.makeText(this, "删除失败，请重试", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "删除书籍异常", e)
+            android.widget.Toast.makeText(this, "删除失败：${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 }
