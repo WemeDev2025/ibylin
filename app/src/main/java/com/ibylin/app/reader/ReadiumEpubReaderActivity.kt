@@ -428,8 +428,97 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 
                 Log.d(TAG, "阅读进度监听器设置成功")
             }
+            
+            // 添加Locator变化监听器，实时更新章节和页码信息
+            setupLocatorChangeListener()
+            
         } catch (e: Exception) {
             Log.w(TAG, "设置阅读进度监听器失败", e)
+        }
+    }
+    
+    /**
+     * 设置Locator变化监听器
+     */
+    private fun setupLocatorChangeListener() {
+        try {
+            navigatorFragment?.let { fragment ->
+                // 监听currentLocator的变化
+                fragment.currentLocator.value?.let { initialLocator ->
+                    Log.d(TAG, "初始Locator: $initialLocator")
+                    updatePageInfoDisplay(false)
+                }
+                
+                // 使用Handler监听Locator变化
+                val locatorHandler = android.os.Handler(android.os.Looper.getMainLooper())
+                var lastLocatorHash = 0
+                var lastPageInfo = ""
+                
+                val locatorRunnable = object : Runnable {
+                    override fun run() {
+                        try {
+                            val currentLocator = navigatorFragment?.currentLocator?.value
+                            if (currentLocator != null) {
+                                // 计算Locator的哈希值，检测是否真的发生了变化
+                                val currentHash = currentLocator.hashCode()
+                                val newChapterTitle = getCurrentChapterTitle()
+                                val newPage = getCurrentPage()
+                                val newPageInfo = "$newChapterTitle-$newPage"
+                                
+                                // 只有当Locator真正变化时才更新UI
+                                if (currentHash != lastLocatorHash || newPageInfo != lastPageInfo) {
+                                    lastLocatorHash = currentHash
+                                    lastPageInfo = newPageInfo
+                                    
+                                    // 更新UI显示
+                                    updateChapterAndPageInfo(newChapterTitle, newPage)
+                                    
+                                    Log.d(TAG, "Locator真正变化: 章节=$newChapterTitle, 页码=$newPage, hash=$currentHash")
+                                }
+                            }
+                            
+                            // 每100ms检查一次Locator变化（提高频率）
+                            locatorHandler.postDelayed(this, 100)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "监听Locator变化失败", e)
+                        }
+                    }
+                }
+                
+                // 开始监听
+                locatorHandler.post(locatorRunnable)
+                
+                Log.d(TAG, "Locator变化监听器设置成功")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "设置Locator变化监听器失败", e)
+        }
+    }
+    
+    /**
+     * 更新章节和页码信息
+     */
+    private fun updateChapterAndPageInfo(chapterTitle: String, currentPage: Int) {
+        try {
+            runOnUiThread {
+                // 更新章节标题
+                tvChapterTitle.text = chapterTitle
+                
+                // 更新页码信息
+                val totalPages = getTotalPages()
+                if (isMenuVisible) {
+                    // 菜单显示时显示详细信息
+                    val remainingPages = getRemainingPages()
+                    tvPageInfo.text = "本章还剩${remainingPages}页"
+                } else {
+                    // 菜单隐藏时显示简单信息
+                    tvPageInfo.text = "$currentPage / $totalPages"
+                }
+                
+                Log.d(TAG, "UI更新: 章节=$chapterTitle, 页码=$currentPage/$totalPages")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "更新章节和页码信息失败", e)
         }
     }
     
@@ -2169,14 +2258,17 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
      * 更新页面信息显示
      */
     private fun updatePageInfoDisplay(showDetailed: Boolean) {
-        if (showDetailed) {
-            // 显示详细页面信息（菜单激活时）
-            tvChapterTitle.text = "本章还剩 ${getRemainingPages()} 页"
-            tvPageInfo.text = "${getCurrentPage()} / ${getTotalPages()}"
-        } else {
-            // 显示默认信息（菜单隐藏时）
-            tvChapterTitle.text = getCurrentChapterTitle()
-            tvPageInfo.text = getCurrentPage().toString()
+        try {
+            val chapterTitle = getCurrentChapterTitle()
+            val currentPage = getCurrentPage()
+            val totalPages = getTotalPages()
+            
+            // 使用新的更新方法
+            updateChapterAndPageInfo(chapterTitle, currentPage)
+            
+            Log.d(TAG, "页面信息更新: 章节=$chapterTitle, 页码=$currentPage/$totalPages, 详细=$showDetailed")
+        } catch (e: Exception) {
+            Log.w(TAG, "更新页面信息显示失败", e)
         }
     }
     
@@ -2184,19 +2276,97 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
      * 获取当前章节标题
      */
     private fun getCurrentChapterTitle(): String {
-        return publication?.metadata?.title ?: "当前章节"
+        return try {
+            val currentLocator = navigatorFragment?.currentLocator?.value
+            if (currentLocator != null) {
+                // 优先使用Locator中的title
+                currentLocator.title?.let { title ->
+                    if (title.isNotEmpty()) return title
+                }
+                
+                // 如果没有title，尝试从href推断章节信息
+                val href = currentLocator.href.toString()
+                val fileName = href.substringAfterLast("/").substringBeforeLast(".")
+                if (fileName.isNotEmpty()) {
+                    return fileName
+                }
+            }
+            
+            // 如果都获取不到，返回书籍标题
+            publication?.metadata?.title ?: "当前章节"
+        } catch (e: Exception) {
+            Log.w(TAG, "获取章节标题失败", e)
+            publication?.metadata?.title ?: "当前章节"
+        }
     }
     
     /**
      * 获取当前页码
      */
     private fun getCurrentPage(): Int {
-        // 从Readium获取当前页码
         return try {
-            navigatorFragment?.currentLocator?.value?.locations?.fragments?.firstOrNull()?.let { fragment ->
-                // 尝试从fragment中提取页码信息
-                fragment.toIntOrNull() ?: 1
-            } ?: 1
+            val currentLocator = navigatorFragment?.currentLocator?.value
+            if (currentLocator != null) {
+                Log.d(TAG, "计算页码，当前Locator: $currentLocator")
+                
+                // 优先使用Locator中的position
+                currentLocator.locations.position?.let { position ->
+                    if (position > 0) {
+                        Log.d(TAG, "使用position计算页码: $position")
+                        return position
+                    }
+                }
+                
+                // 如果没有position，尝试从progression计算
+                currentLocator.locations.progression?.let { progression ->
+                    val totalPages = getTotalPages()
+                    if (totalPages > 0) {
+                        val calculatedPage = (progression * totalPages).toInt() + 1
+                        Log.d(TAG, "使用progression计算页码: $calculatedPage (progression=$progression, totalPages=$totalPages)")
+                        return calculatedPage
+                    }
+                }
+                
+                // 尝试从totalProgression计算
+                currentLocator.locations.totalProgression?.let { totalProgression ->
+                    val totalPages = getTotalPages()
+                    if (totalPages > 0) {
+                        val calculatedPage = (totalProgression * totalPages).toInt() + 1
+                        Log.d(TAG, "使用totalProgression计算页码: $calculatedPage (totalProgression=$totalProgression, totalPages=$totalPages)")
+                        return calculatedPage
+                    }
+                }
+                
+                // 如果都没有，尝试从fragment解析
+                currentLocator.locations.fragments.firstOrNull()?.let { fragment ->
+                    fragment.toIntOrNull()?.let { page ->
+                        if (page > 0) {
+                            Log.d(TAG, "使用fragment计算页码: $page")
+                            return page
+                        }
+                    }
+                }
+                
+                // 尝试从href推断页码
+                val href = currentLocator.href.toString()
+                if (href.contains("page") || href.contains("p")) {
+                    val pageMatch = Regex("page[_-]?(\\d+)").find(href)
+                    pageMatch?.let { match ->
+                        val page = match.groupValues[1].toIntOrNull()
+                        if (page != null && page > 0) {
+                            Log.d(TAG, "从href推断页码: $page")
+                            return page
+                        }
+                    }
+                }
+                
+                Log.d(TAG, "无法计算页码，使用默认值1")
+            } else {
+                Log.d(TAG, "currentLocator为null，无法计算页码")
+            }
+            
+            // 默认返回1
+            1
         } catch (e: Exception) {
             Log.w(TAG, "获取当前页码失败", e)
             1
@@ -2207,9 +2377,22 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
      * 获取总页数
      */
     private fun getTotalPages(): Int {
-        // 从Readium获取总页数
         return try {
-            publication?.readingOrder?.size ?: 100
+            val currentLocator = navigatorFragment?.currentLocator?.value
+            if (currentLocator != null) {
+                // 尝试从Locator中获取总页数信息
+                currentLocator.locations.otherLocations["totalPages"]?.toString()?.toIntOrNull()?.let { total ->
+                    if (total > 0) return total
+                }
+            }
+            
+            // 如果没有，使用readingOrder的大小作为备选
+            publication?.readingOrder?.size?.let { size ->
+                if (size > 0) return size
+            }
+            
+            // 默认返回100
+            100
         } catch (e: Exception) {
             Log.w(TAG, "获取总页数失败", e)
             100
@@ -2220,7 +2403,9 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
      * 获取本章剩余页数
      */
     private fun getRemainingPages(): Int {
-        return getTotalPages() - getCurrentPage()
+        val currentPage = getCurrentPage()
+        val totalPages = getTotalPages()
+        return if (totalPages > currentPage) totalPages - currentPage else 0
     }
     
     /**
