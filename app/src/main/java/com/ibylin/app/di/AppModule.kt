@@ -49,14 +49,5 @@ object AppModule {
         return ReadiumPreferencesManager(ReadiumPreferencesManager.getDefaultPreferences())
     }
     
-    @Provides
-    @Singleton
-    fun provideReadiumHelper(
-        @ApplicationContext context: Context,
-        config: ReadiumPreferencesManager
-    ): ReadiumHelper {
-        // 暂时注释掉，因为ReadiumHelper可能还没有更新
-        // return ReadiumHelper(context, config)
-        throw UnsupportedOperationException("ReadiumHelper需要更新以支持ReadiumPreferencesManager")
-    }
+
 }
