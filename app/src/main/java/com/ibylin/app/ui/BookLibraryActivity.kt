@@ -398,7 +398,7 @@ class BookLibraryActivity : AppCompatActivity() {
         android.util.Log.d("BookLibraryActivity", "showBooks被调用: 文件数量=${epubFiles.size}")
         
         // 确保数据一致性：再次过滤不存在的文件
-        val finalEpubFiles = epubFiles.filter { epubFile ->
+        val validEpubFiles = epubFiles.filter { epubFile ->
             val file = java.io.File(epubFile.path)
             val exists = file.exists()
             if (!exists) {
@@ -407,10 +407,13 @@ class BookLibraryActivity : AppCompatActivity() {
             exists
         }
         
-        // 按最后修改时间排序：最新添加的书籍显示在最前面
-        val sortedEpubFiles = finalEpubFiles.sortedByDescending { it.lastModified }
+        // 去除重复的书籍（基于文件路径）
+        val uniqueEpubFiles = validEpubFiles.distinctBy { it.path.lowercase().trim() }
         
-        android.util.Log.d("BookLibraryActivity", "最终显示: 原始数量=${epubFiles.size}, 最终数量=${finalEpubFiles.size}, 排序后数量=${sortedEpubFiles.size}")
+        // 按最后修改时间排序：最新添加的书籍显示在最前面
+        val sortedEpubFiles = uniqueEpubFiles.sortedByDescending { it.lastModified }
+        
+        android.util.Log.d("BookLibraryActivity", "最终显示: 原始数量=${epubFiles.size}, 有效数量=${validEpubFiles.size}, 去重后数量=${uniqueEpubFiles.size}, 排序后数量=${sortedEpubFiles.size}")
         
         if (sortedEpubFiles.isEmpty()) {
             android.util.Log.d("BookLibraryActivity", "最终文件列表为空，显示无书籍提示")
@@ -702,5 +705,32 @@ class BookLibraryActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+    
+    /**
+     * 测试图标显示
+     */
+    fun testIconDisplay(view: View) {
+        android.util.Log.d("BookLibraryActivity", "测试图标显示被调用")
+        
+        // 强制显示无书籍状态
+        showNoBooks()
+        
+        // 显示提示
+        android.widget.Toast.makeText(this, "强制显示书架图标", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    
+    /**
+     * 测试缓存刷新
+     */
+    fun testCacheRefresh(view: View) {
+        android.util.Log.d("BookLibraryActivity", "测试缓存刷新被调用")
+        
+        // 强制刷新缓存
+        clearCacheData()
+        startBookScan()
+        
+        // 显示提示
+        android.widget.Toast.makeText(this, "缓存已刷新，重新扫描中", android.widget.Toast.LENGTH_SHORT).show()
     }
 }

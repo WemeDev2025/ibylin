@@ -91,24 +91,44 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     }
     
     private fun setupBottomControls() {
-        // 字体大小控制
-        findViewById<Button>(R.id.btn_font_decrease).setOnClickListener { decreaseFontSize() }
-        findViewById<Button>(R.id.btn_font_increase).setOnClickListener { increaseFontSize() }
+        // 使用新的弹出菜单方式，不再直接设置按钮监听器
+        // 这些方法会在 XML 的 onClick 属性中调用
+    }
+    
+    // 设置点击监听器
+    private fun setupTapListener() {
+        // 延迟设置，确保Fragment已经创建
+        navigatorContainer.postDelayed({
+            try {
+                navigatorFragment?.let { fragment ->
+                    // 获取Fragment的根视图
+                    val fragmentView = fragment.view
+                    fragmentView?.setOnClickListener { view ->
+                        // 获取点击位置
+                        val x = view.width / 2f
+                        val y = view.height / 2f
+                        
+                        // 如果点击在屏幕中间区域，显示工具栏
+                        if (isClickInCenterArea(view, x, y)) {
+                            showReadingControls(true)
+                        }
+                    }
+                    Log.d(TAG, "点击监听器设置成功")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "设置点击监听器失败", e)
+            }
+        }, 1000) // 延迟1秒设置
+    }
+    
+    // 判断点击是否在屏幕中间区域
+    private fun isClickInCenterArea(view: View, clickX: Float, clickY: Float): Boolean {
+        val centerX = view.width / 2f
+        val centerY = view.height / 2f
+        val centerAreaSize = 200f // 中间区域大小
         
-        // 主题切换
-        findViewById<Button>(R.id.btn_theme).setOnClickListener { toggleTheme() }
-        
-        // 字体族切换
-        findViewById<Button>(R.id.btn_font_family).setOnClickListener { cycleFontFamily() }
-        
-        // 书签功能
-        findViewById<Button>(R.id.btn_bookmark).setOnClickListener { addBookmark() }
-        
-        // 目录导航
-        findViewById<Button>(R.id.btn_toc).setOnClickListener { showTableOfContents() }
-        
-        // 搜索功能
-        findViewById<Button>(R.id.btn_search).setOnClickListener { showSearchDialog() }
+        return (clickX >= centerX - centerAreaSize && clickX <= centerX + centerAreaSize &&
+                clickY >= centerY - centerAreaSize && clickY <= centerY + centerAreaSize)
     }
     
     private fun setupToolbar() {

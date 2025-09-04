@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- 背景渐变圆形 -->
+    <path
+        android:fillColor="#F8F9FA"
+        android:pathData="M60,60 m-55,0 a55,55 0 1,0 110,0 a55,55 0 1,0 -110,0" />
+    
+    <!-- 书架主体 - Material Design 风格 -->
+    <path
+        android:fillColor="#795548"
+        android:pathData="M20,20 L100,20 L100,100 L20,100 Z" />
+    
+    <!-- 书架顶部高光 -->
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M20,20 L100,20 L100,25 L20,25 Z" />
+    
+    <!-- 书架左侧高光 -->
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M20,20 L25,20 L25,100 L20,100 Z" />
+    
+    <!-- 书架隔板 -->
+    <path
+        android:fillColor="#A1887F"
+        android:pathData="M20,45 L100,45 L100,50 L20,50 Z" />
+    
+    <path
+        android:fillColor="#A1887F"
+        android:pathData="M20,70 L100,70 L100,75 L20,75 Z" />
+    
+    <!-- 书籍 - Material Design 色彩 -->
+    <!-- 第一排书 -->
+    <path
+        android:fillColor="#F44336"
+        android:pathData="M25,50 L35,50 L35,70 L25,70 Z" />
+    <path
+        android:fillColor="#D32F2F"
+        android:pathData="M25,50 L35,50 L35,52 L25,52 Z" />
+    
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M38,50 L48,50 L48,70 L38,70 Z" />
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M38,50 L48,50 L48,52 L38,52 Z" />
+    
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M51,50 L61,50 L61,70 L51,70 Z" />
+    <path
+        android:fillColor="#388E3C"
+        android:pathData="M51,50 L61,50 L61,52 L51,52 Z" />
+    
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M64,50 L74,50 L74,70 L64,70 Z" />
+    <path
+        android:fillColor="#F57C00"
+        android:pathData="M64,50 L74,50 L74,52 L64,52 Z" />
+    
+    <path
+        android:fillColor="#9C27B0"
+        android:pathData="M77,50 L87,50 L87,70 L77,70 Z" />
+    <path
+        android:fillColor="#7B1FA2"
+        android:pathData="M77,50 L87,50 L87,52 L77,52 Z" />
+    
+    <!-- 第二排书 -->
+    <path
+        android:fillColor="#00BCD4"
+        android:pathData="M25,75 L35,75 L35,90 L25,90 Z" />
+    <path
+        android:fillColor="#0097A7"
+        android:pathData="M25,75 L35,75 L35,77 L25,77 Z" />
+    
+    <path
+        android:fillColor="#FFEB3B"
+        android:pathData="M38,75 L48,75 L48,90 L38,90 Z" />
+    <path
+        android:fillColor="#FBC02D"
+        android:pathData="M38,75 L48,75 L48,77 L38,77 Z" />
+    
+    <path
+        android:fillColor="#FF5722"
+        android:pathData="M51,75 L61,75 L61,90 L51,90 Z" />
+    <path
+        android:fillColor="#E64A19"
+        android:pathData="M51,75 L61,75 L61,77 L51,77 Z" />
+    
+    <!-- 书架腿 -->
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M25,100 L30,100 L30,110 L25,110 Z" />
+    <path
+        android:fillColor="#4E342E"
+        android:pathData="M25,100 L30,100 L30,102 L25,102 Z" />
+    
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M90,100 L95,100 L95,110 L90,110 Z" />
+    <path
+        android:fillColor="#4E342E"
+        android:pathData="M90,100 L95,100 L95,102 L90,102 Z" />
+    
+    <!-- 装饰元素：小植物 -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M88,15 Q90,10 92,15 Q94,20 92,25 Q90,30 88,25 Q86,20 88,15 Z" />
+    
+    <!-- 装饰元素：小灯 -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M18,18 Q20,16 22,18 Q20,20 18,18 Z" />
+    
+    <!-- 装饰元素：小书签 -->
+    <path
+        android:fillColor="#E91E63"
+        android:pathData="M95,30 L98,30 L98,40 L95,40 Z" />
+
+</vector>

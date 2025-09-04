@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_background_white"
+        android:title="默认白色" />
+    
+    <item
+        android:id="@+id/action_background_black"
+        android:title="黑色" />
+    
+    <item
+        android:id="@+id/action_background_green"
+        android:title="护眼绿 (E6F5EF)" />
+</menu>

@@ -62,88 +62,44 @@
         android:elevation="8dp"
         android:visibility="gone">
 
-        <!-- 字体大小控制 -->
+        <!-- 字号调节 -->
         <Button
-            android:id="@+id/btn_font_decrease"
+            android:id="@+id/btn_font_size"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:text="A-"
-            android:textSize="16sp"
-            android:background="@color/reader_accent"
-            android:textColor="@android:color/white"
-            android:layout_marginEnd="8dp" />
-
-        <Button
-            android:id="@+id/btn_font_increase"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="A+"
-            android:textSize="16sp"
-            android:background="@color/reader_accent"
-            android:textColor="@android:color/white"
-            android:layout_marginEnd="16dp" />
-
-        <!-- 主题切换 -->
-        <Button
-            android:id="@+id/btn_theme"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="主题"
+            android:text="字号"
             android:textSize="14sp"
             android:background="@color/reader_accent"
             android:textColor="@android:color/white"
-            android:layout_marginEnd="16dp" />
+            android:layout_marginEnd="16dp"
+            android:onClick="showFontSizeMenu" />
 
-        <!-- 字体族切换 -->
+        <!-- 背景调节 -->
         <Button
-            android:id="@+id/btn_font_family"
+            android:id="@+id/btn_background"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:text="字体"
+            android:text="背景"
             android:textSize="14sp"
             android:background="@color/reader_accent"
             android:textColor="@android:color/white"
-            android:layout_marginEnd="16dp" />
+            android:layout_marginEnd="16dp"
+            android:onClick="showBackgroundMenu" />
 
-        <!-- 书签功能 -->
+        <!-- 关闭按钮 -->
         <Button
-            android:id="@+id/btn_bookmark"
+            android:id="@+id/btn_close"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:text="书签"
+            android:text="关闭"
             android:textSize="14sp"
             android:background="@color/reader_accent"
             android:textColor="@android:color/white"
-            android:layout_marginEnd="16dp" />
-
-        <!-- 目录导航 -->
-        <Button
-            android:id="@+id/btn_toc"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="目录"
-            android:textSize="14sp"
-            android:background="@color/reader_accent"
-            android:textColor="@android:color/white"
-            android:layout_marginEnd="16dp" />
-
-        <!-- 搜索功能 -->
-        <Button
-            android:id="@+id/btn_search"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="搜索"
-            android:textSize="14sp"
-            android:background="@color/reader_accent"
-            android:textColor="@android:color/white"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginEnd="8dp"
+            android:onClick="hideControls" />
 
     </LinearLayout>
 

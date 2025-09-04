@@ -92,14 +92,8 @@ class BookGridAdapter(
     fun updateEpubFiles(newEpubFiles: List<EpubFile>) {
         android.util.Log.d("BookGridAdapter", "updateEpubFiles被调用: 新文件数量=${newEpubFiles.size}")
         
-        // 去重复逻辑：基于书名和作者去重
-        val uniqueEpubFiles = newEpubFiles.distinctBy { 
-            "${it.metadata?.title ?: it.name}_${it.metadata?.author ?: "未知作者"}" 
-        }
-        
-        android.util.Log.d("BookGridAdapter", "去重后文件数量: ${uniqueEpubFiles.size}")
-        
-        epubFiles = uniqueEpubFiles
+        // 直接使用传入的文件列表，因为 BookLibraryActivity 已经处理了去重
+        epubFiles = newEpubFiles
         android.util.Log.d("BookGridAdapter", "epubFiles已更新: 数量=${epubFiles.size}")
         
         notifyDataSetChanged()
