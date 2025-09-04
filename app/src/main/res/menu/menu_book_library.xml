@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- 分类筛选菜单 -->
+    <item
+        android:id="@+id/action_category_filter"
+        android:title="分类筛选"
+        android:icon="@drawable/ic_filter"
+        app:showAsAction="ifRoom">
+        
+        <menu>
+            <!-- 全部图书 -->
+            <item
+                android:id="@+id/category_all"
+                android:title="全部"
+                android:icon="@drawable/ic_all" />
+            
+            <!-- 武侠小说 -->
+            <item
+                android:id="@+id/category_wuxia"
+                android:title="武侠"
+                android:icon="@drawable/ic_sword" />
+            
+            <!-- 仙侠小说 -->
+            <item
+                android:id="@+id/category_xianxia"
+                android:title="仙侠"
+                android:icon="@drawable/ic_magic" />
+            
+            <!-- 科幻小说 -->
+            <item
+                android:id="@+id/category_science_fiction"
+                android:title="科幻"
+                android:icon="@drawable/ic_rocket" />
+            
+            <!-- 言情小说 -->
+            <item
+                android:id="@+id/category_romance"
+                android:title="言情"
+                android:icon="@drawable/ic_heart" />
+            
+            <!-- 都市小说 -->
+            <item
+                android:id="@+id/category_urban_fiction"
+                android:title="都市"
+                android:icon="@drawable/ic_city" />
+            
+            <!-- 历史小说 -->
+            <item
+                android:id="@+id/category_history"
+                android:title="历史"
+                android:icon="@drawable/ic_book" />
+            
+            <!-- 文学小说 -->
+            <item
+                android:id="@+id/category_literature"
+                android:title="文学"
+                android:icon="@drawable/ic_literature" />
+            
+            <!-- 中文图书 -->
+            <item
+                android:id="@+id/category_chinese"
+                android:title="中文"
+                android:icon="@drawable/ic_chinese" />
+            
+            <!-- 英文图书 -->
+            <item
+                android:id="@+id/category_english"
+                android:title="英文"
+                android:icon="@drawable/ic_english" />
+            
+            <!-- 日文图书 -->
+            <item
+                android:id="@+id/category_japanese"
+                android:title="日文"
+                android:icon="@drawable/ic_japanese" />
+            
+            <!-- 未分类 -->
+            <item
+                android:id="@+id/category_unknown"
+                android:title="未分类"
+                android:icon="@drawable/ic_unknown" />
+        </menu>
+    </item>
+
+    <!-- 分类统计 -->
+    <item
+        android:id="@+id/action_category_stats"
+        android:title="分类统计"
+        android:icon="@drawable/ic_stats"
+        app:showAsAction="never" />
+
+    <!-- 重新分类 -->
+    <item
+        android:id="@+id/action_reclassify"
+        android:title="重新分类"
+        android:icon="@drawable/ic_refresh"
+        app:showAsAction="never" />
+
+    <!-- 清除分类 -->
+    <item
+        android:id="@+id/action_clear_categories"
+        android:title="清除分类"
+        android:icon="@drawable/ic_clear"
+        app:showAsAction="never" />
+
+</menu>

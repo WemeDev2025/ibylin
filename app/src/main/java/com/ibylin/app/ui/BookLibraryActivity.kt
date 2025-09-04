@@ -9,6 +9,8 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
 import android.view.View
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.TextView
 import android.widget.Toast
 import android.util.Log
@@ -81,6 +83,80 @@ class BookLibraryActivity : AppCompatActivity() {
         restoreCacheData()
         
         // 不在这里自动扫描，等权限确认后再扫描
+    }
+    
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_book_library, menu)
+        return true
+    }
+    
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            // 分类筛选菜单
+            R.id.category_all -> {
+                filterBooksByCategory("全部")
+                true
+            }
+            R.id.category_wuxia -> {
+                filterBooksByCategory("武侠")
+                true
+            }
+            R.id.category_xianxia -> {
+                filterBooksByCategory("仙侠")
+                true
+            }
+            R.id.category_science_fiction -> {
+                filterBooksByCategory("科幻")
+                true
+            }
+            R.id.category_romance -> {
+                filterBooksByCategory("言情")
+                true
+            }
+            R.id.category_urban_fiction -> {
+                filterBooksByCategory("都市")
+                true
+            }
+            R.id.category_history -> {
+                filterBooksByCategory("历史")
+                true
+            }
+            R.id.category_literature -> {
+                filterBooksByCategory("文学")
+                true
+            }
+            R.id.category_chinese -> {
+                filterBooksByCategory("中文")
+                true
+            }
+            R.id.category_english -> {
+                filterBooksByCategory("英文")
+                true
+            }
+            R.id.category_japanese -> {
+                filterBooksByCategory("日文")
+                true
+            }
+            R.id.category_unknown -> {
+                filterBooksByCategory("未分类")
+                true
+            }
+            
+            // 其他菜单项
+            R.id.action_category_stats -> {
+                showCategoryStats()
+                true
+            }
+            R.id.action_reclassify -> {
+                reclassifyAllBooks()
+                true
+            }
+            R.id.action_clear_categories -> {
+                clearAllCategories()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
     
     override fun onResume() {
@@ -425,6 +501,9 @@ class BookLibraryActivity : AppCompatActivity() {
                     
                     // 保存缓存到SharedPreferences
                     saveCacheData(cachedEpubFiles)
+                    
+                    // 自动分类图书
+                    autoClassifyBooks(cachedEpubFiles)
                     
                     showBooks(cachedEpubFiles)
                 }
@@ -1549,5 +1628,200 @@ class BookLibraryActivity : AppCompatActivity() {
     private fun openSettings() {
         // 旧的设置页面已删除，现在使用阅读器内部的配置面板
         Toast.makeText(this, "请进入阅读器使用配置面板", Toast.LENGTH_LONG).show()
+    }
+    
+    // ==================== 智能分类功能 ====================
+    
+    /**
+     * 根据分类筛选图书
+     */
+    private fun filterBooksByCategory(category: String) {
+        try {
+            val allBooks = cachedEpubFiles
+            
+            val filteredBooks = if (category == "全部") {
+                allBooks
+            } else {
+                allBooks.filter { book ->
+                    com.ibylin.app.utils.BookCategoryManager.getBookCategory(this, book.path) == category
+                }
+            }
+            
+            // 更新适配器
+            bookGridAdapter.updateEpubFiles(filteredBooks)
+            
+            // 更新标题栏显示分类信息
+            supportActionBar?.subtitle = "分类：$category (${filteredBooks.size}本)"
+            
+            // 显示筛选结果提示
+            Toast.makeText(this, "筛选完成：$category (${filteredBooks.size}本)", Toast.LENGTH_SHORT).show()
+            
+            Log.d("BookLibraryActivity", "分类筛选完成: $category, 找到 ${filteredBooks.size} 本图书")
+            
+        } catch (e: Exception) {
+            Log.e("BookLibraryActivity", "分类筛选失败", e)
+            Toast.makeText(this, "筛选失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 显示分类统计信息
+     */
+    private fun showCategoryStats() {
+        try {
+            val stats = com.ibylin.app.utils.BookCategoryManager.getCategoryStats(this)
+            
+            if (stats.isEmpty()) {
+                Toast.makeText(this, "暂无分类统计信息", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            val message = buildString {
+                appendLine("📊 分类统计")
+                appendLine()
+                stats.forEach { (category, count) ->
+                    appendLine("$category: ${count}本")
+                }
+                appendLine()
+                appendLine("总计: ${stats.values.sum()}本")
+            }
+            
+            MaterialAlertDialogBuilder(this)
+                .setTitle("分类统计")
+                .setMessage(message)
+                .setPositiveButton("确定", null)
+                .show()
+                
+        } catch (e: Exception) {
+            Log.e("BookLibraryActivity", "显示分类统计失败", e)
+            Toast.makeText(this, "显示统计失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 重新分类所有图书
+     */
+    private fun reclassifyAllBooks() {
+        try {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("重新分类")
+                .setMessage("确定要重新分类所有图书吗？这将基于最新的元数据重新进行分类。")
+                .setPositiveButton("确定") { _, _ ->
+                    performReclassification()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        } catch (e: Exception) {
+            Log.e("BookLibraryActivity", "显示重新分类对话框失败", e)
+        }
+    }
+    
+    /**
+     * 执行重新分类
+     */
+    private fun performReclassification() {
+        try {
+            Toast.makeText(this, "开始重新分类...", Toast.LENGTH_SHORT).show()
+            
+            coroutineScope.launch {
+                try {
+                    val allBooks = cachedEpubFiles
+                    
+                    // 执行批量分类
+                    val classifications = com.ibylin.app.utils.BookCategoryManager.classifyBooks(this@BookLibraryActivity, allBooks)
+                    
+                    withContext(Dispatchers.Main) {
+                        // 显示分类结果
+                        val categoryCounts = classifications.values.groupingBy { it }.eachCount()
+                        val resultMessage = buildString {
+                            appendLine("✅ 重新分类完成")
+                            appendLine()
+                            categoryCounts.forEach { (category, count) ->
+                                appendLine("$category: ${count}本")
+                            }
+                        }
+                        
+                        MaterialAlertDialogBuilder(this@BookLibraryActivity)
+                            .setTitle("分类完成")
+                            .setMessage(resultMessage)
+                            .setPositiveButton("确定", null)
+                            .show()
+                        
+                        // 刷新图书列表
+                        bookGridAdapter.updateEpubFiles(allBooks)
+                        
+                        Toast.makeText(this@BookLibraryActivity, "重新分类完成！", Toast.LENGTH_SHORT).show()
+                    }
+                    
+                } catch (e: Exception) {
+                    Log.e("BookLibraryActivity", "重新分类失败", e)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@BookLibraryActivity, "重新分类失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            
+        } catch (e: Exception) {
+            Log.e("BookLibraryActivity", "执行重新分类失败", e)
+            Toast.makeText(this, "重新分类失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 清除所有分类
+     */
+    private fun clearAllCategories() {
+        try {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("清除分类")
+                .setMessage("确定要清除所有图书分类吗？此操作不可撤销。")
+                .setPositiveButton("确定") { _, _ ->
+                    performClearCategories()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        } catch (e: Exception) {
+            Log.e("BookLibraryActivity", "显示清除分类对话框失败", e)
+        }
+    }
+    
+    /**
+     * 执行清除分类
+     */
+    private fun performClearCategories() {
+        try {
+            com.ibylin.app.utils.BookCategoryManager.clearCategories(this)
+            
+            Toast.makeText(this, "分类已清除", Toast.LENGTH_SHORT).show()
+            
+            // 刷新图书列表
+            bookGridAdapter.updateEpubFiles(cachedEpubFiles)
+            
+            // 更新标题栏
+            supportActionBar?.subtitle = "书库 (${cachedEpubFiles.size}本)"
+            
+            Log.d("BookLibraryActivity", "分类已清除")
+            
+        } catch (e: Exception) {
+            Log.e("BookLibraryActivity", "清除分类失败", e)
+            Toast.makeText(this, "清除分类失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 在扫描图书时自动分类
+     */
+    private fun autoClassifyBooks(books: List<EpubFile>) {
+        try {
+            Log.d("BookLibraryActivity", "开始自动分类 ${books.size} 本图书")
+            
+            // 执行批量分类
+            val classifications = com.ibylin.app.utils.BookCategoryManager.classifyBooks(this, books)
+            
+            Log.d("BookLibraryActivity", "自动分类完成，分类结果: $classifications")
+            
+        } catch (e: Exception) {
+            Log.e("BookLibraryActivity", "清除分类失败", e)
+        }
     }
 }
