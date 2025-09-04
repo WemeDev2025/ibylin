@@ -1,6 +1,8 @@
 package com.ibylin.app.reader
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -36,6 +38,12 @@ import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Button
+import android.widget.ImageButton
+import android.os.CountDownTimer
+import android.view.Gravity
+import android.view.ViewGroup
+import android.content.res.ColorStateList
+import android.graphics.Color
 
 /**
  * 全面优化的Readium EPUB阅读器Activity
@@ -60,14 +68,12 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     
     // UI组件
     private lateinit var navigatorContainer: View
-    private lateinit var loadingView: View
     
     // Readium配置管理器注入
     @Inject
     lateinit var preferencesManager: ReadiumPreferencesManager
     
     // 阅读状态和设置
-    private var currentLocation: String? = null
     private var isBookLoaded = false
     private var currentFontSize = 18.0
     private var currentTheme = "default"
@@ -79,14 +85,22 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     private var bookmarks = mutableListOf<String>()
     private var currentProgress = 0.0
     
+    // 当前书籍信息
+    private var currentBookPath: String? = null
+    private var currentBookTitle: String = ""
+    private var currentBookAuthor: String = ""
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_readium_epub_reader)
         
         Log.d(TAG, "ReadiumEpubReaderActivity onCreate 开始")
         
+        // 默认隐藏状态栏，实现全屏阅读
+        hideStatusBar()
+        
         setupViews()
-        setupToolbar()
+        setupIOSMenu() // 设置iOS风格菜单
         loadConfiguration() // 加载配置
         loadEpub()
         
@@ -96,69 +110,18 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     private fun setupViews() {
         // 初始化视图
         navigatorContainer = findViewById(R.id.reader_container)
-        loadingView = findViewById(R.id.loading_view)
-        
-        // 确保Toolbar初始状态为隐藏
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
-        toolbar.visibility = View.GONE
-        
-        // 设置底部控制栏按钮
-        setupBottomControls()
+        tvChapterTitle = findViewById(R.id.tv_chapter_title)
+        tvPageInfo = findViewById(R.id.tv_page_info)
         
         // 显示加载状态
         showLoading(true)
     }
     
-    private fun setupBottomControls() {
-        // 使用新的弹出菜单方式，不再直接设置按钮监听器
-        // 这些方法会在 XML 的 onClick 属性中调用
-    }
+
     
-    // 设置点击监听器
-    private fun setupTapListener() {
-        // 延迟设置，确保Fragment已经创建
-        navigatorContainer.postDelayed({
-            try {
-                navigatorFragment?.let { fragment ->
-                    // 获取Fragment的根视图
-                    val fragmentView = fragment.view
-                    fragmentView?.setOnClickListener { view ->
-                        // 获取点击位置
-                        val x = view.width / 2f
-                        val y = view.height / 2f
-                        
-                        // 如果点击在屏幕中间区域，切换菜单栏显示状态
-                        if (isClickInCenterArea(view, x, y)) {
-                            toggleToolbar()
-                        }
-                    }
-                    Log.d(TAG, "点击监听器设置成功")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "设置点击监听器失败", e)
-            }
-        }, 1000) // 延迟1秒设置
-    }
+
     
-    // 判断点击是否在屏幕中间区域
-    private fun isClickInCenterArea(view: View, clickX: Float, clickY: Float): Boolean {
-        val centerX = view.width / 2f
-        val centerY = view.height / 2f
-        val centerAreaSize = 200f // 中间区域大小
-        
-        return (clickX >= centerX - centerAreaSize && clickX <= centerX + centerAreaSize &&
-                clickY >= centerY - centerAreaSize && clickY <= centerY + centerAreaSize)
-    }
-    
-    private fun setupToolbar() {
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.apply {
-            setDisplayHomeAsUpEnabled(true)
-            title = "Readium EPUB阅读器"
-            setSubtitle("专业级EPUB阅读体验")
-        }
-    }
+
     
     /**
      * 切换菜单栏显示/隐藏状态
@@ -185,51 +148,50 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 .start()
             Log.d(TAG, "菜单栏已显示")
             
-            // 3秒后自动隐藏
-            toolbar.postDelayed({
-                if (toolbar.visibility == View.VISIBLE) {
-                    toolbar.animate()
-                        .alpha(0f)
-                        .setDuration(200)
-                        .withEndAction {
-                            toolbar.visibility = View.GONE
-                        }
-                        .start()
-                    Log.d(TAG, "菜单栏自动隐藏")
-                }
-            }, 3000)
+            // 不再自动隐藏，改为点击其他区域关闭
+            Log.d(TAG, "菜单栏已显示，点击其他区域可关闭")
         }
     }
     
     /**
-     * 从ReadiumConfigManager加载配置
+     * 从ReadiumConfigManager和本地设置加载配置
      */
     private fun loadConfiguration() {
         try {
             Log.d(TAG, "开始加载配置...")
             
+            // 加载本地保存的设置
+            val sharedPrefs = getSharedPreferences("reader_settings", MODE_PRIVATE)
+            
+            // 加载亮度设置
+            val savedBrightness = sharedPrefs.getInt("screen_brightness", 50)
+            adjustScreenBrightness(savedBrightness)
+            
+            // 加载主题设置
+            val savedTheme = sharedPrefs.getString("theme", "默认") ?: "默认"
+            currentTheme = savedTheme
+            
+            // 加载字体大小设置
+            val savedFontSize = sharedPrefs.getFloat("font_size", 1.0f)
+            currentFontSize = savedFontSize * 16.0
+            
             // 直接从ReadiumPreferencesManager获取配置，严格按照开发实例
             val preferences = preferencesManager.getCurrentPreferences()
             
-            // 更新本地变量
-            currentFontSize = (preferences.fontSize ?: 1.0) * 16.0
-            currentTheme = when (preferences.theme) {
-                org.readium.r2.navigator.preferences.Theme.SEPIA -> "sepia"
-                org.readium.r2.navigator.preferences.Theme.DARK -> "night"
-                else -> "default"
-            }
+            // 更新其他本地变量
             currentFontFamily = preferences.fontFamily?.name ?: "sans-serif"
             currentLineHeight = preferences.lineHeight ?: 1.6
             currentPageMargins = preferences.pageMargins ?: 1.4
             
             Log.d(TAG, "配置加载成功: 字体=${currentFontSize}pt, 主题=$currentTheme, 字体族=$currentFontFamily")
+            Log.d(TAG, "本地设置: 亮度=$savedBrightness%, 主题=$savedTheme, 字体大小=${savedFontSize}")
             Log.d(TAG, "EpubPreferences: $preferences")
             
         } catch (e: Exception) {
             Log.e(TAG, "加载配置失败", e)
             // 使用默认配置
             currentFontSize = 18.0
-            currentTheme = "default"
+            currentTheme = "默认"
             currentFontFamily = "sans-serif"
             currentLineHeight = 1.6
             currentPageMargins = 1.4
@@ -330,25 +292,27 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     this@ReadiumEpubReaderActivity.navigatorFactory = navigatorFactory
                     this@ReadiumEpubReaderActivity.isBookLoaded = true
                     
+                    // 保存当前书籍信息
+                    currentBookTitle = publication.metadata.title ?: "未知标题"
+                    currentBookAuthor = publication.metadata.authors.firstOrNull()?.name ?: "未知作者"
+                    
                     // 设置导航器视图
                     setupNavigatorView(navigatorFactory)
                     
                     // 隐藏加载状态
                     showLoading(false)
                     
-                    // 设置点击监听器，用于显示/隐藏菜单栏
-                    setupTapListener()
-                    
                     // 显示成功信息
-                    val title = publication.metadata.title ?: "未知标题"
-                    val author = publication.metadata.authors.firstOrNull()?.name ?: "未知作者"
-                    Log.d(TAG, "EPUB文件加载成功: $title - $author")
-                    // 取消加载成功的Toast提示
-                    // Toast.makeText(this@ReadiumEpubReaderActivity, "《$title》加载成功", Toast.LENGTH_SHORT).show()
+                    Log.d(TAG, "EPUB文件加载成功: $currentBookTitle - $currentBookAuthor")
                     
                     // 更新标题栏
-                    supportActionBar?.title = title
-                    supportActionBar?.subtitle = "作者：$author"
+                    supportActionBar?.title = currentBookTitle
+                    supportActionBar?.subtitle = "作者：$currentBookAuthor"
+                    
+                    // 初始化页面信息显示
+                    updatePageInfoDisplay(false)
+                    
+                    Log.d(TAG, "页面信息初始化完成")
                 }
                 
             } catch (e: Exception) {
@@ -362,34 +326,110 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     
     private fun setupNavigatorView(navigatorFactory: EpubNavigatorFactory) {
         try {
-            // 按照官方文档设置FragmentFactory
-            supportFragmentManager.fragmentFactory =
-                navigatorFactory.createFragmentFactory(
-                    initialLocator = null,
-                    listener = object : EpubNavigatorFragment.Listener {
-                        override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
-                            Log.d(TAG, "外部链接激活: $url")
-                            Toast.makeText(this@ReadiumEpubReaderActivity, "外部链接: $url", Toast.LENGTH_SHORT).show()
-                        }
+            Log.d(TAG, "=== 开始设置Readium导航器视图 ===")
+            
+            // 获取保存的阅读位置
+            val savedLocator = getSavedLocator()
+            
+            Log.d(TAG, "获取到的保存位置: $savedLocator")
+            Log.d(TAG, "savedLocator类型: ${savedLocator?.javaClass?.simpleName}")
+            
+            // 严格按照Readium官方示例，创建FragmentFactory
+            Log.d(TAG, "开始创建FragmentFactory，initialLocator: $savedLocator")
+            val fragmentFactory = navigatorFactory.createFragmentFactory(
+                initialLocator = savedLocator,
+                listener = object : EpubNavigatorFragment.Listener {
+                    override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
+                        Log.d(TAG, "外部链接激活: $url")
+                        Toast.makeText(this@ReadiumEpubReaderActivity, "外部链接: $url", Toast.LENGTH_SHORT).show()
                     }
-                )
+                }
+            )
+            Log.d(TAG, "FragmentFactory创建成功")
+            
+            // 设置FragmentFactory
+            supportFragmentManager.fragmentFactory = fragmentFactory
+            Log.d(TAG, "FragmentFactory已设置到supportFragmentManager")
             
             // 添加Fragment到容器
             supportFragmentManager.beginTransaction()
                 .replace(R.id.reader_container, EpubNavigatorFragment::class.java, Bundle(), "EpubNavigatorFragment")
-                .commit()
+                .commitNow() // 使用commitNow()确保同步执行
+            Log.d(TAG, "EpubNavigatorFragment已添加到容器")
             
             // 获取Fragment引用
             navigatorFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+            Log.d(TAG, "获取到的navigatorFragment: $navigatorFragment")
+            
+            // 如果Fragment仍然为null，尝试延迟获取
+            if (navigatorFragment == null) {
+                Log.d(TAG, "Fragment为null，尝试延迟获取")
+                navigatorContainer.postDelayed({
+                    navigatorFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+                    Log.d(TAG, "延迟获取的navigatorFragment: $navigatorFragment")
+                }, 100)
+            }
             
             // 设置错误拦截器，过滤掉XML解析错误
             setupErrorInterceptor()
             
-            Log.d(TAG, "Readium导航器设置成功")
+            // 设置阅读进度监听器
+            setupReadingProgressListener()
+            
+            // 如果有保存的位置，显示恢复提示
+            if (savedLocator != null) {
+                Log.d(TAG, "检测到保存的位置，显示恢复提示")
+                showProgressRestoredMessage()
+            } else {
+                Log.d(TAG, "没有检测到保存的位置")
+            }
+            
+            Log.d(TAG, "=== Readium导航器设置成功 ===")
         } catch (e: Exception) {
             Log.e(TAG, "设置Readium导航器失败", e)
+            e.printStackTrace()
             // 如果Readium设置失败，显示错误信息而不是XML错误
             showReadiumError("阅读器初始化失败，请重试")
+        }
+    }
+    
+    /**
+     * 设置阅读进度监听器
+     */
+    private fun setupReadingProgressListener() {
+        try {
+            // 监听Readium的阅读进度变化
+            navigatorFragment?.let { fragment ->
+                // 使用Handler定期检查阅读进度
+                val progressHandler = android.os.Handler(android.os.Looper.getMainLooper())
+                val progressRunnable = object : Runnable {
+                    override fun run() {
+                        try {
+                            // 更新页面信息显示
+                            if (isMenuVisible) {
+                                updatePageInfoDisplay(true)
+                            } else {
+                                updatePageInfoDisplay(false)
+                            }
+                            
+                            // 每500ms检查一次进度
+                            progressHandler.postDelayed(this, 500)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "更新阅读进度失败", e)
+                        }
+                    }
+                }
+                
+                // 开始监听进度
+                progressHandler.post(progressRunnable)
+                
+                // 启动自动保存进度
+                startAutoSaveProgress()
+                
+                Log.d(TAG, "阅读进度监听器设置成功")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "设置阅读进度监听器失败", e)
         }
     }
     
@@ -403,7 +443,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         // 2. 延迟2秒再次执行
         navigatorContainer.postDelayed({
             hideXmlErrors()
-        }, 2000)
+            }, 2000)
         
         // 3. 延迟3秒再次执行
         navigatorContainer.postDelayed({
@@ -506,7 +546,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     }
     
     private fun showLoading(show: Boolean) {
-        loadingView.visibility = if (show) View.VISIBLE else View.GONE
+        // 由于移除了loadingView，只控制navigatorContainer的可见性
         navigatorContainer.visibility = if (show) View.GONE else View.VISIBLE
     }
     
@@ -577,18 +617,347 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
      */
     private fun applyTheme(theme: String) {
         try {
-            // 使用Readium原生API应用主题
-            navigatorFragment?.let { fragment ->
-                // 这里应该使用Readium的官方API来应用主题
-                // 暂时记录日志，后续根据官方文档完善
-                Log.d(TAG, "应用主题到Readium: $theme")
+            // 更新本地主题变量
+            currentTheme = theme
+            
+            Log.d(TAG, "开始应用主题: $theme")
+            
+            // 更新PreferencesManager中的主题设置
+            preferencesManager.setTheme(theme)
+            
+            // 保存主题设置到本地
+            getSharedPreferences("reader_settings", MODE_PRIVATE)
+                .edit()
+                .putString("theme", theme)
+                .apply()
+            
+            // 尝试直接应用配置到当前Fragment，避免重新创建
+            val currentFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+            if (currentFragment != null && currentFragment.view != null) {
+                Log.d(TAG, "直接应用主题配置，无需重新创建Fragment")
                 
-                // 重新创建navigatorFactory以应用新配置
-                applyReadiumConfiguration()
+                // 创建主题配置
+                val currentPrefs = preferencesManager.getCurrentPreferences()
+                val themePreferences = when (theme) {
+                    "默认" -> currentPrefs.copy(
+                        theme = org.readium.r2.navigator.preferences.Theme.LIGHT
+                    )
+                    "护眼" -> currentPrefs.copy(
+                        theme = org.readium.r2.navigator.preferences.Theme.SEPIA
+                    )
+                    "夜间" -> currentPrefs.copy(
+                        theme = org.readium.r2.navigator.preferences.Theme.DARK
+                    )
+                    "复古" -> currentPrefs.copy(
+                        theme = org.readium.r2.navigator.preferences.Theme.SEPIA
+                    )
+                    else -> currentPrefs
+                }
+                
+                // 使用Readium原生API直接应用
+                if (currentFragment is Configurable<*, EpubPreferences>) {
+                    try {
+                        // 应用主题配置
+                        currentFragment.submitPreferences(themePreferences)
+                        Log.d(TAG, "主题已直接应用到当前Fragment: $theme")
+                        
+                        // 添加渐显效果
+                        currentFragment.view?.let { view ->
+                            applyThemeTransitionEffect(view, theme)
+                        }
+                        
+                        // 应用自定义背景色（如果需要）
+                        if (theme == "复古") {
+                            applyCustomBackgroundColor(currentFragment, "#F2E2C9")
+                        }
+                        
+                        Toast.makeText(this, "主题已切换为: $theme", Toast.LENGTH_SHORT).show()
+                        
+                        // 保持二级菜单显示状态，不退出
+                        if (isMenuPanelVisible) {
+                            Log.d(TAG, "主题切换完成，保持二级菜单显示")
+                        }
+                        
+                        return // 成功应用，直接返回
+                    } catch (e: Exception) {
+                        Log.w(TAG, "直接应用失败，回退到重新创建方式: ${e.message}")
+                    }
+                }
+            }
+            
+            // 如果直接应用失败，回退到重新创建方式
+            Log.d(TAG, "回退到重新创建Navigator以应用主题变化")
+            
+            // 重新创建Navigator以应用主题变化
+            publication?.let { pub ->
+                 Log.d(TAG, "重新创建Navigator以应用主题变化")
+                 
+                                 // 获取当前的阅读位置（如果有的话）
+                val currentLocator = navigatorFragment?.currentLocator?.value
+                Log.d(TAG, "当前阅读位置: $currentLocator")
+                
+                // 保存当前阅读位置到本地
+                currentLocator?.let { locator ->
+                    getSharedPreferences("reader_settings", MODE_PRIVATE)
+                        .edit()
+                        .putString("last_location", locator.toString())
+                        .apply()
+                    Log.d(TAG, "已保存阅读位置到本地")
+                }
+                
+                // 创建新的NavigatorFactory，使用更新后的配置
+                val newNavigatorFactory = EpubNavigatorFactory(
+                    publication = pub,
+                    configuration = EpubNavigatorFactory.Configuration(
+                        defaults = EpubDefaults(
+                            pageMargins = currentPageMargins.toDouble(),
+                            fontSize = (currentFontSize / 16.0), // 转换为百分比
+                            lineHeight = currentLineHeight.toDouble()
+                        )
+                    )
+                )
+                
+                // 更新FragmentFactory
+                supportFragmentManager.fragmentFactory = newNavigatorFactory.createFragmentFactory(
+                    initialLocator = currentLocator, // 保持当前阅读位置
+                    listener = object : EpubNavigatorFragment.Listener {
+                        override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
+                            Log.d(TAG, "外部链接激活: $url")
+                            Toast.makeText(this@ReadiumEpubReaderActivity, "外部链接: $url", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+                
+                // 使用addToBackStack而不是replace，保持阅读位置
+                supportFragmentManager.beginTransaction()
+                    .addToBackStack("theme_change")
+                    .replace(R.id.reader_container, EpubNavigatorFragment::class.java, Bundle(), "EpubNavigatorFragment")
+                    .commit()
+                
+                // 更新Fragment引用
+                navigatorFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+                navigatorFactory = newNavigatorFactory
+                
+                // 等待Fragment创建完成后应用Readium配置
+                navigatorFragment?.view?.post {
+                    Log.d(TAG, "Fragment视图已创建，开始应用Readium主题配置: $theme")
+                    // 使用Readium原生配置方法
+                    applyReadiumThemeConfiguration(theme)
+                    
+                    // 添加渐显效果
+                    navigatorFragment?.view?.let { view ->
+                        applyThemeTransitionEffect(view, theme)
+                    }
+                    
+                    // 应用自定义背景色（如果需要）
+                    if (theme == "复古") {
+                        navigatorFragment?.let { fragment ->
+                            applyCustomBackgroundColor(fragment, "#F2E2C9")
+                        }
+                    }
+                }
+                
+                Log.d(TAG, "主题应用成功: $theme，Navigator已重新创建")
+                Toast.makeText(this, "主题已切换为: $theme", Toast.LENGTH_SHORT).show()
+                
+            } ?: run {
+                Log.w(TAG, "Publication为空，无法应用主题")
+                Toast.makeText(this, "无法应用主题，请重新加载书籍", Toast.LENGTH_SHORT).show()
             }
             
         } catch (e: Exception) {
             Log.e(TAG, "应用主题失败", e)
+            Toast.makeText(this, "主题切换失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 应用主题切换渐显效果
+     */
+    private fun applyThemeTransitionEffect(view: View, theme: String) {
+        try {
+            Log.d(TAG, "开始应用主题切换渐显效果: $theme")
+            
+            // 设置初始透明度
+            view.alpha = 0.3f
+            
+            // 创建渐显动画
+            view.animate()
+                .alpha(1.0f)
+                .setDuration(300) // 300毫秒渐显
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .withStartAction {
+                    Log.d(TAG, "主题切换渐显动画开始: $theme")
+                }
+                .withEndAction {
+                    Log.d(TAG, "主题切换渐显动画完成: $theme")
+                }
+                .start()
+                
+        } catch (e: Exception) {
+            Log.e(TAG, "应用主题切换渐显效果失败", e)
+            // 如果动画失败，直接设置为完全不透明
+            view.alpha = 1.0f
+        }
+    }
+    
+    /**
+     * 应用自定义背景色 - 严格按照开发实例的Readium技术方案
+     */
+    private fun applyCustomBackgroundColor(fragment: EpubNavigatorFragment, backgroundColor: String) {
+        try {
+            Log.d(TAG, "开始应用自定义背景色: $backgroundColor")
+            
+            // 等待Fragment视图准备完成
+            fragment.view?.post {
+                try {
+                    // 查找WebView并注入自定义CSS
+                    findWebViewAndApplyCustomBackground(fragment.view!!, backgroundColor)
+                } catch (e: Exception) {
+                    Log.e(TAG, "应用自定义背景色失败", e)
+                }
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "应用自定义背景色失败", e)
+        }
+    }
+    
+    /**
+     * 查找WebView并应用自定义背景色
+     */
+    private fun findWebViewAndApplyCustomBackground(view: View, backgroundColor: String) {
+        when (view) {
+            is android.webkit.WebView -> {
+                Log.d(TAG, "找到WebView，应用自定义背景色: $backgroundColor")
+                injectCustomBackgroundCSS(view, backgroundColor)
+            }
+            is android.view.ViewGroup -> {
+                for (i in 0 until view.childCount) {
+                    findWebViewAndApplyCustomBackground(view.getChildAt(i), backgroundColor)
+                }
+            }
+        }
+    }
+    
+    /**
+     * 注入自定义背景色CSS
+     */
+    private fun injectCustomBackgroundCSS(webView: android.webkit.WebView, backgroundColor: String) {
+        try {
+            val customCSS = """
+                <style>
+                    body { 
+                        background-color: $backgroundColor !important; 
+                    }
+                    * { 
+                        background-color: $backgroundColor !important; 
+                    }
+                </style>
+            """.trimIndent()
+            
+            val jsCode = """
+                (function() {
+                    var style = document.createElement('style');
+                    style.innerHTML = '$customCSS';
+                    document.head.appendChild(style);
+                    console.log('自定义背景色CSS已注入: $backgroundColor');
+                })();
+            """.trimIndent()
+            
+            webView.evaluateJavascript(jsCode) { result ->
+                Log.d(TAG, "自定义背景色CSS注入结果: $result")
+            }
+            
+            Log.d(TAG, "自定义背景色CSS已注入WebView: $backgroundColor")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "注入自定义背景色CSS失败", e)
+        }
+    }
+    
+    /**
+     * 应用字体大小切换渐显效果
+     */
+    private fun applyFontSizeTransitionEffect(view: View, sizeName: String) {
+        try {
+            Log.d(TAG, "开始应用字体大小切换渐显效果: $sizeName")
+            
+            // 设置初始透明度
+            view.alpha = 0.3f
+            
+            // 创建渐显动画
+            view.animate()
+                .alpha(1.0f)
+                .setDuration(300) // 300毫秒渐显
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .withStartAction {
+                    Log.d(TAG, "字体大小切换渐显动画开始: $sizeName")
+                }
+                .withEndAction {
+                    Log.d(TAG, "字体大小切换渐显动画完成: $sizeName")
+                }
+                .start()
+                
+        } catch (e: Exception) {
+            Log.e(TAG, "应用字体大小切换渐显效果失败", e)
+            // 如果动画失败，直接设置为完全不透明
+            view.alpha = 1.0f
+        }
+    }
+    
+    /**
+     * 应用Readium主题配置 - 严格按照开发实例的方式
+     */
+    private fun applyReadiumThemeConfiguration(theme: String) {
+        try {
+            Log.d(TAG, "开始应用Readium主题配置: $theme")
+            
+            // 获取当前的Fragment
+            val currentFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+            if (currentFragment == null) {
+                Log.w(TAG, "Fragment不存在，无法应用主题配置")
+                return
+            }
+            
+            // 创建主题配置
+            val currentPrefs = preferencesManager.getCurrentPreferences()
+            val themePreferences = when (theme) {
+                "默认" -> currentPrefs.copy(
+                    theme = org.readium.r2.navigator.preferences.Theme.LIGHT
+                )
+                "护眼" -> currentPrefs.copy(
+                    theme = org.readium.r2.navigator.preferences.Theme.SEPIA
+                )
+                "夜间" -> currentPrefs.copy(
+                    theme = org.readium.r2.navigator.preferences.Theme.DARK
+                )
+                "复古" -> currentPrefs.copy(
+                    theme = org.readium.r2.navigator.preferences.Theme.SEPIA
+                )
+                else -> currentPrefs
+            }
+            
+            Log.d(TAG, "主题配置详情: $themePreferences")
+            
+            // 使用Readium原生API应用主题
+            if (currentFragment is Configurable<*, EpubPreferences>) {
+                Log.d(TAG, "Fragment支持主题配置，开始应用主题: $theme")
+                try {
+                    currentFragment.submitPreferences(themePreferences)
+                    Log.d(TAG, "主题已成功应用到Readium: $theme")
+                    Toast.makeText(this, "主题已切换为: $theme", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Log.e(TAG, "应用主题时发生异常", e)
+                    Toast.makeText(this, "主题切换失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Log.w(TAG, "Fragment不支持主题配置，Fragment类型: ${currentFragment.javaClass.name}")
+                Log.w(TAG, "Fragment接口: ${currentFragment.javaClass.interfaces.joinToString()}")
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "应用Readium主题配置失败", e)
         }
     }
     
@@ -710,12 +1079,12 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         Toast.makeText(this, "页边距: ${String.format("%.1f", currentPageMargins)}", Toast.LENGTH_SHORT).show()
     }
     
-    // 应用阅读偏好设置 - 严格按照开发实例的方式
+    // 应用阅读偏好设置 - 使用正确的方式
     private fun applyReadingPreferences() {
         try {
             Log.d(TAG, "开始应用阅读偏好...")
             
-            // 直接更新ReadiumPreferencesManager，严格按照开发实例
+            // 更新ReadiumPreferencesManager
             preferencesManager.setFontSize(currentFontSize.toFloat())
             preferencesManager.setTheme(currentTheme)
             preferencesManager.setFontFamily(currentFontFamily)
@@ -724,61 +1093,85 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             
             Log.d(TAG, "配置已更新到ReadiumPreferencesManager")
             
-            // 获取当前配置并直接应用到Fragment
-            val preferences = preferencesManager.getCurrentPreferences()
-            Log.d(TAG, "当前配置: $preferences")
-            
-            // 尝试直接应用配置到当前的navigatorFragment
-            navigatorFragment?.let { fragment ->
-                Log.d(TAG, "Fragment存在，尝试应用配置")
-                try {
-                    // 严格按照开发实例，使用Configurable接口
-                    val configurableFragment = fragment as? Configurable<*, EpubPreferences>
-                    if (configurableFragment != null) {
-                        configurableFragment.submitPreferences(preferences)
-                        Log.d(TAG, "配置已通过Configurable接口应用: $preferences")
-                    } else {
-                        Log.w(TAG, "Fragment未实现Configurable接口，重新创建Fragment")
-                        applyReadiumConfiguration()
+                         // 重新创建Navigator以应用所有配置变化
+             publication?.let { pub ->
+                 Log.d(TAG, "重新创建Navigator以应用所有配置变化")
+                 
+                 // 获取当前的阅读位置（如果有的话）
+                 val currentLocator = navigatorFragment?.currentLocator?.value
+                
+                // 创建新的NavigatorFactory，使用更新后的所有配置
+                val newNavigatorFactory = EpubNavigatorFactory(
+                    publication = pub,
+                    configuration = EpubNavigatorFactory.Configuration(
+                        defaults = EpubDefaults(
+                            pageMargins = currentPageMargins.toDouble(),
+                            fontSize = (currentFontSize / 16.0), // 转换为百分比
+                            lineHeight = currentLineHeight.toDouble(),
+                            // 其他默认配置由Readium内部处理
+                        )
+                    )
+                )
+                
+                // 更新FragmentFactory
+                supportFragmentManager.fragmentFactory = newNavigatorFactory.createFragmentFactory(
+                    initialLocator = currentLocator, // 保持当前阅读位置
+                    listener = object : EpubNavigatorFragment.Listener {
+                        override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
+                            Log.d(TAG, "外部链接激活: $url")
+                            Toast.makeText(this@ReadiumEpubReaderActivity, "外部链接: $url", Toast.LENGTH_SHORT).show()
+                        }
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "应用配置失败，重新创建Fragment", e)
-                    applyReadiumConfiguration()
-                }
+                )
+                
+                // 替换Fragment
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.reader_container, EpubNavigatorFragment::class.java, Bundle(), "EpubNavigatorFragment")
+                    .commit()
+                
+                // 更新Fragment引用
+                navigatorFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+                navigatorFactory = newNavigatorFactory
+                
+                Log.d(TAG, "所有阅读偏好应用成功，Navigator已重新创建")
+                Toast.makeText(this, "设置已保存并应用", Toast.LENGTH_SHORT).show()
+                
             } ?: run {
-                Log.w(TAG, "Fragment不存在，重新创建Fragment")
-                applyReadiumConfiguration()
+                Log.w(TAG, "Publication为空，无法应用阅读偏好")
+                Toast.makeText(this, "无法应用设置，请重新加载书籍", Toast.LENGTH_SHORT).show()
             }
             
             Log.d(TAG, "应用阅读偏好完成: 字体=${currentFontSize}pt, 主题=$currentTheme, 字体族=$currentFontFamily")
             
-            // 通知用户设置已保存
-            Toast.makeText(this, "设置已保存并应用", Toast.LENGTH_SHORT).show()
-            
         } catch (e: Exception) {
             Log.e(TAG, "应用阅读偏好失败", e)
-            Toast.makeText(this, "保存设置失败", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "保存设置失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
     
     // 书签功能
     private fun addBookmark() {
-        currentLocation?.let { location ->
-            if (!bookmarks.contains(location)) {
-                bookmarks.add(location)
+        val currentLocator = navigatorFragment?.currentLocator?.value
+        if (currentLocator != null) {
+            val bookmarkKey = "${currentLocator.href}_${currentLocator.locations.fragments.firstOrNull() ?: ""}"
+            if (!bookmarks.contains(bookmarkKey)) {
+                bookmarks.add(bookmarkKey)
                 Toast.makeText(this, "书签已添加", Toast.LENGTH_SHORT).show()
-                Log.d(TAG, "添加书签: $location")
+                Log.d(TAG, "添加书签: $bookmarkKey")
             } else {
                 Toast.makeText(this, "书签已存在", Toast.LENGTH_SHORT).show()
             }
+        } else {
+            Toast.makeText(this, "无法获取当前位置", Toast.LENGTH_SHORT).show()
         }
     }
     
     private fun removeBookmark() {
-        currentLocation?.let { location ->
-            if (bookmarks.remove(location)) {
-                Toast.makeText(this, "书签已移除", Toast.LENGTH_SHORT).show()
-                Log.d(TAG, "移除书签: $location")
+        val currentLocator = navigatorFragment?.currentLocator?.value
+        if (currentLocator != null) {
+            val bookmarkKey = "${currentLocator.href}_${currentLocator.locations.fragments.firstOrNull() ?: ""}"
+            if (bookmarks.remove(bookmarkKey)) {
+                Toast.makeText(this, "移除书签: $bookmarkKey", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -840,10 +1233,61 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     
     // 阅读进度保存
     private fun saveReadingProgress() {
-        currentLocation?.let { location ->
-            // 这里可以保存到SharedPreferences或数据库
-            Log.d(TAG, "保存阅读进度: $location")
-            Toast.makeText(this, "阅读进度已保存", Toast.LENGTH_SHORT).show()
+        try {
+            Log.d(TAG, "=== 开始保存阅读进度 ===")
+            
+            // 获取当前阅读位置
+            val currentLocator = navigatorFragment?.currentLocator?.value
+            val bookPath = intent.getStringExtra(EXTRA_EPUB_PATH) ?: intent.getStringExtra(EXTRA_BOOK_PATH)
+            
+            Log.d(TAG, "当前Locator: $currentLocator")
+            Log.d(TAG, "书籍路径: $bookPath")
+            Log.d(TAG, "书籍标题: $currentBookTitle")
+            Log.d(TAG, "书籍作者: $currentBookAuthor")
+            
+            if (currentLocator != null && bookPath != null) {
+                // 保存到本地SharedPreferences
+                val prefs = getSharedPreferences("reading_progress", MODE_PRIVATE)
+                val editor = prefs.edit()
+                
+                // 保存书籍基本信息
+                editor.putString("${bookPath}_title", currentBookTitle)
+                editor.putString("${bookPath}_author", currentBookAuthor)
+                editor.putLong("${bookPath}_last_read_time", System.currentTimeMillis())
+                
+                // 严格按照Readium官方示例，使用toJSON()保存Locator
+                val locatorJson = currentLocator.toJSON()
+                Log.d(TAG, "Locator JSON: $locatorJson")
+                editor.putString("${bookPath}_locator", locatorJson.toString())
+                
+                // 保存当前页码和总页数
+                val currentPage = getCurrentPage()
+                val totalPages = getTotalPages()
+                editor.putInt("${bookPath}_current_page", currentPage)
+                editor.putInt("${bookPath}_total_pages", totalPages)
+                
+                // 保存阅读进度百分比
+                val progress = if (totalPages > 0) (currentPage.toFloat() / totalPages.toFloat()) else 0f
+                editor.putFloat("${bookPath}_progress", progress)
+                
+                // 提交保存
+                val success = editor.commit()
+                Log.d(TAG, "SharedPreferences保存结果: $success")
+                
+                Log.d(TAG, "=== 阅读进度保存完成 ===")
+                Log.d(TAG, "保存的进度信息:")
+                Log.d(TAG, "  标题: $currentBookTitle")
+                Log.d(TAG, "  作者: $currentBookAuthor")
+                Log.d(TAG, "  当前页: $currentPage")
+                Log.d(TAG, "  总页数: $totalPages")
+                Log.d(TAG, "  进度: ${(progress * 100).toInt()}%")
+                Log.d(TAG, "  Locator: $locatorJson")
+            } else {
+                Log.w(TAG, "无法保存进度: currentLocator=$currentLocator, bookPath=$bookPath")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "保存阅读进度失败", e)
+            e.printStackTrace()
         }
     }
     
@@ -858,6 +1302,9 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             }
             .setNegativeButton("关闭", null)
             .create()
+        
+        // 设置点击外部区域关闭
+        dialog.setCanceledOnTouchOutside(true)
         
         dialog.show()
     }
@@ -1089,11 +1536,35 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         super.onBackPressed()
     }
     
+    override fun onPause() {
+        super.onPause()
+        Log.d(TAG, "=== onPause() 开始 ===")
+        // 应用进入后台时保存进度
+        saveReadingProgress()
+        Log.d(TAG, "应用进入后台，阅读进度已保存")
+        Log.d(TAG, "=== onPause() 结束 ===")
+    }
+    
+    override fun onStop() {
+        super.onStop()
+        Log.d(TAG, "=== onStop() 开始 ===")
+        // 应用停止时保存进度
+        saveReadingProgress()
+        Log.d(TAG, "应用停止，阅读进度已保存")
+        Log.d(TAG, "=== onStop() 结束 ===")
+    }
+    
     override fun onDestroy() {
         super.onDestroy()
+        Log.d(TAG, "=== onDestroy() 开始 ===")
         
         // 保存阅读进度
         saveReadingProgress()
+        
+        // 停止自动保存定时器
+        autoSaveTimer?.cancel()
+        autoSaveTimer = null
+        Log.d(TAG, "自动保存定时器已停止")
         
         // 清理Readium资源
         try {
@@ -1115,6 +1586,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "清理临时修复文件失败", e)
         }
+        
+        Log.d(TAG, "=== onDestroy() 结束 ===")
     }
 
     // 触摸事件状态跟踪
@@ -1126,6 +1599,23 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     private val touchThreshold = 50f // 触摸移动阈值
     private val touchTimeThreshold = 200L // 触摸时间阈值（毫秒）
     private val longPressThreshold = 500L // 长按阈值（毫秒）
+    
+    // iOS风格菜单系统
+    private lateinit var iosOverlay: View
+    private lateinit var iosMenuContainer: View
+    private lateinit var iosMenuPanel: View
+    private lateinit var brightnessSeekBar: SeekBar
+    private lateinit var chapterContainer: LinearLayout
+    
+    // 页面信息显示
+    private lateinit var tvChapterTitle: TextView
+    private lateinit var tvPageInfo: TextView
+    
+    // 菜单状态
+    private var isMenuVisible = false
+    private var isMenuPanelVisible = false
+    private var isUserInteracting = false
+    private var autoHideTimer: CountDownTimer? = null
 
     /**
      * 使用Android官方最佳实践处理触摸事件
@@ -1171,27 +1661,32 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     
                     Log.d(TAG, "dispatchTouchEvent ACTION_UP: x=${event.x}, y=${event.y}, 持续时间=${touchDuration}ms, 移动距离=(${deltaX}, ${deltaY})")
                     
-                    // 智能判断：只有在短时间、小距离移动的点击时才弹出菜单
-                    if (touchDuration < touchTimeThreshold && 
-                        deltaX < touchThreshold && 
-                        deltaY < touchThreshold && 
-                        !isTouchMoved) {
-                        
-                        // 检查是否在中间区域
-                        val clickX = event.x
-                        val screenWidth = resources.displayMetrics.widthPixels
-                        val leftBound = screenWidth * 0.2f
-                        val rightBound = screenWidth * 0.8f
-                        val isInCenterArea = clickX >= leftBound && clickX <= rightBound
-                        
-                        Log.d(TAG, "智能判断: 点击事件检测 - 中间区域=$isInCenterArea, 坐标=(${clickX}, ${event.y})")
-                        
-                        if (isInCenterArea) {
-                            Log.d(TAG, "智能判断: 决定弹出菜单")
-                            toggleToolbar()
+                    // 检查触摸位置，判断是否点击在菜单区域外
+                    if (isMenuVisible || isMenuPanelVisible) {
+                        val touchPoint = android.graphics.PointF(event.x, event.y)
+                        if (!isTouchInMenuArea(touchPoint)) {
+                            // 点击在菜单区域外，关闭菜单
+                            Log.d(TAG, "点击菜单区域外，关闭菜单")
+                            if (isMenuPanelVisible) {
+                                hideIOSMenuPanel()
+                            }
+                            if (isMenuVisible) {
+                                hideIOSMenu()
+                            }
                         }
                     } else {
-                        Log.d(TAG, "触摸事件不符合点击条件，不弹出菜单")
+                        // iOS风格菜单逻辑：单击屏幕显示菜单图标
+                        if (touchDuration < touchTimeThreshold && 
+                            deltaX < touchThreshold && 
+                            deltaY < touchThreshold && 
+                            !isTouchMoved &&
+                            !isUserInteracting) {
+                            
+                            // 显示iOS风格菜单
+                            showIOSMenu()
+                        } else {
+                            Log.d(TAG, "触摸事件不符合点击条件，不显示菜单")
+                        }
                     }
                     
                     // 关键：让Readium处理UP事件，确保触摸事件链完整
@@ -1210,4 +1705,1040 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         // 调用父类的dispatchTouchEvent，让所有触摸事件都能正常工作
         return super.dispatchTouchEvent(ev)
     }
+    
+    /**
+     * 显示iOS风格菜单
+     */
+    private fun showIOSMenu() {
+        if (!isMenuVisible) {
+            isMenuVisible = true
+            
+            // 显示状态栏
+            showStatusBar()
+            
+            // 显示淡蒙层
+            iosOverlay.visibility = View.VISIBLE
+            iosOverlay.animate()
+                .alpha(1f)
+                .setDuration(200)
+                .start()
+            
+            // 显示右下角菜单图标
+            iosMenuContainer.visibility = View.VISIBLE
+            iosMenuContainer.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(300)
+                .setInterpolator(android.view.animation.OvershootInterpolator())
+                .start()
+            
+            // 更新页面信息显示
+            updatePageInfoDisplay(true)
+            
+            // 不再自动隐藏，改为点击其他区域关闭
+            Log.d(TAG, "iOS风格菜单已显示，点击其他区域可关闭")
+            
+            Log.d(TAG, "iOS风格菜单已显示")
+        }
+    }
+    
+    /**
+     * 隐藏iOS风格菜单
+     */
+    private fun hideIOSMenu() {
+        if (isMenuVisible) {
+            isMenuVisible = false
+            
+            // 隐藏状态栏，恢复全屏阅读
+            hideStatusBar()
+            
+            // 隐藏淡蒙层
+            iosOverlay.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction {
+                    iosOverlay.visibility = View.GONE
+                }
+                .start()
+            
+            // 隐藏右下角菜单图标
+            iosMenuContainer.animate()
+                .alpha(0f)
+                .scaleX(0.8f)
+                .scaleY(0.8f)
+                .setDuration(200)
+                .withEndAction {
+                    iosMenuContainer.visibility = View.GONE
+                }
+                .start()
+            
+            // 如果二级菜单面板是显示的，也隐藏它
+            if (isMenuPanelVisible) {
+                hideIOSMenuPanel()
+            }
+            
+            // 恢复默认页面信息显示
+            updatePageInfoDisplay(false)
+            
+            Log.d(TAG, "iOS风格菜单已隐藏")
+        }
+    }
+    
+    /**
+     * 显示iOS风格二级菜单面板
+     */
+    private fun showIOSMenuPanel() {
+        if (!isMenuPanelVisible) {
+            isMenuPanelVisible = true
+            
+            // 显示二级菜单面板
+            iosMenuPanel.visibility = View.VISIBLE
+            iosMenuPanel.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(300)
+                .setInterpolator(android.view.animation.OvershootInterpolator())
+                .start()
+            
+            Log.d(TAG, "iOS风格二级菜单面板已显示")
+        }
+    }
+    
+    /**
+     * 隐藏iOS风格二级菜单面板
+     */
+    private fun hideIOSMenuPanel() {
+        if (isMenuPanelVisible) {
+            isMenuPanelVisible = false
+            
+            // 隐藏二级菜单面板
+            iosMenuPanel.animate()
+                .alpha(0f)
+                .translationY(100f)
+                .setDuration(200)
+                .withEndAction {
+                    iosMenuPanel.visibility = View.GONE
+                }
+                .start()
+            
+            Log.d(TAG, "iOS风格二级菜单面板已隐藏")
+        }
+    }
+    
+    // CSS方法已删除，回到Readium原生配置
+    
+    /**
+     * 递归查找WebView并应用主题
+     */
+    private fun findWebViewAndApplyTheme(view: View, theme: String) {
+        Log.d(TAG, "🔍 检查视图类型: ${view.javaClass.simpleName}")
+        
+        when (view) {
+            is android.webkit.WebView -> {
+                Log.d(TAG, "✅ 找到WebView，开始应用主题: $theme")
+                Log.d(TAG, "🌐 WebView信息: URL=${view.url}, Title=${view.title}")
+                applyThemeToWebView(view, theme)
+            }
+            is android.view.ViewGroup -> {
+                Log.d(TAG, "📦 发现ViewGroup: ${view.javaClass.simpleName}, 子视图数量: ${view.childCount}")
+                for (i in 0 until view.childCount) {
+                    val childView = view.getChildAt(i)
+                    Log.d(TAG, "👶 检查子视图 $i: ${childView.javaClass.simpleName}")
+                    findWebViewAndApplyTheme(childView, theme)
+                }
+            }
+            else -> {
+                Log.d(TAG, "ℹ️ 其他视图类型: ${view.javaClass.simpleName}")
+            }
+        }
+    }
+    
+    /**
+     * 向WebView注入CSS主题样式
+     */
+    private fun applyThemeToWebView(webView: android.webkit.WebView, theme: String) {
+        try {
+            Log.d(TAG, "🎨 开始向WebView注入主题CSS: $theme")
+            val cssTheme = when (theme) {
+                "默认" -> """
+                    <style>
+                        body { 
+                            background-color: #FFFFFF !important; 
+                            color: #000000 !important; 
+                        }
+                        * { 
+                            background-color: #FFFFFF !important; 
+                            color: #000000 !important; 
+                        }
+                    </style>
+                """.trimIndent()
+                "护眼" -> """
+                    <style>
+                        body { 
+                            background-color: #F5F5DC !important; 
+                            color: #2F2F2F !important; 
+                        }
+                        * { 
+                            background-color: #F5F5DC !important; 
+                            color: #2F2F2F !important; 
+                        }
+                    </style>
+                """.trimIndent()
+                "夜间" -> """
+                    <style>
+                        body { 
+                            background-color: #1A1A1A !important; 
+                            color: #E0E0E0 !important; 
+                        }
+                        * { 
+                            background-color: #1A1A1A !important; 
+                            color: #E0E0E0 !important; 
+                        }
+                    </style>
+                """.trimIndent()
+                "复古" -> """
+                    <style>
+                        body { 
+                            background-color: #F4F1E8 !important; 
+                            color: #2F2F2F !important; 
+                        }
+                        * { 
+                            background-color: #F4F1E8 !important; 
+                            color: #2F2F2F !important; 
+                        }
+                    </style>
+                """.trimIndent()
+                else -> ""
+            }
+            
+            Log.d(TAG, "📝 生成的CSS主题样式:")
+            Log.d(TAG, cssTheme)
+            Log.d(TAG, "🎨 主题色彩配置:")
+            when (theme) {
+                "默认" -> Log.d(TAG, "⚪ 默认主题: 背景=#FFFFFF(白色), 文字=#000000(黑色)")
+                "护眼" -> Log.d(TAG, "🟡 护眼主题: 背景=#F5F5DC(米色), 文字=#2F2F2F(深灰)")
+                "夜间" -> Log.d(TAG, "⚫ 夜间主题: 背景=#1A1A1A(深黑), 文字=#E0E0E0(浅灰)")
+                "复古" -> Log.d(TAG, "🟤 复古主题: 背景=#F2E2C9(复古米色), 文字=#2F2F2F(深灰)")
+            }
+            
+            if (cssTheme.isNotEmpty()) {
+                // 注入CSS样式
+                val jsCode = """
+                    (function() {
+                        var style = document.createElement('style');
+                        style.innerHTML = '$cssTheme';
+                        document.head.appendChild(style);
+                        
+                        // 强制重新渲染
+                        document.body.style.display = 'none';
+                        document.body.offsetHeight;
+                        document.body.style.display = '';
+                    })();
+                """.trimIndent()
+                
+                Log.d(TAG, "📜 准备执行的JavaScript代码:")
+                Log.d(TAG, jsCode)
+                
+                webView.evaluateJavascript(jsCode) { result ->
+                    Log.d(TAG, "✅ JavaScript执行结果: $result")
+                }
+                Log.d(TAG, "🎯 CSS主题样式已注入WebView: $theme")
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "向WebView注入CSS主题样式失败", e)
+        }
+    }
+    
+    // 字体大小CSS方法已删除，回到Readium原生配置
+    
+    /**
+     * 应用Readium字体大小配置 - 严格按照开发实例的方式
+     */
+    private fun applyReadiumFontSizeConfiguration(sizeName: String, fontSize: Double) {
+        try {
+            Log.d(TAG, "开始应用Readium字体大小配置: $sizeName (${fontSize})")
+            
+            // 获取当前的Fragment
+            val currentFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+            if (currentFragment == null) {
+                Log.w(TAG, "Fragment不存在，无法应用字体大小配置")
+                return
+            }
+            
+            // 创建字体大小配置
+            val currentPrefs = preferencesManager.getCurrentPreferences()
+            val fontSizePreferences = currentPrefs.copy(
+                fontSize = fontSize
+            )
+            
+            Log.d(TAG, "字体大小配置详情: $fontSizePreferences")
+            
+            // 使用Readium原生API应用字体大小
+            if (currentFragment is Configurable<*, EpubPreferences>) {
+                Log.d(TAG, "Fragment支持字体大小配置，开始应用: $sizeName")
+                try {
+                    currentFragment.submitPreferences(fontSizePreferences)
+                    Log.d(TAG, "字体大小已成功应用到Readium: $sizeName (${fontSize})")
+                    Toast.makeText(this, "字体大小已切换为: $sizeName", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Log.e(TAG, "应用字体大小时发生异常", e)
+                    Toast.makeText(this, "字体大小调整失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Log.w(TAG, "Fragment不支持字体大小配置，Fragment类型: ${currentFragment.javaClass.name}")
+                Log.w(TAG, "Fragment接口: ${currentFragment.javaClass.interfaces.joinToString()}")
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "应用Readium字体大小配置失败", e)
+        }
+    }
+    
+    /**
+     * 检查触摸点是否在菜单区域内
+     */
+    private fun isTouchInMenuArea(touchPoint: android.graphics.PointF): Boolean {
+        try {
+            // 检查是否点击在iOS菜单容器内
+            if (isMenuVisible && iosMenuContainer.visibility == View.VISIBLE) {
+                val menuRect = android.graphics.Rect()
+                iosMenuContainer.getGlobalVisibleRect(menuRect)
+                if (menuRect.contains(touchPoint.x.toInt(), touchPoint.y.toInt())) {
+                    return true
+                }
+            }
+            
+            // 检查是否点击在iOS菜单面板内
+            if (isMenuPanelVisible && iosMenuPanel.visibility == View.VISIBLE) {
+                val panelRect = android.graphics.Rect()
+                iosMenuPanel.getGlobalVisibleRect(panelRect)
+                if (panelRect.contains(touchPoint.x.toInt(), touchPoint.y.toInt())) {
+                    return true
+                }
+            }
+            
+            // 检查是否点击在工具栏内
+            val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+            if (toolbar.visibility == View.VISIBLE) {
+                val toolbarRect = android.graphics.Rect()
+                toolbar.getGlobalVisibleRect(toolbarRect)
+                if (toolbarRect.contains(touchPoint.x.toInt(), touchPoint.y.toInt())) {
+                    return true
+                }
+            }
+            
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "检查触摸点位置失败", e)
+            return false
+        }
+    }
+    
+    /**
+     * 设置iOS风格菜单
+     */
+    private fun setupIOSMenu() {
+        // 初始化视图引用
+        iosOverlay = findViewById(R.id.ios_overlay)
+        iosMenuContainer = findViewById(R.id.ios_menu_container)
+        iosMenuPanel = findViewById(R.id.ios_menu_panel)
+        brightnessSeekBar = findViewById(R.id.brightness_seekbar)
+        chapterContainer = findViewById(R.id.chapter_container)
+        
+        // 设置初始状态
+        iosOverlay.alpha = 0f
+        iosMenuContainer.alpha = 0f
+        iosMenuContainer.scaleX = 0.8f
+        iosMenuContainer.scaleY = 0.8f
+        iosMenuPanel.alpha = 0f
+        iosMenuPanel.translationY = 100f
+        
+        // 设置右下角菜单图标点击事件
+        iosMenuContainer.setOnClickListener {
+            if (isMenuPanelVisible) {
+                hideIOSMenuPanel()
+            } else {
+                showIOSMenuPanel()
+            }
+        }
+        
+        // 设置淡蒙层点击事件，点击淡蒙层关闭菜单
+        iosOverlay.setOnClickListener {
+            Log.d(TAG, "点击淡蒙层，关闭菜单")
+            if (isMenuPanelVisible) {
+                hideIOSMenuPanel()
+            }
+            if (isMenuVisible) {
+                hideIOSMenu()
+            }
+        }
+        
+        // 设置亮度调节
+        val savedBrightness = getSharedPreferences("reader_settings", MODE_PRIVATE)
+            .getInt("screen_brightness", 50)
+        brightnessSeekBar.progress = savedBrightness
+        
+        // 优化触摸热区
+        brightnessSeekBar.setOnTouchListener { _, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    // 触摸开始时提供震动反馈
+                    provideHapticFeedback()
+                    // 阻止菜单自动隐藏
+                    isUserInteracting = true
+                }
+                android.view.MotionEvent.ACTION_UP -> {
+                    // 触摸结束后延迟重置标志，避免菜单立即隐藏
+                    brightnessSeekBar.postDelayed({
+                        isUserInteracting = false
+                    }, 500)
+                }
+            }
+            false // 让SeekBar继续处理触摸事件
+        }
+        
+        brightnessSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    adjustScreenBrightness(progress)
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                // 开始触摸时阻止菜单自动隐藏
+                isUserInteracting = true
+            }
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                // 触摸结束后延迟重置标志，避免菜单立即隐藏
+                seekBar?.postDelayed({
+                    isUserInteracting = false
+                }, 500)
+            }
+        })
+        
+        // 设置功能按钮
+        findViewById<ImageButton>(R.id.btn_theme).setOnClickListener {
+            showThemeDialog()
+        }
+        
+        findViewById<ImageButton>(R.id.btn_font_size).setOnClickListener {
+            showFontSizeDialog()
+        }
+        
+        // 暂时隐藏搜索和收藏功能
+        findViewById<ImageButton>(R.id.btn_search).visibility = View.GONE
+        findViewById<ImageButton>(R.id.btn_bookmark).visibility = View.GONE
+        
+        // 设置章节位置滑动器
+        setupChapterPositionSlider()
+        
+        // 加载章节列表
+        loadChapterList()
+        
+        Log.d(TAG, "iOS风格菜单设置完成")
+    }
+    
+    /**
+     * 隐藏状态栏，实现全屏阅读
+     */
+    private fun hideStatusBar() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            window.decorView.systemUiVisibility = 
+                android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        }
+        Log.d(TAG, "状态栏已隐藏，进入全屏模式")
+    }
+    
+    /**
+     * 显示状态栏
+     */
+    private fun showStatusBar() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            window.decorView.systemUiVisibility = 
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        }
+        Log.d(TAG, "状态栏已显示")
+    }
+    
+    /**
+     * 更新页面信息显示
+     */
+    private fun updatePageInfoDisplay(showDetailed: Boolean) {
+        if (showDetailed) {
+            // 显示详细页面信息（菜单激活时）
+            tvChapterTitle.text = "本章还剩 ${getRemainingPages()} 页"
+            tvPageInfo.text = "${getCurrentPage()} / ${getTotalPages()}"
+        } else {
+            // 显示默认信息（菜单隐藏时）
+            tvChapterTitle.text = getCurrentChapterTitle()
+            tvPageInfo.text = getCurrentPage().toString()
+        }
+    }
+    
+    /**
+     * 获取当前章节标题
+     */
+    private fun getCurrentChapterTitle(): String {
+        return publication?.metadata?.title ?: "当前章节"
+    }
+    
+    /**
+     * 获取当前页码
+     */
+    private fun getCurrentPage(): Int {
+        // 从Readium获取当前页码
+        return try {
+            navigatorFragment?.currentLocator?.value?.locations?.fragments?.firstOrNull()?.let { fragment ->
+                // 尝试从fragment中提取页码信息
+                fragment.toIntOrNull() ?: 1
+            } ?: 1
+        } catch (e: Exception) {
+            Log.w(TAG, "获取当前页码失败", e)
+            1
+        }
+    }
+    
+    /**
+     * 获取总页数
+     */
+    private fun getTotalPages(): Int {
+        // 从Readium获取总页数
+        return try {
+            publication?.readingOrder?.size ?: 100
+        } catch (e: Exception) {
+            Log.w(TAG, "获取总页数失败", e)
+            100
+        }
+    }
+    
+    /**
+     * 获取本章剩余页数
+     */
+    private fun getRemainingPages(): Int {
+        return getTotalPages() - getCurrentPage()
+    }
+    
+    /**
+     * 提供触觉反馈
+     */
+    private fun provideHapticFeedback() {
+        try {
+            val vibrator = getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val effect = android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+                vibrator.vibrate(effect)
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(20)
+            }
+            Log.d(TAG, "震动反馈已触发")
+        } catch (e: Exception) {
+            Log.w(TAG, "震动反馈失败", e)
+        }
+    }
+    
+    /**
+     * 调整屏幕亮度
+     */
+    private fun adjustScreenBrightness(brightness: Int) {
+        try {
+            val window = window
+            val layoutParams = window.attributes
+            layoutParams.screenBrightness = brightness / 100f
+            window.attributes = layoutParams
+            
+            // 保存亮度设置到SharedPreferences
+            getSharedPreferences("reader_settings", MODE_PRIVATE)
+                .edit()
+                .putInt("screen_brightness", brightness)
+                .apply()
+            
+            Log.d(TAG, "屏幕亮度已调整为: $brightness% 并保存到本地")
+        } catch (e: Exception) {
+            Log.e(TAG, "调整屏幕亮度失败", e)
+        }
+    }
+    
+    /**
+     * 设置章节位置滑动器
+     */
+    private fun setupChapterPositionSlider() {
+        // 创建一个包含位置滑动器和章节列表的垂直容器
+        val chapterSectionContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        
+        // 章节位置标签
+        val positionLabel = TextView(this).apply {
+            text = "章节位置: 0%"
+            textSize = 12f
+            setTextColor(Color.parseColor("#666666"))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(20, 10, 20, 5)
+            }
+        }
+        
+        // 章节位置滑动器
+        val positionSeekBar = SeekBar(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(20, 0, 20, 15)
+            }
+            max = 100
+            progress = 0
+            progressTintList = ColorStateList.valueOf(Color.parseColor("#1EB4A2"))
+            thumbTintList = ColorStateList.valueOf(Color.parseColor("#1EB4A2"))
+        }
+        
+        // 优化触摸热区
+        positionSeekBar.setOnTouchListener { _, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    // 触摸开始时提供震动反馈
+                    provideHapticFeedback()
+                    // 阻止菜单自动隐藏
+                    isUserInteracting = true
+                }
+                android.view.MotionEvent.ACTION_UP -> {
+                    // 触摸结束后延迟重置标志，避免菜单立即隐藏
+                    positionSeekBar.postDelayed({
+                        isUserInteracting = false
+                    }, 500)
+                }
+            }
+            false // 让SeekBar继续处理触摸事件
+        }
+        
+        // 设置滑动器事件
+        positionSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    positionLabel.text = "章节位置: ${progress}%"
+                    // 这里可以添加跳转到指定位置的逻辑
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                // 开始触摸时阻止菜单自动隐藏
+                isUserInteracting = true
+            }
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                // 触摸结束后延迟重置标志，避免菜单立即隐藏
+                seekBar?.postDelayed({
+                    isUserInteracting = false
+                }, 500)
+            }
+        })
+        
+        // 将位置滑动器添加到章节区域容器
+        chapterSectionContainer.addView(positionLabel)
+        chapterSectionContainer.addView(positionSeekBar)
+        
+        // 将章节容器移动到新的容器中
+        val parent = chapterContainer.parent as? ViewGroup
+        parent?.let { viewGroup ->
+            val index = viewGroup.indexOfChild(chapterContainer)
+            // 移除原来的章节容器
+            viewGroup.removeView(chapterContainer)
+            // 将章节容器添加到新的容器中
+            chapterSectionContainer.addView(chapterContainer)
+            // 将新的容器添加到原来的位置
+            viewGroup.addView(chapterSectionContainer, index)
+        }
+        
+        Log.d(TAG, "章节位置滑动器已设置")
+    }
+    
+    /**
+     * 加载章节列表
+     */
+    private fun loadChapterList() {
+        publication?.tableOfContents?.let { toc ->
+            chapterContainer.removeAllViews()
+            
+            toc.forEachIndexed { index, link ->
+                val chapterView = TextView(this).apply {
+                    text = link.title ?: "第${index + 1}章"
+                    textSize = 14f
+                    setPadding(16, 8, 16, 8)
+                    background = android.graphics.drawable.ColorDrawable(android.graphics.Color.parseColor("#F0F0F0"))
+                    setTextColor(android.graphics.Color.parseColor("#333333"))
+                    
+                    setOnClickListener {
+                        // 跳转到指定章节
+                        navigateToChapter(link)
+                        hideIOSMenuPanel()
+                    }
+                }
+                
+                chapterContainer.addView(chapterView)
+                
+                // 添加分隔符
+                if (index < toc.size - 1) {
+                    val separator = View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(8, LinearLayout.LayoutParams.MATCH_PARENT)
+                        background = android.graphics.drawable.ColorDrawable(android.graphics.Color.parseColor("#E0E0E0"))
+                    }
+                    chapterContainer.addView(separator)
+                }
+            }
+            
+            Log.d(TAG, "章节列表已加载: ${toc.size} 章节")
+        }
+    }
+    
+    /**
+     * 跳转到指定章节
+     */
+    private fun navigateToChapter(link: org.readium.r2.shared.publication.Link) {
+        try {
+            Log.d(TAG, "开始跳转到章节: ${link.title}")
+            
+            // 使用Readium的导航API跳转到指定章节
+            navigatorFragment?.let { fragment ->
+                // 使用Readium的导航API跳转到指定章节
+                try {
+                    // 使用Link对象进行跳转
+                    val success = fragment.go(link, animated = true)
+                    if (success) {
+                        Log.d(TAG, "章节跳转成功: ${link.title}")
+                        Toast.makeText(this, "已跳转到: ${link.title}", Toast.LENGTH_SHORT).show()
+                        
+                        // 隐藏菜单面板
+                        hideIOSMenuPanel()
+                    } else {
+                        Log.w(TAG, "章节跳转失败: ${link.title}")
+                        Toast.makeText(this, "章节跳转失败，请重试", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "章节跳转异常: ${e.message}")
+                    Toast.makeText(this, "章节跳转功能开发中", Toast.LENGTH_SHORT).show()
+                }
+                
+            } ?: run {
+                Log.w(TAG, "NavigatorFragment为空，无法跳转章节")
+                Toast.makeText(this, "阅读器未准备好，请稍后重试", Toast.LENGTH_SHORT).show()
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "跳转章节失败", e)
+            Toast.makeText(this, "章节跳转失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 显示主题设置对话框
+     */
+    private fun showThemeDialog() {
+        val themes = arrayOf("默认", "护眼", "夜间", "复古")
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("选择主题")
+            .setItems(themes) { _, which ->
+                applyTheme(themes[which])
+            }
+            .create()
+        
+        // 设置点击外部区域关闭
+        dialog.setCanceledOnTouchOutside(true)
+        
+        dialog.show()
+    }
+    
+
+    
+    /**
+     * 显示字体大小设置对话框
+     */
+    private fun showFontSizeDialog() {
+        val sizes = arrayOf("小", "中", "大", "特大")
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("选择字体大小")
+            .setItems(sizes) { _, which ->
+                applyFontSize(sizes[which])
+            }
+            .create()
+        
+        // 设置点击外部区域关闭
+        dialog.setCanceledOnTouchOutside(true)
+        
+        dialog.show()
+    }
+    
+        /**
+     * 应用字体大小到Readium - 优化版本，无闪烁
+     */
+    private fun applyFontSize(sizeName: String) {
+        try {
+            // 根据名称设置字体大小
+            val fontSize = when (sizeName) {
+                "小" -> 0.8
+                "中" -> 1.0
+                "大" -> 1.2
+                "特大" -> 1.4
+                else -> 1.0
+            }
+            
+            // 更新本地字体大小变量
+            currentFontSize = fontSize * 16.0
+            
+            Log.d(TAG, "开始应用字体大小: $sizeName (${fontSize})")
+            
+            // 更新PreferencesManager中的字体大小设置
+            preferencesManager.setFontSize(currentFontSize.toFloat())
+            
+            // 保存字体大小设置到本地
+            getSharedPreferences("reader_settings", MODE_PRIVATE)
+                .edit()
+                .putFloat("font_size", fontSize.toFloat())
+                .apply()
+            
+            // 尝试直接应用配置到当前Fragment，避免重新创建
+            val currentFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+            if (currentFragment != null && currentFragment.view != null) {
+                Log.d(TAG, "直接应用字体大小配置，无需重新创建Fragment")
+                
+                // 创建字体大小配置
+                val currentPrefs = preferencesManager.getCurrentPreferences()
+                val fontSizePreferences = currentPrefs.copy(
+                    fontSize = fontSize
+                )
+                
+                // 使用Readium原生API直接应用
+                if (currentFragment is Configurable<*, EpubPreferences>) {
+                    try {
+                        currentFragment.submitPreferences(fontSizePreferences)
+                        Log.d(TAG, "字体大小已直接应用到当前Fragment: $sizeName")
+                        
+                        // 添加渐显效果
+                        currentFragment.view?.let { view ->
+                            applyFontSizeTransitionEffect(view, sizeName)
+                        }
+                        
+                        Toast.makeText(this, "字体大小已切换为: $sizeName", Toast.LENGTH_SHORT).show()
+                        return // 成功应用，直接返回
+                    } catch (e: Exception) {
+                        Log.w(TAG, "直接应用失败，回退到重新创建方式: ${e.message}")
+                    }
+                }
+            }
+            
+            // 如果直接应用失败，回退到重新创建方式
+            Log.d(TAG, "回退到重新创建Navigator以应用字体变化")
+            
+            // 重新创建Navigator以应用字体变化
+            publication?.let { pub ->
+                // 获取当前的阅读位置（如果有的话）
+                val currentLocator = navigatorFragment?.currentLocator?.value
+                Log.d(TAG, "当前阅读位置: $currentLocator")
+                
+                // 保存当前阅读位置到本地
+                currentLocator?.let { locator ->
+                    getSharedPreferences("reader_settings", MODE_PRIVATE)
+                        .edit()
+                        .putString("last_location", locator.toString())
+                        .apply()
+                    Log.d(TAG, "已保存阅读位置到本地")
+                }
+                
+                // 创建新的NavigatorFactory，使用更新后的配置
+                val newNavigatorFactory = EpubNavigatorFactory(
+                    publication = pub,
+                    configuration = EpubNavigatorFactory.Configuration(
+                        defaults = EpubDefaults(
+                            pageMargins = currentPageMargins.toDouble(),
+                            fontSize = fontSize, // 应用新的字体大小
+                            lineHeight = currentLineHeight.toDouble()
+                        )
+                    )
+                )
+                
+                // 更新FragmentFactory
+                supportFragmentManager.fragmentFactory = newNavigatorFactory.createFragmentFactory(
+                    initialLocator = currentLocator, // 保持当前阅读位置
+                    listener = object : EpubNavigatorFragment.Listener {
+                        override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
+                            Log.d(TAG, "外部链接激活: $url")
+                            Toast.makeText(this@ReadiumEpubReaderActivity, "外部链接: $url", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+                
+                // 使用addToBackStack而不是replace，保持阅读位置
+                supportFragmentManager.beginTransaction()
+                    .addToBackStack("font_size_change")
+                    .replace(R.id.reader_container, EpubNavigatorFragment::class.java, Bundle(), "EpubNavigatorFragment")
+                    .commit()
+                
+                // 更新Fragment引用
+                navigatorFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
+                navigatorFactory = newNavigatorFactory
+                
+                // 等待Fragment创建完成后应用Readium配置
+                navigatorFragment?.view?.post {
+                    Log.d(TAG, "Fragment视图已创建，开始应用Readium字体大小配置: $sizeName")
+                    // 使用Readium原生配置方法
+                    applyReadiumFontSizeConfiguration(sizeName, fontSize)
+                    
+                    // 添加渐显效果
+                    navigatorFragment?.view?.let { view ->
+                        applyFontSizeTransitionEffect(view, sizeName)
+                    }
+                }
+                
+                Log.d(TAG, "字体大小应用成功: $sizeName (${fontSize})，Navigator已重新创建")
+                Toast.makeText(this, "字体大小已切换为: $sizeName", Toast.LENGTH_SHORT).show()
+                
+            } ?: run {
+                Log.w(TAG, "Publication为空，无法应用字体大小")
+                Toast.makeText(this, "无法应用字体大小，请重新加载书籍", Toast.LENGTH_SHORT).show()
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "应用字体大小失败", e)
+            Toast.makeText(this, "字体大小调整失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 切换书签状态
+     */
+    private fun toggleBookmark() {
+        // 这里需要实现书签功能
+        Log.d(TAG, "切换书签状态")
+        Toast.makeText(this, "书签功能开发中", Toast.LENGTH_SHORT).show()
+    }
+    
+    /**
+     * 启动自动保存进度
+     */
+    private fun startAutoSaveProgress() {
+        try {
+            // 停止之前的定时器
+            autoSaveTimer?.cancel()
+            
+            // 创建新的定时器，每30秒自动保存一次进度
+            autoSaveTimer = object : CountDownTimer(autoSaveInterval, autoSaveInterval) {
+                override fun onTick(millisUntilFinished: Long) {
+                    // 不需要处理
+                }
+                
+                override fun onFinish() {
+                    // 自动保存进度
+                    saveReadingProgress()
+                    
+                    // 重新启动定时器
+                    start()
+                }
+            }.start()
+            
+            Log.d(TAG, "自动保存进度已启动，间隔: ${autoSaveInterval / 1000}秒")
+        } catch (e: Exception) {
+            Log.w(TAG, "启动自动保存进度失败", e)
+        }
+    }
+    
+    /**
+     * 显示进度恢复消息
+     */
+    private fun showProgressRestoredMessage() {
+        try {
+            val bookPath = intent.getStringExtra(EXTRA_EPUB_PATH) ?: intent.getStringExtra(EXTRA_BOOK_PATH)
+            if (bookPath != null) {
+                val prefs = getSharedPreferences("reading_progress", MODE_PRIVATE)
+                val savedPage = prefs.getInt("${bookPath}_current_page", -1)
+                val savedProgress = prefs.getFloat("${bookPath}_progress", -1f)
+                
+                if (savedPage > 0) {
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        Toast.makeText(this, "已恢复到第 $savedPage 页", Toast.LENGTH_SHORT).show()
+                        Log.d(TAG, "显示进度恢复消息: 第 $savedPage 页")
+                    }, 1000) // 延迟1秒显示
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "显示进度恢复消息失败", e)
+        }
+    }
+    
+    /**
+     * 获取保存的阅读位置
+     */
+    private fun getSavedLocator(): org.readium.r2.shared.publication.Locator? {
+        try {
+            Log.d(TAG, "=== 开始获取保存的阅读位置 ===")
+            
+            val bookPath = intent.getStringExtra(EXTRA_EPUB_PATH) ?: intent.getStringExtra(EXTRA_BOOK_PATH)
+            Log.d(TAG, "尝试获取保存的阅读位置，书籍路径: $bookPath")
+            
+            if (bookPath != null) {
+                val prefs = getSharedPreferences("reading_progress", MODE_PRIVATE)
+                val savedLocatorString = prefs.getString("${bookPath}_locator", null)
+                val savedPage = prefs.getInt("${bookPath}_current_page", -1)
+                val savedProgress = prefs.getFloat("${bookPath}_progress", -1f)
+                val savedTitle = prefs.getString("${bookPath}_title", null)
+                val savedAuthor = prefs.getString("${bookPath}_author", null)
+                
+                Log.d(TAG, "从SharedPreferences读取的数据:")
+                Log.d(TAG, "  locator: $savedLocatorString")
+                Log.d(TAG, "  page: $savedPage")
+                Log.d(TAG, "  progress: $savedProgress")
+                Log.d(TAG, "  title: $savedTitle")
+                Log.d(TAG, "  author: $savedAuthor")
+                
+                if (savedLocatorString != null && savedPage > 0) {
+                    Log.d(TAG, "找到保存的阅读位置，开始解析Locator")
+                    try {
+                        // 严格按照Readium官方示例，使用JSONObject解析Locator
+                        val jsonObject = org.json.JSONObject(savedLocatorString)
+                        Log.d(TAG, "JSONObject创建成功: $jsonObject")
+                        
+                        val locator = org.readium.r2.shared.publication.Locator.fromJSON(jsonObject)
+                        Log.d(TAG, "=== Locator解析成功 ===")
+                        Log.d(TAG, "解析后的Locator: $locator")
+                        Log.d(TAG, "Locator.href: ${locator?.href}")
+                        Log.d(TAG, "Locator.locations: ${locator?.locations}")
+                        Log.d(TAG, "Locator.text: ${locator?.text}")
+                        return locator
+                    } catch (e: Exception) {
+                        Log.e(TAG, "解析保存的Locator失败", e)
+                        e.printStackTrace()
+                        return null
+                    }
+                } else {
+                    Log.d(TAG, "没有找到有效的保存进度")
+                    if (savedLocatorString == null) {
+                        Log.d(TAG, "原因: locator字符串为空")
+                    }
+                    if (savedPage <= 0) {
+                        Log.d(TAG, "原因: 页码无效 ($savedPage)")
+                    }
+                }
+            } else {
+                Log.w(TAG, "书籍路径为空，无法获取保存的进度")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "获取保存的阅读位置失败", e)
+            e.printStackTrace()
+        }
+        Log.d(TAG, "=== 获取保存的阅读位置结束 ===")
+        return null
+    }
+
+    // 自动保存进度
+    private var autoSaveTimer: CountDownTimer? = null
+    private val autoSaveInterval = 30000L // 30秒自动保存一次
 }

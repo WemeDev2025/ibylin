@@ -71,10 +71,9 @@ class ReadiumPreferencesManager(
      */
     fun setTheme(themeName: String) {
         val theme = when (themeName) {
-            "light" -> Theme.LIGHT
-            "sepia" -> Theme.SEPIA
-            "dark" -> Theme.DARK
-            "night" -> Theme.DARK
+            "light", "默认" -> Theme.LIGHT
+            "sepia", "护眼", "复古" -> Theme.SEPIA
+            "dark", "night", "夜间" -> Theme.DARK
             else -> Theme.LIGHT
         }
         val current = preferencesMutable.value
