@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.core.content.ContextCompat
 
 import com.ibylin.app.reader.ReadiumEpubReaderActivity
@@ -66,7 +67,6 @@ class MainActivity : AppCompatActivity() {
     
     private fun setupClickListeners() {
 
-        
         // 书架按钮点击事件
         btnBookLibrary.setOnClickListener {
             openBookLibrary()
@@ -76,7 +76,7 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun showPermissionDialog(title: String, message: String) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(title)
             .setMessage(message)
             .setPositiveButton("授权") { _, _ ->
@@ -116,9 +116,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun showManageStoragePermissionDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("需要完整文件访问权限")
-            .setMessage("为了扫描所有文件，需要授予完整文件访问权限")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("完整文件访问权限")
+            .setMessage("为了访问所有文件，需要授予完整文件访问权限。\n\n请在设置页面中开启此权限。")
             .setPositiveButton("去设置") { _, _ ->
                 openManageStorageSettings()
             }
@@ -175,9 +175,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun showPermissionDeniedDialog() {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("权限被拒绝")
-            .setMessage("文件访问权限被拒绝，需要在系统设置中手动开启")
+            .setMessage("文件访问权限被拒绝，需要在系统设置中手动开启。\n\n请在设置页面中授予权限。")
             .setPositiveButton("去设置") { _, _ ->
                 openAppSettings()
             }
@@ -186,12 +186,12 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
-     * 显示Apple风格的权限申请弹窗
+     * 显示Material 3风格的权限申请弹窗
      */
-    private fun showAppleStylePermissionDialog() {
-        AlertDialog.Builder(this, R.style.AppleStyleDialog)
-            .setTitle("需要文件访问权限")
-            .setMessage("为了扫描和显示您的EPUB图书，需要访问设备上的文件。请在接下来的设置页面中授予\"所有文件访问权限\"。")
+    private fun showMaterial3PermissionDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("文件访问权限")
+            .setMessage("为了访问您的EPUB图书，需要授予文件访问权限。\n\n请在设置页面中开启\"所有文件访问权限\"。")
             .setPositiveButton("去设置") { _, _ ->
                 // 跳转到设置页面
                 try {
@@ -278,8 +278,8 @@ class MainActivity : AppCompatActivity() {
             }
         } else {
             android.util.Log.d("MainActivity", "权限未授予，显示权限申请弹窗")
-            // 显示Apple风格的权限申请弹窗
-            showAppleStylePermissionDialog()
+            // 显示Material 3风格的权限申请弹窗
+            showMaterial3PermissionDialog()
         }
     }
     

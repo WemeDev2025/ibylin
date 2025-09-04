@@ -27,6 +27,9 @@ class LibreraHelper @Inject constructor(
     // EPUB 内容缓存
     private lateinit var epubContent: EpubContent
     
+    // MOBI 内容缓存
+    private var mobiContent: MobiContent? = null
+    
     // Librera Reader 相关组件
     private var libreraReader: Any? = null
     private var readerContainer: FrameLayout? = null
@@ -71,6 +74,14 @@ class LibreraHelper @Inject constructor(
                     val epubResult = openEpubBook(bookPath)
                     android.util.Log.d("LibreraHelper", "EPUB文件处理结果: $epubResult")
                     epubResult
+                }
+                bookPath.endsWith(".mobi", ignoreCase = true) || 
+                bookPath.endsWith(".azw", ignoreCase = true) || 
+                bookPath.endsWith(".azw3", ignoreCase = true) -> {
+                    android.util.Log.d("LibreraHelper", "检测到MOBI文件")
+                    val mobiResult = openMobiBook(bookPath)
+                    android.util.Log.d("LibreraHelper", "MOBI文件处理结果: $mobiResult")
+                    mobiResult
                 }
                 bookPath.endsWith(".pdf", ignoreCase = true) -> {
                     android.util.Log.d("LibreraHelper", "检测到PDF文件")
@@ -122,6 +133,21 @@ class LibreraHelper @Inject constructor(
             true
         } catch (e: Exception) {
             android.util.Log.e("LibreraHelper", "EPUB文件处理失败: ${e.message}", e)
+            false
+        }
+    }
+    
+    /**
+     * 打开 MOBI 书籍
+     */
+    private fun openMobiBook(bookPath: String): Boolean {
+        return try {
+            android.util.Log.d("LibreraHelper", "开始处理MOBI文件: $bookPath")
+            setupMobiReader(bookPath)
+            android.util.Log.d("LibreraHelper", "MOBI文件处理完成")
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("LibreraHelper", "MOBI文件处理失败: ${e.message}", e)
             false
         }
     }
@@ -216,6 +242,63 @@ class LibreraHelper @Inject constructor(
         } catch (e: Exception) {
             android.util.Log.e("LibreraHelper", "EPUB文件解析失败: ${e.message}", e)
             throw Exception("EPUB文件解析失败: ${e.message}")
+        }
+    }
+    
+    /**
+     * 解析MOBI文件
+     */
+    private fun parseMobiFile(bookPath: String): MobiContent {
+        return try {
+            android.util.Log.d("LibreraHelper", "开始解析MOBI文件: $bookPath")
+            
+            val file = java.io.RandomAccessFile(bookPath, "r")
+            
+            try {
+                // 检查文件头
+                val header = ByteArray(8)
+                file.read(header)
+                val headerString = String(header)
+                
+                android.util.Log.d("LibreraHelper", "MOBI文件头: $headerString")
+                
+                // 这里应该根据MOBI文件格式规范来解析
+                // 简化实现，创建基本的章节结构
+                val chapters = listOf(
+                    Chapter(
+                        title = "MOBI电子书",
+                        content = "MOBI格式电子书内容",
+                        path = "content"
+                    )
+                )
+                
+                // 创建基本元数据
+                val metadata = MobiMetadata(
+                    title = "MOBI电子书",
+                    author = null,
+                    language = null,
+                    publisher = null,
+                    identifier = null,
+                    coverImagePath = null,
+                    coverImageData = null,
+                    description = null,
+                    subject = null,
+                    date = null,
+                    rights = null,
+                    version = "MOBI"
+                )
+                
+                android.util.Log.d("LibreraHelper", "MOBI解析完成，共 ${chapters.size} 章")
+                
+                MobiContent(chapters, metadata)
+                
+            } finally {
+                file.close()
+            }
+            
+        } catch (e: Exception) {
+            android.util.Log.e("LibreraHelper", "MOBI文件解析失败: ${e.message}", e)
+            throw Exception("MOBI文件解析失败: ${e.message}")
         }
     }
     
@@ -429,6 +512,31 @@ class LibreraHelper @Inject constructor(
         val titleRegex = """<title[^>]*>([^<]*)</title>""".toRegex()
         val matchResult = titleRegex.find(htmlContent)
         return matchResult?.groupValues?.get(1)?.trim() ?: "未知章节"
+    }
+    
+    /**
+     * 设置 MOBI 阅读器
+     */
+    private fun setupMobiReader(bookPath: String) {
+        try {
+            android.util.Log.d("LibreraHelper", "开始设置MOBI阅读器: $bookPath")
+            
+            // 解析MOBI文件
+            this.mobiContent = parseMobiFile(bookPath)
+            
+            // 设置总页数（基于章节数量）
+            val chapters = mobiContent?.chapters ?: emptyList()
+            totalPages = chapters.size
+            
+            android.util.Log.d("LibreraHelper", "MOBI解析成功，共 ${totalPages} 章")
+            
+            // 注意：UI 操作需要在主线程中执行，这里只设置数据
+            // showReaderView() 将在主线程中调用
+            
+        } catch (e: Exception) {
+            android.util.Log.e("LibreraHelper", "MOBI解析失败: ${e.message}", e)
+            throw Exception("MOBI 阅读器初始化失败: ${e.message}")
+        }
     }
     
     /**
@@ -904,4 +1012,71 @@ data class Chapter(
     val content: String,
     val path: String
 )
+
+/**
+ * MOBI内容数据类
+ */
+data class MobiContent(
+    val chapters: List<Chapter>,
+    val metadata: MobiMetadata? = null
+)
+
+/**
+ * MOBI元数据数据类
+ */
+data class MobiMetadata(
+    val title: String,
+    val author: String?,
+    val language: String?,
+    val publisher: String?,
+    val identifier: String?,
+    val coverImagePath: String?,
+    val coverImageData: ByteArray? = null,
+    val description: String?,
+    val subject: String?,
+    val date: String?,
+    val rights: String?,
+    val version: String?
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as MobiMetadata
+
+        if (title != other.title) return false
+        if (author != other.author) return false
+        if (language != other.language) return false
+        if (publisher != other.publisher) return false
+        if (identifier != other.identifier) return false
+        if (coverImagePath != other.coverImagePath) return false
+        if (coverImageData != null) {
+            if (other.coverImageData == null) return false
+            if (!coverImageData.contentEquals(other.coverImageData)) return false
+        } else if (other.coverImageData != null) return false
+        if (description != other.description) return false
+        if (subject != other.subject) return false
+        if (date != other.date) return false
+        if (rights != other.rights) return false
+        if (version != other.version) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = title.hashCode()
+        result = 31 * result + (author?.hashCode() ?: 0)
+        result = 31 * result + (language?.hashCode() ?: 0)
+        result = 31 * result + (publisher?.hashCode() ?: 0)
+        result = 31 * result + (identifier?.hashCode() ?: 0)
+        result = 31 * result + (coverImagePath?.hashCode() ?: 0)
+        result = 31 * result + (coverImageData?.contentHashCode() ?: 0)
+        result = 31 * result + (description?.hashCode() ?: 0)
+        result = 31 * result + (subject?.hashCode() ?: 0)
+        result = 31 * result + (date?.hashCode() ?: 0)
+        result = 31 * result + (rights?.hashCode() ?: 0)
+        result = 31 * result + (version?.hashCode() ?: 0)
+        return result
+    }
+}
 

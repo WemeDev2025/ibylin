@@ -13,6 +13,8 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,7 +23,7 @@ import com.ibylin.app.R
 import com.ibylin.app.adapter.BookGridAdapter
 import com.ibylin.app.reader.ReadiumEpubReaderActivity
 import com.ibylin.app.utils.EpubFile
-import com.ibylin.app.utils.EpubScanner
+import com.ibylin.app.utils.BookScanner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,6 +31,7 @@ import kotlinx.coroutines.withContext
 
 class BookLibraryActivity : AppCompatActivity() {
     
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var rvBooks: RecyclerView
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var llScanning: android.widget.LinearLayout
@@ -116,15 +119,46 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     private fun initViews() {
+        toolbar = findViewById(R.id.toolbar)
         rvBooks = findViewById(R.id.rv_books)
         swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout)
         llScanning = findViewById(R.id.ll_scanning)
         llNoBooks = findViewById(R.id.ll_no_books)
+        
+        // 设置标题栏
+        setupToolbar()
     }
     
-
-    
-
+    /**
+     * 设置标题栏
+     */
+    private fun setupToolbar() {
+        setSupportActionBar(toolbar)
+        
+        // 设置返回按钮点击事件
+        toolbar.setNavigationOnClickListener {
+            onBackPressed()
+        }
+        
+        // 设置菜单项点击事件
+        toolbar.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_search -> {
+                    // TODO: 实现搜索功能
+                    true
+                }
+                R.id.action_settings -> {
+                    // TODO: 打开设置页面
+                    true
+                }
+                R.id.action_more -> {
+                    // TODO: 显示更多选项
+                    true
+                }
+                else -> false
+            }
+        }
+    }
     
     private fun setupRecyclerView() {
         // 设置网格布局，一行2个
@@ -327,13 +361,14 @@ class BookLibraryActivity : AppCompatActivity() {
         
         coroutineScope.launch {
             try {
-                android.util.Log.d("BookLibraryActivity", "开始调用EpubScanner.scanEpubFiles")
-                val epubFiles = EpubScanner().scanEpubFiles(this@BookLibraryActivity)
-                android.util.Log.d("BookLibraryActivity", "EpubScanner返回结果: 文件数量=${epubFiles.size}")
+                android.util.Log.d("BookLibraryActivity", "开始调用BookScanner.scanAllBooks")
+                val bookScanner = BookScanner()
+                val allBooks = bookScanner.scanAllBooks(this@BookLibraryActivity)
+                android.util.Log.d("BookLibraryActivity", "BookScanner返回结果: 文件数量=${allBooks.size}")
                 
                 // 打印每个文件的详细信息
-                epubFiles.forEachIndexed { index, epubFile ->
-                    android.util.Log.d("BookLibraryActivity", "文件[$index]: 名称=${epubFile.name}, 路径=${epubFile.path}, 大小=${epubFile.size}")
+                allBooks.forEachIndexed { index, bookFile ->
+                    android.util.Log.d("BookLibraryActivity", "文件[$index]: 名称=${bookFile.name}, 路径=${bookFile.path}, 大小=${bookFile.size}, 格式=${bookFile.format.displayName}")
                 }
                 
                 withContext(Dispatchers.Main) {
@@ -344,25 +379,42 @@ class BookLibraryActivity : AppCompatActivity() {
                     swipeRefreshLayout.isRefreshing = false
                     
                     // 过滤掉不存在的文件，确保数据一致性
-                    val validEpubFiles = epubFiles.filter { epubFile ->
-                        val file = java.io.File(epubFile.path)
+                    val validBooks = allBooks.filter { bookFile ->
+                        val file = java.io.File(bookFile.path)
                         val exists = file.exists()
                         if (!exists) {
-                            android.util.Log.w("BookLibraryActivity", "扫描发现已删除的文件: ${epubFile.name}")
+                            android.util.Log.w("BookLibraryActivity", "扫描发现已删除的文件: ${bookFile.name}")
                         }
                         exists
                     }
                     
-                    android.util.Log.d("BookLibraryActivity", "扫描完成: 原始数量=${epubFiles.size}, 有效数量=${validEpubFiles.size}")
+                    android.util.Log.d("BookLibraryActivity", "扫描完成: 原始数量=${allBooks.size}, 有效数量=${validBooks.size}")
                     
                     // 缓存数据
-                    cachedEpubFiles = validEpubFiles
+                    cachedEpubFiles = validBooks.map { bookFile ->
+                        // 转换为EpubFile格式以保持兼容性
+                        EpubFile(
+                            name = bookFile.name,
+                            path = bookFile.path,
+                            size = bookFile.size,
+                            lastModified = bookFile.lastModified,
+                            metadata = bookFile.metadata?.let { metadata ->
+                                com.ibylin.app.utils.EpubFileMetadata(
+                                    title = metadata.title,
+                                    author = metadata.author,
+                                    coverImagePath = metadata.coverImagePath,
+                                    description = metadata.description,
+                                    version = metadata.version
+                                )
+                            }
+                        )
+                    }
                     isDataCached = true
                     
                     // 保存缓存到SharedPreferences
-                    saveCacheData(validEpubFiles)
+                    saveCacheData(cachedEpubFiles)
                     
-                    showBooks(validEpubFiles)
+                    showBooks(cachedEpubFiles)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("BookLibraryActivity", "扫描书籍时发生异常", e)
@@ -592,8 +644,8 @@ class BookLibraryActivity : AppCompatActivity() {
      */
     private fun requestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+ 显示Apple风格的权限说明弹窗
-            showAppleStylePermissionDialog()
+            // Android 11+ 显示Material 3风格的权限说明弹窗
+            showMaterial3PermissionDialog()
         } else {
             // Android 10及以下请求传统权限
             requestPermissionLauncher.launch(
@@ -606,12 +658,12 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     /**
-     * 显示Apple风格的权限说明弹窗
+     * 显示Material 3风格的权限说明弹窗
      */
-    private fun showAppleStylePermissionDialog() {
-        AlertDialog.Builder(this, R.style.AppleStyleDialog)
-            .setTitle("需要文件访问权限")
-            .setMessage("为了扫描和显示您的EPUB图书，需要访问设备上的文件。请在接下来的设置页面中授予\"所有文件访问权限\"。")
+    private fun showMaterial3PermissionDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("文件访问权限")
+            .setMessage("为了访问您的EPUB图书，需要授予文件访问权限。\n\n请在设置页面中开启\"所有文件访问权限\"。")
             .setPositiveButton("去设置") { _, _ ->
                 // 跳转到设置页面
                 val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
@@ -630,9 +682,9 @@ class BookLibraryActivity : AppCompatActivity() {
      * 显示权限被拒绝的弹窗
      */
     private fun showPermissionDeniedDialog() {
-        AlertDialog.Builder(this, R.style.AppleStyleDialog)
+        MaterialAlertDialogBuilder(this)
             .setTitle("权限被拒绝")
-            .setMessage("没有文件访问权限，无法扫描图书。请在设置中手动授予权限。")
+            .setMessage("没有文件访问权限，无法访问图书。\n\n请在设置中手动授予权限。")
             .setPositiveButton("去设置") { _, _ ->
                 // 跳转到应用设置页面
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -749,28 +801,23 @@ class BookLibraryActivity : AppCompatActivity() {
         // 设置菜单项点击事件
         popupMenu.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.action_open_book -> {
-                    android.util.Log.d("BookLibraryActivity", "长按菜单：打开阅读")
-                    openReadiumReader(epubFile.path)
-                    true
-                }
                 R.id.action_book_info -> {
-                    android.util.Log.d("BookLibraryActivity", "长按菜单：显示书籍信息")
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：显示图书信息")
                     showBookInfo(epubFile)
                     true
                 }
-                R.id.action_custom_cover -> {
-                    android.util.Log.d("BookLibraryActivity", "长按菜单：自定义封面")
+                R.id.action_change_cover -> {
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：更换封面")
                     openCoverSelection(epubFile)
                     true
                 }
                 R.id.action_share_book -> {
-                    android.util.Log.d("BookLibraryActivity", "长按菜单：分享书籍")
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：分享")
                     shareBook(epubFile)
                     true
                 }
                 R.id.action_delete_book -> {
-                    android.util.Log.d("BookLibraryActivity", "长按菜单：删除书籍")
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：删除")
                     showDeleteBookDialog(epubFile)
                     true
                 }
@@ -794,8 +841,8 @@ class BookLibraryActivity : AppCompatActivity() {
             最后修改：${android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", epubFile.lastModified)}
         """.trimIndent()
         
-        android.app.AlertDialog.Builder(this)
-            .setTitle("书籍信息")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("图书信息")
             .setMessage(message)
             .setPositiveButton("确定", null)
             .show()
@@ -806,7 +853,7 @@ class BookLibraryActivity : AppCompatActivity() {
      */
     private fun openCoverSelection(epubFile: EpubFile) {
         val intent = Intent(this, com.ibylin.app.ui.CoverSelectionActivity::class.java).apply {
-            putExtra("book_name", epubFile.name)
+            putExtra(com.ibylin.app.ui.CoverSelectionActivity.EXTRA_BOOK, epubFile)
         }
         startActivity(intent)
     }
@@ -815,17 +862,36 @@ class BookLibraryActivity : AppCompatActivity() {
      * 分享书籍
      */
     private fun shareBook(epubFile: EpubFile) {
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/epub+zip"
-            putExtra(Intent.EXTRA_STREAM, android.net.Uri.fromFile(java.io.File(epubFile.path)))
-            putExtra(Intent.EXTRA_SUBJECT, "分享书籍：${epubFile.metadata?.title ?: epubFile.name}")
-            putExtra(Intent.EXTRA_TEXT, "我正在阅读《${epubFile.metadata?.title ?: epubFile.name}》，推荐给你！")
-        }
-        
         try {
-            startActivity(Intent.createChooser(shareIntent, "分享书籍"))
+            val file = java.io.File(epubFile.path)
+            if (!file.exists()) {
+                android.widget.Toast.makeText(this, "文件不存在，无法分享", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            // 使用FileProvider来安全地分享文件
+            val fileUri = androidx.core.content.FileProvider.getUriForFile(
+                this,
+                "${packageName}.fileprovider",
+                file
+            )
+
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/octet-stream" // 使用通用的二进制文件类型
+                putExtra(Intent.EXTRA_STREAM, fileUri)
+                putExtra(Intent.EXTRA_SUBJECT, "分享书籍：${epubFile.metadata?.title ?: epubFile.name}")
+                putExtra(Intent.EXTRA_TEXT, "我正在阅读《${epubFile.metadata?.title ?: epubFile.name}》，推荐给你！")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            // 创建分享选择器
+            val chooserIntent = Intent.createChooser(shareIntent, "分享书籍")
+            chooserIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            
+            startActivity(chooserIntent)
+            
         } catch (e: Exception) {
-            android.util.Log.e("BookLibraryActivity", "分享书籍失败", e)
+            android.util.Log.e("BookLibraryActivity", "分享失败", e)
             android.widget.Toast.makeText(this, "分享失败：${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
@@ -834,7 +900,7 @@ class BookLibraryActivity : AppCompatActivity() {
      * 显示删除书籍确认对话框
      */
     private fun showDeleteBookDialog(epubFile: EpubFile) {
-        android.app.AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("删除确认")
             .setMessage("确定要删除《${epubFile.metadata?.title ?: epubFile.name}》吗？\n\n此操作不可撤销。")
             .setPositiveButton("删除") { _, _ ->

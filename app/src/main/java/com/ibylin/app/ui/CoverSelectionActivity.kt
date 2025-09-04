@@ -7,19 +7,14 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import androidx.appcompat.widget.SearchView
-import com.google.android.material.textfield.TextInputEditText
-import android.widget.HorizontalScrollView
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import android.text.TextWatcher
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.textfield.TextInputEditText
 import com.ibylin.app.R
 import com.ibylin.app.api.PexelsPhoto
 import com.ibylin.app.utils.CoverManager
@@ -50,7 +45,9 @@ class CoverSelectionActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvStatus: TextView
+    private lateinit var customSearchBar: View
     private lateinit var searchInput: TextInputEditText
+    private lateinit var clearButton: ImageView
 
     private lateinit var adapter: CoverSelectionAdapter
     private val pexelsManager = PexelsManager.getInstance()
@@ -82,7 +79,7 @@ class CoverSelectionActivity : AppCompatActivity() {
         
         initViews()
         setupRecyclerView()
-        // 显示API推荐的图片，而不是自动搜索
+        // 每次打开都刷新精选图片
         loadRecommendedImages()
         
         Log.d(TAG, "CoverSelectionActivity onCreate完成")
@@ -92,14 +89,14 @@ class CoverSelectionActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.rv_covers)
         progressBar = findViewById(R.id.progress_bar)
         tvStatus = findViewById(R.id.tv_status)
-        searchInput = findViewById(R.id.search_input)
+        customSearchBar = findViewById(R.id.custom_search_bar)
+        searchInput = customSearchBar.findViewById<TextInputEditText>(R.id.search_input)
+        clearButton = customSearchBar.findViewById<ImageView>(R.id.clear_button)
 
-        
         title = "为《${book.metadata?.title ?: book.name}》选择封面"
         
-        // 不设置默认搜索关键词，让用户自由输入
-        searchInput.setText("")
-        currentSearchQuery = ""
+        // 设置自定义搜索框
+        setupCustomSearchBar()
     }
     
     private fun setupRecyclerView() {
@@ -131,46 +128,115 @@ class CoverSelectionActivity : AppCompatActivity() {
         
         // iOS 风格的滑动优化
         setupIOSStyleScrolling()
+    }
+    
+    /**
+     * 设置自定义搜索框
+     */
+    private fun setupCustomSearchBar() {
+        // 设置搜索输入监听
+        setupSearchInputListener()
         
-        // 设置搜索输入框监听器
+        // 设置清除按钮监听
+        setupClearButtonListener()
+        
+        // 设置键盘监听
+        setupKeyboardListener()
+        
+        // 如果有保存的搜索关键词，恢复显示
+        if (currentSearchQuery.isNotEmpty()) {
+            searchInput.setText(currentSearchQuery)
+        }
+    }
+    
+    /**
+     * 设置搜索输入监听
+     */
+    private fun setupSearchInputListener() {
+        // 监听搜索提交
         searchInput.setOnEditorActionListener { _, actionId, _ ->
+            Log.d(TAG, "检测到编辑器动作: actionId=$actionId")
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
-                val query = searchInput.text?.toString()?.trim()
-                Log.d(TAG, "搜索提交: query=$query")
-                if (query.isNullOrBlank()) {
-                    Log.w(TAG, "搜索查询为空，显示提示")
+                val query = searchInput.text?.toString()?.trim() ?: ""
+                Log.d(TAG, "检测到搜索查询: '$query'")
+                if (query.isNotEmpty()) {
+                    Log.d(TAG, "执行搜索: $query")
+                    performSearch(query)
+                    // 自动收起键盘
+                    hideKeyboard()
+                    return@setOnEditorActionListener true
+                } else {
+                    Log.w(TAG, "搜索查询为空")
                     Toast.makeText(this@CoverSelectionActivity, "请输入搜索关键词", Toast.LENGTH_SHORT).show()
                     return@setOnEditorActionListener true
                 }
-                
-                Log.d(TAG, "开始执行搜索: $query")
-                
-                // 隐藏键盘
-                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-                val currentFocus = currentFocus
-                if (currentFocus != null) {
-                    imm.hideSoftInputFromWindow(currentFocus.windowToken, 0)
-                }
-                
-                // 直接传递搜索关键词
-                performSearch(query)
-                return@setOnEditorActionListener true
             }
             false
         }
         
-        // 设置文本变化监听器，用于实时搜索建议
+        // 监听文本变化
         searchInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
-                // 可以在这里实现实时搜索建议
-                val text = s?.toString() ?: ""
-                // 暂时不实现实时搜索
+                val query = s?.toString() ?: ""
+                currentSearchQuery = query
+                
+                // 根据文本内容显示/隐藏清除按钮
+                clearButton.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
+                
+                Log.d(TAG, "搜索关键词更新: $query")
             }
         })
-        
-
+    }
+    
+    /**
+     * 设置清除按钮监听
+     */
+    private fun setupClearButtonListener() {
+        clearButton.setOnClickListener {
+            searchInput.setText("")
+            searchInput.requestFocus()
+            currentSearchQuery = ""
+            Log.d(TAG, "清除搜索关键词")
+        }
+    }
+    
+    /**
+     * 隐藏键盘
+     */
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        val currentFocus = currentFocus
+        if (currentFocus != null) {
+            imm.hideSoftInputFromWindow(currentFocus.windowToken, 0)
+            currentFocus.clearFocus()
+        }
+    }
+    
+    // 这个方法已经被 setupSearchInputListener() 替代，不再需要
+    
+    /**
+     * 设置键盘监听器
+     */
+    private fun setupKeyboardListener() {
+        // 监听键盘状态变化
+        searchInput.viewTreeObserver.addOnGlobalLayoutListener {
+            val r = android.graphics.Rect()
+            searchInput.getWindowVisibleDisplayFrame(r)
+            
+            val screenHeight = searchInput.rootView.height
+            val keypadHeight = screenHeight - r.bottom
+            
+            if (keypadHeight > screenHeight * 0.15) {
+                // 键盘弹出
+                Log.d(TAG, "键盘弹出，高度: $keypadHeight")
+                // 搜索框已经在顶部，键盘弹出时会自然上移
+            } else {
+                // 键盘隐藏
+                Log.d(TAG, "键盘隐藏")
+            }
+        }
     }
     
     private fun setupIOSStyleScrolling() {
@@ -317,11 +383,11 @@ class CoverSelectionActivity : AppCompatActivity() {
                 if (photos.isNotEmpty()) {
                     adapter.updatePhotos(photos)
                     showLoading(false)
-                    tvStatus.text = "精选图片 (${photos.size} 张)"
+                    tvStatus.text = ""
                     Log.d(TAG, "精选图片加载完成，更新适配器")
                     
-                    // 检查是否还有更多页面
-                    hasMorePages = photos.size >= 30
+                    // 精选图片固定为20张，不需要分页
+                    hasMorePages = false
                 } else {
                     showLoading(false)
                     tvStatus.text = "暂无推荐图片"
@@ -357,12 +423,13 @@ class CoverSelectionActivity : AppCompatActivity() {
         currentPage = 1
         hasMorePages = true
         
+        // 确保 SearchView 显示搜索的关键词
+        // searchView.setQuery(query, false) // M3 SearchView 不支持此方法
+        
         Log.d(TAG, "优化搜索转换: '$query' -> '$optimizedQuery'")
         
-        // 显示转换后的搜索词
-        if (query != optimizedQuery) {
-            tvStatus.text = "搜索: $query → $optimizedQuery"
-        }
+        // 显示搜索状态
+        tvStatus.text = ""
         
         Log.d(TAG, "调用searchCoverImages开始搜索")
         searchCoverImages(optimizedQuery, currentPage, isNewSearch = true)
@@ -370,11 +437,12 @@ class CoverSelectionActivity : AppCompatActivity() {
     }
     
     private fun loadMoreImages() {
-        if (hasMorePages) {
+        if (hasMorePages && !isLoadingMore) {
             currentPage++
             if (currentSearchQuery.isEmpty()) {
-                // 如果是精选图片，加载更多精选图片
-                loadMoreCuratedImages()
+                // 精选图片固定为20张，不需要加载更多
+                Log.d(TAG, "精选图片已达到最大数量，不加载更多")
+                return
             } else {
                 // 如果是搜索结果，加载更多搜索结果
                 searchCoverImages(currentSearchQuery, currentPage, isNewSearch = false)
@@ -386,7 +454,7 @@ class CoverSelectionActivity : AppCompatActivity() {
      * 加载更多精选图片
      */
     private fun loadMoreCuratedImages() {
-        showLoading(true)
+        showLoadingMore(true)
         tvStatus.text = "正在加载更多精选图片..."
         
         coroutineScope.launch {
@@ -397,23 +465,23 @@ class CoverSelectionActivity : AppCompatActivity() {
                 
                 if (photos.isNotEmpty()) {
                     adapter.addPhotos(photos)
-                    showLoading(false)
-                    tvStatus.text = "精选图片 (${adapter.itemCount} 张)"
+                    showLoadingMore(false)
+                    tvStatus.text = ""
                     Log.d(TAG, "更多精选图片加载完成，当前总数: ${adapter.itemCount}")
                     
                     // 检查是否还有更多页面
                     hasMorePages = photos.size >= 30
                     isLoadingMore = false
                 } else {
-                    showLoading(false)
-                    tvStatus.text = "没有更多精选图片了"
+                    showLoadingMore(false)
+                    tvStatus.text = ""
                     hasMorePages = false
                     isLoadingMore = false
                     Log.d(TAG, "精选图片加载完成，没有更多页面")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "加载更多精选图片失败", e)
-                showLoading(false)
+                showLoadingMore(false)
                 tvStatus.text = "加载失败: ${e.message}"
                 Toast.makeText(this@CoverSelectionActivity, "加载更多精选图片失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 isLoadingMore = false
@@ -422,8 +490,13 @@ class CoverSelectionActivity : AppCompatActivity() {
     }
     
     private fun searchCoverImages(query: String, page: Int, isNewSearch: Boolean) {
-        showLoading(true)
-        tvStatus.text = "正在搜索封面图片..."
+        if (isNewSearch) {
+            showLoading(true)
+            tvStatus.text = "正在搜索封面图片..."
+        } else {
+            showLoadingMore(true)
+            tvStatus.text = "正在加载更多图片..."
+        }
         
         Log.d(TAG, "开始搜索: query=$query, page=$page, isNewSearch=$isNewSearch")
         
@@ -441,17 +514,12 @@ class CoverSelectionActivity : AppCompatActivity() {
                     if (isNewSearch) {
                         adapter.updatePhotos(photos)
                         showLoading(false)
-                        val statusText = if (currentSearchQuery != query) {
-                            "找到 ${photos.size} 张封面图片 (搜索: $currentSearchQuery → $query)"
-                        } else {
-                            "找到 ${photos.size} 张封面图片"
-                        }
-                        tvStatus.text = statusText
+                        tvStatus.text = ""
                         Log.d(TAG, "新搜索完成，更新适配器")
                     } else {
                         adapter.addPhotos(photos)
-                        showLoading(false)
-                        tvStatus.text = "已加载 ${adapter.itemCount} 张封面图片"
+                        showLoadingMore(false)
+                        tvStatus.text = ""
                         Log.d(TAG, "加载更多完成，当前总数: ${adapter.itemCount}")
                     }
                     
@@ -461,12 +529,13 @@ class CoverSelectionActivity : AppCompatActivity() {
                     Log.d(TAG, "分页状态: hasMorePages=$hasMorePages, 当前页图片数=${photos.size}")
                     
                 } else {
-                    showLoading(false)
                     if (isNewSearch) {
+                        showLoading(false)
                         tvStatus.text = "未找到合适的封面图片，请尝试其他关键词"
                         Toast.makeText(this@CoverSelectionActivity, "未找到封面图片，请尝试其他关键词", Toast.LENGTH_SHORT).show()
                         Log.w(TAG, "新搜索未找到图片: query=$query")
                     } else {
+                        showLoadingMore(false)
                         tvStatus.text = "没有更多图片了"
                         hasMorePages = false
                         isLoadingMore = false
@@ -475,7 +544,11 @@ class CoverSelectionActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "搜索封面图片失败: query=$query, page=$page", e)
-                showLoading(false)
+                if (isNewSearch) {
+                    showLoading(false)
+                } else {
+                    showLoadingMore(false)
+                }
                 tvStatus.text = "搜索失败: ${e.message}"
                 Toast.makeText(this@CoverSelectionActivity, "搜索失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 isLoadingMore = false
@@ -527,11 +600,30 @@ class CoverSelectionActivity : AppCompatActivity() {
     }
     
     private fun showLoading(show: Boolean) {
-        progressBar.visibility = if (show) View.VISIBLE else View.GONE
         if (show) {
+            progressBar.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
+            tvStatus.visibility = View.GONE
         } else {
+            progressBar.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
+            tvStatus.visibility = View.VISIBLE
+        }
+    }
+    
+    /**
+     * 显示加载更多状态（不隐藏图片列表）
+     */
+    private fun showLoadingMore(show: Boolean) {
+        if (show) {
+            progressBar.visibility = View.VISIBLE
+            // 不隐藏图片列表，让用户看到现有内容
+            recyclerView.visibility = View.VISIBLE
+            tvStatus.visibility = View.VISIBLE
+        } else {
+            progressBar.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            tvStatus.visibility = View.VISIBLE
         }
     }
     
@@ -570,8 +662,6 @@ class CoverSelectionActivity : AppCompatActivity() {
         
         inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             private val ivCover: ImageView = itemView.findViewById(R.id.iv_cover)
-            private val tvAuthor: TextView = itemView.findViewById(R.id.tv_author)
-            private val tvBookTitle: TextView = itemView.findViewById(R.id.tv_book_title)
             
             fun bind(photo: PexelsPhoto, bookTitle: String) {
                 // 使用Glide加载图片
@@ -581,10 +671,8 @@ class CoverSelectionActivity : AppCompatActivity() {
                     .error(R.drawable.placeholder_cover)
                     .into(ivCover)
                 
-                // 设置书名
-                tvBookTitle.text = bookTitle
-                
-                tvAuthor.text = "by ${photo.photographer}"
+                // 图片已经设置为撑满容器，使用 centerCrop 确保图片填满整个容器
+                ivCover.scaleType = ImageView.ScaleType.CENTER_CROP
                 
                 itemView.setOnClickListener {
                     onCoverClick(photo)

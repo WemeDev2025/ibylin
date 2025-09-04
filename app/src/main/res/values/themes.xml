@@ -18,13 +18,120 @@
     
     <!-- Apple风格的对话框样式 -->
     <style name="AppleStyleDialog" parent="Theme.Material3.DayNight.Dialog.Alert">
+        <!-- 背景和边框 -->
         <item name="android:background">@color/apple_books_card_bg</item>
+        <item name="android:windowBackground">@color/apple_books_bg</item>
+        
+        <!-- 文字颜色 -->
         <item name="android:textColorPrimary">@color/apple_books_text_primary</item>
         <item name="android:textColorSecondary">@color/apple_books_text_secondary</item>
+        
+        <!-- 主题颜色 -->
         <item name="colorPrimary">@color/apple_books_accent</item>
         <item name="colorAccent">@color/apple_books_accent</item>
-        <item name="android:windowBackground">@color/apple_books_bg</item>
+        <item name="colorOnPrimary">@color/apple_books_text_primary</item>
+        <item name="colorOnSurface">@color/apple_books_text_primary</item>
+        
+        <!-- 窗口尺寸和位置 -->
         <item name="android:windowMinWidthMajor">85%</item>
         <item name="android:windowMinWidthMinor">85%</item>
+        
+        <!-- 阴影 -->
+        <item name="android:elevation">24dp</item>
+        
+        <!-- 字体样式 -->
+        <item name="android:textAppearance">@style/AppleStyleDialogTextAppearance</item>
+        <item name="android:textAppearanceButton">@style/AppleStyleDialogButtonTextAppearance</item>
+        
+        <!-- 按钮样式 -->
+        <item name="buttonBarPositiveButtonStyle">@style/AppleStyleDialogPositiveButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/AppleStyleDialogNegativeButton</item>
+        
+        <!-- 动画 -->
+        <item name="android:windowAnimationStyle">@style/AppleStyleDialogAnimation</item>
+    </style>
+    
+    <!-- iOS风格对话框文字样式 -->
+    <style name="AppleStyleDialogTextAppearance" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/apple_books_text_primary</item>
+        <item name="android:lineSpacingMultiplier">1.2</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+    
+    <!-- iOS风格对话框按钮文字样式 -->
+    <style name="AppleStyleDialogButtonTextAppearance" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">17sp</item>
+        <item name="android:textColor">@color/apple_books_accent</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    
+    <!-- iOS风格对话框确认按钮样式 -->
+    <style name="AppleStyleDialogPositiveButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/apple_books_accent</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+    </style>
+    
+    <!-- iOS风格对话框取消按钮样式 -->
+    <style name="AppleStyleDialogNegativeButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/apple_books_text_secondary</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+    </style>
+    
+    <!-- iOS风格对话框动画 -->
+    <style name="AppleStyleDialogAnimation">
+        <item name="android:windowEnterAnimation">@anim/apple_dialog_enter</item>
+        <item name="android:windowExitAnimation">@anim/apple_dialog_exit</item>
+    </style>
+    
+    <!-- ========== Android原生风格 ========== -->
+    
+    <!-- Material 3 原生风格 -->
+    <style name="Material3NativeDialog" parent="Theme.Material3.DayNight.Dialog.Alert">
+        <!-- 使用系统默认的Material 3样式，不添加任何自定义属性 -->
+    </style>
+    
+    <!-- Material 3 带强调色风格 -->
+    <style name="Material3AccentDialog" parent="Theme.Material3.DayNight.Dialog.Alert">
+        <item name="colorPrimary">@color/material_primary</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/material_secondary</item>
+        <item name="colorOnSecondary">@color/black</item>
+    </style>
+    
+    <!-- Material 2 原生风格 -->
+    <style name="Material2NativeDialog" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
+        <!-- 使用系统默认的Material 2样式 -->
+    </style>
+    
+    <!-- 传统Android风格 -->
+    <style name="TraditionalAndroidDialog" parent="Theme.AppCompat.DayNight.Dialog.Alert">
+        <item name="android:background">@android:color/white</item>
+        <item name="android:textColorPrimary">@android:color/black</item>
+        <item name="android:textColorSecondary">@android:color/darker_gray</item>
+        <item name="colorPrimary">@color/material_primary</item>
+        <item name="colorAccent">@color/material_accent</item>
+    </style>
+    
+    <!-- 系统默认风格 -->
+    <style name="SystemDefaultDialog" parent="Theme.AppCompat.DayNight.Dialog.Alert">
+        <!-- 完全使用系统默认样式 -->
+    </style>
+    
+    <!-- 经典Android风格 -->
+    <style name="ClassicAndroidDialog" parent="Theme.AppCompat.DayNight.Dialog.Alert">
+        <item name="android:background">@android:color/white</item>
+        <item name="android:textColorPrimary">@android:color/black</item>
+        <item name="android:textColorSecondary">@android:color/darker_gray</item>
     </style>
 </resources>

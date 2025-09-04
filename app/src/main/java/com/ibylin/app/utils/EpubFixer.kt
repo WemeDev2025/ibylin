@@ -43,7 +43,29 @@ class EpubFixer {
                 
                 if (success) {
                     Log.d(TAG, "EPUB文件修复成功: $fixedPath")
-                    fixedPath
+                    
+                    // 修复成功后，删除原文件并重命名修复后的文件
+                    try {
+                        if (originalFile.delete()) {
+                            Log.d(TAG, "原文件已删除: $originalPath")
+                            
+                            // 将修复后的文件重命名为原文件名
+                            val finalPath = originalPath
+                            if (fixedFile.renameTo(File(finalPath))) {
+                                Log.d(TAG, "修复后的文件已重命名: $finalPath")
+                                finalPath
+                            } else {
+                                Log.w(TAG, "重命名失败，返回修复后的文件路径: $fixedPath")
+                                fixedPath
+                            }
+                        } else {
+                            Log.w(TAG, "删除原文件失败，返回修复后的文件路径: $fixedPath")
+                            fixedPath
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "处理修复后文件时出错", e)
+                        fixedPath
+                    }
                 } else {
                     Log.e(TAG, "EPUB文件修复失败")
                     null

@@ -184,11 +184,13 @@ class PexelsManager private constructor() {
      */
     suspend fun getCuratedPhotos(page: Int = 1): List<PexelsPhoto> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "获取精选图片，页码: $page")
+            // 使用随机页码，确保每次获取不同的图片
+            val randomPage = (1..100).random()
+            Log.d(TAG, "获取精选图片，随机页码: $randomPage")
             
             val response = pexelsService.getCuratedPhotos(
                 apiKey = PEXELS_API_KEY,
-                page = page,
+                page = randomPage,
                 perPage = 20
             )
             

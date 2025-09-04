@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/apple_books_card_bg"
+    android:padding="24dp"
+    android:minWidth="280dp"
+    android:maxWidth="320dp">
+
+    <!-- 标题 -->
+    <TextView
+        android:id="@+id/dialog_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="标题"
+        android:textSize="20sp"
+        android:textColor="@color/apple_books_text_primary"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-medium"
+        android:layout_marginBottom="16dp"
+        android:gravity="center_horizontal" />
+
+    <!-- 消息内容 -->
+    <TextView
+        android:id="@+id/dialog_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="消息内容"
+        android:textSize="16sp"
+        android:textColor="@color/apple_books_text_secondary"
+        android:fontFamily="sans-serif-medium"
+        android:lineSpacingMultiplier="1.2"
+        android:layout_marginBottom="24dp"
+        android:gravity="center_horizontal" />
+
+    <!-- 按钮容器 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_horizontal">
+
+        <!-- 取消按钮 -->
+        <Button
+            android:id="@+id/dialog_negative_button"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:minWidth="80dp"
+            android:text="取消"
+            android:textSize="17sp"
+            android:textColor="@color/apple_books_text_secondary"
+            android:fontFamily="sans-serif-medium"
+            android:textStyle="bold"
+            android:background="?android:attr/selectableItemBackground"
+            android:layout_marginEnd="16dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp" />
+
+        <!-- 确认按钮 -->
+        <Button
+            android:id="@+id/dialog_positive_button"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:minWidth="80dp"
+            android:text="确定"
+            android:textSize="17sp"
+            android:textColor="@color/apple_books_accent"
+            android:fontFamily="sans-serif-medium"
+            android:textStyle="bold"
+            android:background="?android:attr/selectableItemBackground"
+            android:layout_marginStart="16dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

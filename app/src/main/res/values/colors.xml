@@ -45,4 +45,21 @@
     <color name="theme_night_text">#E0E0E0</color>
     <color name="theme_high_contrast_background">#000000</color>
     <color name="theme_high_contrast_text">#FFFFFF</color>
+    
+    <!-- Material Design 标准颜色 -->
+    <color name="material_primary">#FF6200EE</color>          <!-- Material 3 主色 - 紫色 -->
+    <color name="material_primary_variant">#FF3700B3</color>  <!-- Material 3 主色变体 - 深紫色 -->
+    <color name="material_on_primary">#FFFFFFFF</color>       <!-- Material 3 主色上的文字 - 白色 -->
+    <color name="material_secondary">#FF03DAC5</color>        <!-- Material 3 次色 - 青色 -->
+    <color name="material_secondary_variant">#FF018786</color> <!-- Material 3 次色变体 - 深青色 -->
+    <color name="material_on_secondary">#FF000000</color>     <!-- Material 3 次色上的文字 - 黑色 -->
+    <color name="material_surface">#FFFFFFFF</color>          <!-- Material 3 表面色 - 白色 -->
+    <color name="material_on_surface">#FF000000</color>       <!-- Material 3 表面上的文字 - 黑色 -->
+    <color name="material_background">#FFFFFFFF</color>       <!-- Material 3 背景色 - 白色 -->
+    <color name="material_on_background">#FF000000</color>    <!-- Material 3 背景上的文字 - 黑色 -->
+    <color name="material_error">#FFB00020</color>            <!-- Material 3 错误色 - 红色 -->
+    <color name="material_on_error">#FFFFFFFF</color>         <!-- Material 3 错误色上的文字 - 白色 -->
+    
+    <!-- Material 2 兼容颜色 -->
+    <color name="material_accent">#FF03DAC5</color>           <!-- Material 2 强调色 - 青色 -->
 </resources>

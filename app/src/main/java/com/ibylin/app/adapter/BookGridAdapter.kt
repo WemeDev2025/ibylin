@@ -10,6 +10,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.ibylin.app.R
 import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.AdvancedCoverExtractor
@@ -28,6 +29,7 @@ class BookGridAdapter(
     
     class BookGridViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val ivCover: ImageView = itemView.findViewById(R.id.iv_book_cover)
+        val tvFormat: TextView = itemView.findViewById(R.id.tv_format)
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookGridViewHolder {
@@ -63,6 +65,15 @@ class BookGridAdapter(
             // 加载封面图片
             android.util.Log.d("BookGridAdapter", "开始加载封面: ${epubFile.name}")
             loadCoverImage(holder.ivCover, epubFile)
+            
+            // 显示格式标签
+            val format = getBookFormat(epubFile.name)
+            if (format != null) {
+                holder.tvFormat.text = format
+                holder.tvFormat.visibility = View.VISIBLE
+            } else {
+                holder.tvFormat.visibility = View.GONE
+            }
             
             // 设置封面点击事件，添加缩放动画
             holder.ivCover.setOnClickListener {
@@ -104,6 +115,20 @@ class BookGridAdapter(
         
         notifyDataSetChanged()
         android.util.Log.d("BookGridAdapter", "notifyDataSetChanged已调用")
+    }
+    
+    /**
+     * 根据文件名获取书籍格式
+     */
+    private fun getBookFormat(fileName: String): String? {
+        return when {
+            fileName.endsWith(".epub", ignoreCase = true) -> "EPUB"
+            fileName.endsWith(".mobi", ignoreCase = true) -> "MOBI"
+            fileName.endsWith(".azw", ignoreCase = true) -> "AZW"
+            fileName.endsWith(".azw3", ignoreCase = true) -> "AZW3"
+            fileName.endsWith(".pdf", ignoreCase = true) -> "PDF"
+            else -> null
+        }
     }
     
     /**
@@ -254,8 +279,8 @@ class BookGridAdapter(
             路径: ${epubFile.path}
         """.trimIndent()
         
-        androidx.appcompat.app.AlertDialog.Builder(context)
-            .setTitle("书籍信息")
+        MaterialAlertDialogBuilder(context)
+            .setTitle("图书信息")
             .setMessage(message)
             .setPositiveButton("确定", null)
             .show()
@@ -267,11 +292,11 @@ class BookGridAdapter(
     private fun showDeleteConfirmation(context: android.content.Context, epubFile: EpubFile) {
         val title = epubFile.metadata?.title ?: epubFile.name
         
-        androidx.appcompat.app.AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(context)
             .setTitle("删除确认")
-            .setMessage("确定要删除《$title》吗？此操作不可撤销。")
+            .setMessage("确定要删除《$title》吗？\n\n此操作不可撤销。")
             .setPositiveButton("删除") { _, _ ->
-                android.util.Log.d("BookGridAdapter", "用户确认删除: ${epubFile.name}")
+                android.util.Log.d("BookGridAdapter", "user confirmed deletion: ${epubFile.name}")
                 deleteEpubFile(context, epubFile)
             }
             .setNegativeButton("取消", null)

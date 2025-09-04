@@ -6,104 +6,69 @@
     android:orientation="vertical"
     android:background="@color/black">
 
+    <!-- 搜索区域 - 使用自定义 M3 风格搜索框 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="-12dp"
+        android:orientation="vertical">
+
+        <!-- 自定义 M3 风格搜索框 -->
+        <include
+            android:id="@+id/custom_search_bar"
+            layout="@layout/custom_search_bar" />
+
+    </LinearLayout>
+
     <!-- 状态栏 -->
     <TextView
         android:id="@+id/tv_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="2dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:text="输入关键词搜索封面图片"
         android:textColor="@color/white"
         android:textSize="14sp"
         android:gravity="center"
-        android:minHeight="40dp" />
+        android:minHeight="32dp"
+        android:fontFamily="@font/mashanzheng_font" />
 
-    <!-- 进度条 -->
-    <ProgressBar
-        android:id="@+id/progress_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginTop="32dp"
-        android:indeterminateTint="@color/apple_books_accent"
-        android:visibility="gone" />
-
-    <!-- 封面图片网格 -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_covers"
+    <!-- 进度条 - 覆盖在图片列表上，垂直居中 -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="8dp"
-        android:clipToPadding="false"
-        android:background="@android:color/transparent"
-        android:overScrollMode="never"
-        android:scrollbars="none"
-        android:fadeScrollbars="true"
-        android:scrollbarStyle="insideOverlay" />
+        android:gravity="center">
 
-
-
-    <!-- 搜索区域 - 底部圆角拉满样式 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="0dp"
-        android:background="@drawable/search_bottom_rounded_background"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="20dp"
-        android:minHeight="80dp">
-
-        <!-- 搜索图标 -->
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginEnd="12dp"
-            android:src="@drawable/ic_search"
-            android:tint="@color/apple_books_text_secondary"
-            android:contentDescription="搜索" />
-
-        <!-- 搜索输入框 -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="英文单词更精准"
-            android:textColorHint="@color/apple_books_text_secondary"
-            app:boxBackgroundMode="none"
-            app:hintEnabled="true"
-            app:hintTextColor="@color/apple_books_text_secondary">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/search_input"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@android:color/transparent"
-                android:textColor="@color/apple_books_text_primary"
-                android:textSize="16sp"
-                android:inputType="text"
-                android:imeOptions="actionSearch"
-                android:maxLines="1" />
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- 清除按钮 -->
-        <ImageView
-            android:id="@+id/btn_clear_search"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginStart="12dp"
-            android:src="@drawable/ic_close"
-            android:tint="@color/apple_books_text_secondary"
+        <!-- 封面图片网格 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_covers"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="4dp"
+            android:clipToPadding="false"
             android:background="@android:color/transparent"
-            android:clickable="true"
-            android:focusable="true"
-            android:contentDescription="清除搜索"
+            android:overScrollMode="never"
+            android:scrollbars="none"
+            android:fadeScrollbars="true"
+            android:scrollbarStyle="insideOverlay" />
+
+        <!-- 进度条覆盖在图片列表上 -->
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminateTint="@color/apple_books_accent"
             android:visibility="gone" />
 
-    </LinearLayout>
+    </FrameLayout>
+
+
 
 </LinearLayout>

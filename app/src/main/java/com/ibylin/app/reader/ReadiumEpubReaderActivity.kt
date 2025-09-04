@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.lifecycle.lifecycleScope
 import com.ibylin.app.R
 import com.ibylin.app.utils.EpubFile
@@ -659,7 +660,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         val searchView = android.widget.SearchView(this)
         searchView.queryHint = "搜索内容..."
         
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("搜索")
             .setView(searchView)
             .setPositiveButton("搜索") { _, _ ->

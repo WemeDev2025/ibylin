@@ -1,87 +1,106 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="#FFFFFF">
 
-    <!-- 书籍网格列表 -->
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipe_refresh_layout"
+    <!-- Material 3 标题栏 -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_alignParentTop="true"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="8dp">
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/material_surface"
+        android:elevation="4dp"
+        app:title="我的书库"
+        app:titleTextColor="@color/material_on_surface"
+        app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+        app:menu="@menu/menu_book_library_toolbar"
+        app:navigationIcon="@drawable/ic_arrow_left"
+        app:navigationIconTint="@color/material_on_surface" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_books"
+    <!-- 内容区域 -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- 书籍网格列表 -->
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipe_refresh_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@android:color/transparent"
-            android:clipToPadding="false"
-            android:fadeScrollbars="true"
-            android:overScrollMode="never"
-            android:paddingBottom="16dp"
-            android:scrollbarStyle="insideOverlay"
-            android:scrollbars="none"
-            android:visibility="gone" />
-
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-
-    <!-- 扫描进度提示 -->
-    <LinearLayout
-        android:id="@+id/ll_scanning"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_marginStart="8dp"
             android:layout_marginTop="8dp"
-            android:alpha="0.7"
-            android:text="正在查找EPUB文件"
-            android:textColor="@color/apple_books_text_secondary"
-            android:textSize="14sp" />
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp">
 
-    </LinearLayout>
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_books"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:clipToPadding="false"
+                android:fadeScrollbars="true"
+                android:overScrollMode="never"
+                android:paddingBottom="16dp"
+                android:scrollbarStyle="insideOverlay"
+                android:scrollbars="none"
+                android:visibility="gone" />
 
-    <!-- 无书籍提示 -->
-    <LinearLayout
-        android:id="@+id/ll_no_books"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone">
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-        <TextView
+        <!-- 扫描进度提示 -->
+        <LinearLayout
+            android:id="@+id/ll_scanning"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="未找到EPUB书籍"
-            android:textColor="@color/apple_books_text_secondary"
-            android:textSize="16sp" />
+            android:layout_centerInParent="true"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <TextView
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:alpha="0.7"
+                android:text="正在查找EPUB文件"
+                android:textColor="@color/apple_books_text_secondary"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+        <!-- 无书籍提示 -->
+        <LinearLayout
+            android:id="@+id/ll_no_books"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:alpha="0.7"
-            android:text="请确保设备上有EPUB文件"
-            android:textColor="@color/apple_books_text_secondary"
-            android:textSize="14sp" />
+            android:layout_centerInParent="true"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-    </LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="未找到EPUB书籍"
+                android:textColor="@color/apple_books_text_secondary"
+                android:textSize="16sp" />
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:alpha="0.7"
+                android:text="请确保设备上有EPUB文件"
+                android:textColor="@color/apple_books_text_secondary"
+                android:textSize="14sp" />
 
+        </LinearLayout>
 
+    </RelativeLayout>
 
-
-</RelativeLayout>
+</LinearLayout>
