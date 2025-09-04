@@ -34,8 +34,6 @@ class BookLibraryActivity : AppCompatActivity() {
     private lateinit var llScanning: android.widget.LinearLayout
     private lateinit var llNoBooks: android.widget.LinearLayout
     private lateinit var bookGridAdapter: BookGridAdapter
-    private lateinit var llHeader: android.widget.LinearLayout
-    private lateinit var tvTitle: TextView
 
 
     
@@ -120,10 +118,8 @@ class BookLibraryActivity : AppCompatActivity() {
     private fun initViews() {
         rvBooks = findViewById(R.id.rv_books)
         swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout)
-        llScanning = findViewById(R.id.tv_scanning)
-        llNoBooks = findViewById(R.id.tv_no_books)
-        llHeader = findViewById(R.id.ll_header)
-        tvTitle = findViewById(R.id.tv_title)
+        llScanning = findViewById(R.id.ll_scanning)
+        llNoBooks = findViewById(R.id.ll_no_books)
     }
     
 
@@ -152,9 +148,6 @@ class BookLibraryActivity : AppCompatActivity() {
                 // 书籍删除后更新计数和缓存
                 android.util.Log.d("BookLibraryActivity", "收到书籍删除通知，新数量: $newCount")
                 
-                // 设置删除更新标志，防止重复计数更新
-                isUpdatingFromDelete = true
-                
                 // 直接使用适配器返回的新数量，避免重复计算
                 android.util.Log.d("BookLibraryActivity", "使用适配器返回的新数量: $newCount")
                 
@@ -178,16 +171,10 @@ class BookLibraryActivity : AppCompatActivity() {
                 // 保存更新后的缓存
                 saveCacheData(cachedEpubFiles)
                 
-                // 使用适配器返回的新数量更新标题，确保计数一致
-                updateTitle(newCount)
+                // 书籍删除后更新完成
+                android.util.Log.d("BookLibraryActivity", "删除后更新完成: 新数量=$newCount, 缓存数量=${cachedEpubFiles.size}")
                 
                 android.util.Log.d("BookLibraryActivity", "删除后更新完成: 标题数量=$newCount, 缓存数量=${cachedEpubFiles.size}")
-                
-                // 延迟重置标志，确保其他可能的更新操作完成
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    isUpdatingFromDelete = false
-                    android.util.Log.d("BookLibraryActivity", "删除更新标志已重置")
-                }, 1000) // 1秒后重置
             }
         )
         rvBooks.adapter = bookGridAdapter
@@ -306,13 +293,7 @@ class BookLibraryActivity : AppCompatActivity() {
             return
         }
         
-        val titleText = if (bookCount > 0) {
-            "书库（$bookCount）"
-        } else {
-            "书库"
-        }
-        tvTitle.text = titleText
-        android.util.Log.d("BookLibraryActivity", "标题已更新: $titleText")
+        android.util.Log.d("BookLibraryActivity", "标题更新: 书籍数量=$bookCount")
     }
     
     /**
@@ -431,9 +412,6 @@ class BookLibraryActivity : AppCompatActivity() {
         
         android.util.Log.d("BookLibraryActivity", "最终显示: 原始数量=${epubFiles.size}, 最终数量=${finalEpubFiles.size}, 排序后数量=${sortedEpubFiles.size}")
         
-        // 更新标题显示书籍计数
-        updateTitle(sortedEpubFiles.size)
-        
         if (sortedEpubFiles.isEmpty()) {
             android.util.Log.d("BookLibraryActivity", "最终文件列表为空，显示无书籍提示")
             showNoBooks()
@@ -446,6 +424,11 @@ class BookLibraryActivity : AppCompatActivity() {
             android.util.Log.d("BookLibraryActivity", "调用bookGridAdapter.updateEpubFiles")
             bookGridAdapter.updateEpubFiles(sortedEpubFiles)
             android.util.Log.d("BookLibraryActivity", "bookGridAdapter.updateEpubFiles调用完成")
+            
+            // 在适配器更新后，使用适配器中的实际数量更新标题
+            val actualCount = bookGridAdapter.itemCount
+            android.util.Log.d("BookLibraryActivity", "适配器更新后，实际显示数量: $actualCount")
+            updateTitle(actualCount)
         }
     }
     

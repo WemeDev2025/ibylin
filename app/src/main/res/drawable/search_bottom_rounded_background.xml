@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    
+    <solid android:color="@color/white" />
+    
+    <!-- 底部圆角拉满，顶部直角 -->
+    <corners 
+        android:bottomLeftRadius="24dp"
+        android:bottomRightRadius="24dp"
+        android:topLeftRadius="0dp"
+        android:topRightRadius="0dp" />
+    
+    <!-- 可选：添加阴影效果 -->
+    <stroke
+        android:width="1dp"
+        android:color="@color/apple_books_border" />
+    
+</shape>

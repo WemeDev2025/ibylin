@@ -238,13 +238,18 @@ class MainActivity : AppCompatActivity() {
      * 检查是否拥有所有必需的权限
      */
     private fun hasAllRequiredPermissions(): Boolean {
+        android.util.Log.d("MainActivity", "开始检查权限")
+        
         // 在 Android 13+ 上，主要检查 MANAGE_EXTERNAL_STORAGE 权限
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            return Environment.isExternalStorageManager()
+            val hasManagePermission = Environment.isExternalStorageManager()
+            android.util.Log.d("MainActivity", "Android 13+ 权限检查: MANAGE_EXTERNAL_STORAGE = $hasManagePermission")
+            return hasManagePermission
         } else {
             // 在 Android 13 以下版本，检查基础存储权限
             val hasReadPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
             val hasWritePermission = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            android.util.Log.d("MainActivity", "Android 13以下权限检查: READ_EXTERNAL_STORAGE = $hasReadPermission, WRITE_EXTERNAL_STORAGE = $hasWritePermission")
             return hasReadPermission && hasWritePermission
         }
     }
@@ -255,11 +260,24 @@ class MainActivity : AppCompatActivity() {
      * 打开书架页面
      */
     private fun openBookLibrary() {
+        android.util.Log.d("MainActivity", "openBookLibrary被调用")
+        
         // 检查权限后再打开书架页面
-        if (hasAllRequiredPermissions()) {
-            val intent = Intent(this, com.ibylin.app.ui.BookLibraryActivity::class.java)
-            startActivity(intent)
+        val hasPermissions = hasAllRequiredPermissions()
+        android.util.Log.d("MainActivity", "权限检查结果: $hasPermissions")
+        
+        if (hasPermissions) {
+            android.util.Log.d("MainActivity", "权限已授予，准备打开书库页面")
+            try {
+                val intent = Intent(this, com.ibylin.app.ui.BookLibraryActivity::class.java)
+                startActivity(intent)
+                android.util.Log.d("MainActivity", "书库页面启动成功")
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "启动书库页面失败", e)
+                Toast.makeText(this, "启动书库页面失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         } else {
+            android.util.Log.d("MainActivity", "权限未授予，显示权限申请弹窗")
             // 显示Apple风格的权限申请弹窗
             showAppleStylePermissionDialog()
         }

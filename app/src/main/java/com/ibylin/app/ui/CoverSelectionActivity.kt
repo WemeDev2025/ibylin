@@ -9,12 +9,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import androidx.appcompat.widget.SearchView
+import com.google.android.material.textfield.TextInputEditText
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import android.text.TextWatcher
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -32,7 +34,7 @@ class CoverSelectionActivity : AppCompatActivity() {
     
     companion object {
         private const val TAG = "CoverSelectionActivity"
-        private const val EXTRA_BOOK = "extra_book"
+        const val EXTRA_BOOK = "extra_book"
         const val EXTRA_COVER_PATH = "extra_cover_path"
         const val RESULT_COVER_UPDATED = 100
         
@@ -48,8 +50,8 @@ class CoverSelectionActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvStatus: TextView
-    private lateinit var searchView: SearchView
-    private lateinit var btnLoadMore: Button
+    private lateinit var searchInput: TextInputEditText
+
     private lateinit var adapter: CoverSelectionAdapter
     private val pexelsManager = PexelsManager.getInstance()
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
@@ -58,29 +60,45 @@ class CoverSelectionActivity : AppCompatActivity() {
     private var currentPage = 1
     private var hasMorePages = true
     private var currentSearchQuery = ""
+    private var isLoadingMore = false
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_cover_selection)
         
-        book = intent.getParcelableExtra(EXTRA_BOOK) 
-            ?: throw IllegalArgumentException("Book data is required")
+        Log.d(TAG, "CoverSelectionActivity onCreate开始")
+        Log.d(TAG, "Intent extras: ${intent.extras?.keySet()?.joinToString()}")
+        
+        try {
+            book = intent.getParcelableExtra(EXTRA_BOOK) 
+                ?: throw IllegalArgumentException("Book data is required")
+            Log.d(TAG, "成功获取书籍数据: ${book.name}")
+        } catch (e: Exception) {
+            Log.e(TAG, "获取书籍数据失败", e)
+            Toast.makeText(this, "获取书籍数据失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
         
         initViews()
         setupRecyclerView()
-        // 不自动搜索，等用户输入关键词
+        // 显示API推荐的图片，而不是自动搜索
+        loadRecommendedImages()
+        
+        Log.d(TAG, "CoverSelectionActivity onCreate完成")
     }
     
     private fun initViews() {
         recyclerView = findViewById(R.id.rv_covers)
         progressBar = findViewById(R.id.progress_bar)
-        searchView = findViewById(R.id.search_view)
-        btnLoadMore = findViewById(R.id.btn_load_more)
+        tvStatus = findViewById(R.id.tv_status)
+        searchInput = findViewById(R.id.search_input)
+
         
         title = "为《${book.metadata?.title ?: book.name}》选择封面"
         
         // 不设置默认搜索关键词，让用户自由输入
-        searchView.setQuery("", false)
+        searchInput.setText("")
         currentSearchQuery = ""
     }
     
@@ -114,23 +132,45 @@ class CoverSelectionActivity : AppCompatActivity() {
         // iOS 风格的滑动优化
         setupIOSStyleScrolling()
         
-        // 设置搜索视图监听器
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                query?.let { performSearch() }
-                return true
+        // 设置搜索输入框监听器
+        searchInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                val query = searchInput.text?.toString()?.trim()
+                Log.d(TAG, "搜索提交: query=$query")
+                if (query.isNullOrBlank()) {
+                    Log.w(TAG, "搜索查询为空，显示提示")
+                    Toast.makeText(this@CoverSelectionActivity, "请输入搜索关键词", Toast.LENGTH_SHORT).show()
+                    return@setOnEditorActionListener true
+                }
+                
+                Log.d(TAG, "开始执行搜索: $query")
+                
+                // 隐藏键盘
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                val currentFocus = currentFocus
+                if (currentFocus != null) {
+                    imm.hideSoftInputFromWindow(currentFocus.windowToken, 0)
+                }
+                
+                // 直接传递搜索关键词
+                performSearch(query)
+                return@setOnEditorActionListener true
             }
-            
-            override fun onQueryTextChange(newText: String?): Boolean {
-                // 可以在这里实现实时搜索，暂时不实现
-                return false
+            false
+        }
+        
+        // 设置文本变化监听器，用于实时搜索建议
+        searchInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                // 可以在这里实现实时搜索建议
+                val text = s?.toString() ?: ""
+                // 暂时不实现实时搜索
             }
         })
         
-        // 设置加载更多按钮点击事件
-        btnLoadMore.setOnClickListener {
-            loadMoreImages()
-        }
+
     }
     
     private fun setupIOSStyleScrolling() {
@@ -150,6 +190,9 @@ class CoverSelectionActivity : AppCompatActivity() {
         
         // 添加滑动监听器，在滑动结束时播放原生弹性动画
         setupScrollListener()
+        
+        // 添加滚动监听器，实现自动加载下一页
+        setupAutoLoadMore()
         
         Log.d(TAG, "Android 原生动画滑动配置完成")
     }
@@ -173,6 +216,39 @@ class CoverSelectionActivity : AppCompatActivity() {
                     }
                     androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_SETTLING -> {
                         isScrolling = true
+                    }
+                }
+            }
+        })
+    }
+    
+    /**
+     * 设置自动加载更多功能
+     */
+    private fun setupAutoLoadMore() {
+        recyclerView.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                
+                val layoutManager = recyclerView.layoutManager as? androidx.recyclerview.widget.GridLayoutManager
+                if (layoutManager != null) {
+                    val visibleItemCount = layoutManager.childCount
+                    val totalItemCount = layoutManager.itemCount
+                    val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
+                    
+                    // 当滚动到底部附近时自动加载下一页
+                    if (visibleItemCount + firstVisibleItemPosition >= totalItemCount - 5 && 
+                        firstVisibleItemPosition >= 0 && 
+                        totalItemCount > 0 &&
+                        hasMorePages) {
+                        
+                        Log.d(TAG, "触发自动加载更多: visibleItemCount=$visibleItemCount, totalItemCount=$totalItemCount, firstVisibleItemPosition=$firstVisibleItemPosition")
+                        
+                        // 防止重复加载
+                        if (!isLoadingMore) {
+                            isLoadingMore = true
+                            loadMoreImages()
+                        }
                     }
                 }
             }
@@ -210,33 +286,138 @@ class CoverSelectionActivity : AppCompatActivity() {
         }
     }
     
-    private fun performSearch() {
-        val originalQuery = searchView.query.toString().trim()
-        if (originalQuery.isEmpty()) {
+    /**
+     * 加载API推荐的图片
+     */
+    private fun loadRecommendedImages() {
+        currentSearchQuery = ""
+        currentPage = 1
+        hasMorePages = true
+        
+        Log.d(TAG, "加载API推荐的图片")
+        tvStatus.text = "正在加载推荐图片..."
+        
+        // 调用PexelsManager获取精选图片
+        loadCuratedImages()
+    }
+    
+    /**
+     * 加载精选图片
+     */
+    private fun loadCuratedImages() {
+        showLoading(true)
+        tvStatus.text = "正在加载精选图片..."
+        
+        coroutineScope.launch {
+            try {
+                val photos = pexelsManager.getCuratedPhotos(page = 1)
+                
+                Log.d(TAG, "精选图片加载完成: 找到 ${photos.size} 张图片")
+                
+                if (photos.isNotEmpty()) {
+                    adapter.updatePhotos(photos)
+                    showLoading(false)
+                    tvStatus.text = "精选图片 (${photos.size} 张)"
+                    Log.d(TAG, "精选图片加载完成，更新适配器")
+                    
+                    // 检查是否还有更多页面
+                    hasMorePages = photos.size >= 30
+                } else {
+                    showLoading(false)
+                    tvStatus.text = "暂无推荐图片"
+                    Log.w(TAG, "精选图片加载失败，没有找到图片")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "加载精选图片失败", e)
+                showLoading(false)
+                tvStatus.text = "加载失败: ${e.message}"
+                Toast.makeText(this@CoverSelectionActivity, "加载精选图片失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
+    private fun performSearch(query: String) {
+        Log.d(TAG, "performSearch被调用，原始查询: '$query'")
+        
+        if (query.isEmpty()) {
+            Log.w(TAG, "搜索查询为空，显示提示")
             Toast.makeText(this, "请输入搜索关键词", Toast.LENGTH_SHORT).show()
             return
         }
         
+        Log.d(TAG, "开始处理搜索查询: '$query'")
+        
+        // 新搜索开始时，立即清空旧数据
+        adapter.updatePhotos(emptyList())
+        tvStatus.text = "正在搜索..."
+        
         // 使用优化后的搜索策略
-        val optimizedQuery = SearchHelper.getOptimizedSearchQuery(originalQuery)
-        currentSearchQuery = originalQuery  // 保存原始查询用于显示
+        val optimizedQuery = SearchHelper.getOptimizedSearchQuery(query)
+        currentSearchQuery = query  // 保存原始查询用于显示
         currentPage = 1
         hasMorePages = true
         
-        Log.d(TAG, "优化搜索转换: '$originalQuery' -> '$optimizedQuery'")
+        Log.d(TAG, "优化搜索转换: '$query' -> '$optimizedQuery'")
         
         // 显示转换后的搜索词
-        if (originalQuery != optimizedQuery) {
-            tvStatus.text = "搜索: $originalQuery → $optimizedQuery"
+        if (query != optimizedQuery) {
+            tvStatus.text = "搜索: $query → $optimizedQuery"
         }
         
+        Log.d(TAG, "调用searchCoverImages开始搜索")
         searchCoverImages(optimizedQuery, currentPage, isNewSearch = true)
+        Log.d(TAG, "performSearch执行完成")
     }
     
     private fun loadMoreImages() {
         if (hasMorePages) {
             currentPage++
-            searchCoverImages(currentSearchQuery, currentPage, isNewSearch = false)
+            if (currentSearchQuery.isEmpty()) {
+                // 如果是精选图片，加载更多精选图片
+                loadMoreCuratedImages()
+            } else {
+                // 如果是搜索结果，加载更多搜索结果
+                searchCoverImages(currentSearchQuery, currentPage, isNewSearch = false)
+            }
+        }
+    }
+    
+    /**
+     * 加载更多精选图片
+     */
+    private fun loadMoreCuratedImages() {
+        showLoading(true)
+        tvStatus.text = "正在加载更多精选图片..."
+        
+        coroutineScope.launch {
+            try {
+                val photos = pexelsManager.getCuratedPhotos(page = currentPage)
+                
+                Log.d(TAG, "更多精选图片加载完成: 找到 ${photos.size} 张图片")
+                
+                if (photos.isNotEmpty()) {
+                    adapter.addPhotos(photos)
+                    showLoading(false)
+                    tvStatus.text = "精选图片 (${adapter.itemCount} 张)"
+                    Log.d(TAG, "更多精选图片加载完成，当前总数: ${adapter.itemCount}")
+                    
+                    // 检查是否还有更多页面
+                    hasMorePages = photos.size >= 30
+                    isLoadingMore = false
+                } else {
+                    showLoading(false)
+                    tvStatus.text = "没有更多精选图片了"
+                    hasMorePages = false
+                    isLoadingMore = false
+                    Log.d(TAG, "精选图片加载完成，没有更多页面")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "加载更多精选图片失败", e)
+                showLoading(false)
+                tvStatus.text = "加载失败: ${e.message}"
+                Toast.makeText(this@CoverSelectionActivity, "加载更多精选图片失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                isLoadingMore = false
+            }
         }
     }
     
@@ -276,7 +457,7 @@ class CoverSelectionActivity : AppCompatActivity() {
                     
                     // 检查是否还有更多页面
                     hasMorePages = photos.size >= 30
-                    btnLoadMore.visibility = if (hasMorePages) View.VISIBLE else View.GONE
+                    isLoadingMore = false
                     Log.d(TAG, "分页状态: hasMorePages=$hasMorePages, 当前页图片数=${photos.size}")
                     
                 } else {
@@ -288,7 +469,7 @@ class CoverSelectionActivity : AppCompatActivity() {
                     } else {
                         tvStatus.text = "没有更多图片了"
                         hasMorePages = false
-                        btnLoadMore.visibility = View.GONE
+                        isLoadingMore = false
                         Log.d(TAG, "加载更多完成，没有更多页面")
                     }
                 }
@@ -297,6 +478,7 @@ class CoverSelectionActivity : AppCompatActivity() {
                 showLoading(false)
                 tvStatus.text = "搜索失败: ${e.message}"
                 Toast.makeText(this@CoverSelectionActivity, "搜索失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                isLoadingMore = false
             }
         }
     }

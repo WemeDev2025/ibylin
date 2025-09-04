@@ -27,9 +27,6 @@ class BookGridAdapter(
     
     class BookGridViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val ivCover: ImageView = itemView.findViewById(R.id.iv_book_cover)
-        val tvBookTitle: TextView = itemView.findViewById(R.id.tv_book_title)
-        val tvReadingProgress: TextView = itemView.findViewById(R.id.tv_reading_progress)
-        val btnBookMenu: ImageButton = itemView.findViewById(R.id.btn_book_menu)
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookGridViewHolder {
@@ -46,7 +43,7 @@ class BookGridAdapter(
             val epubFile = epubFiles[position]
             android.util.Log.d("BookGridAdapter", "绑定ViewHolder: position=$position, 书名=${epubFile.name}, 路径=${epubFile.path}")
             
-            // 优先使用EPUB格式里的书名，如果没有则使用文件名
+            // 记录书名信息用于日志
             val rawBookTitle = if (epubFile.metadata?.title.isNullOrBlank()) {
                 android.util.Log.w("BookGridAdapter", "EPUB元数据中没有书名，使用文件名: ${epubFile.name}")
                 epubFile.name
@@ -61,10 +58,6 @@ class BookGridAdapter(
             android.util.Log.d("BookGridAdapter", "原始书名: '$rawBookTitle'")
             android.util.Log.d("BookGridAdapter", "优化后书名: '$bookTitle'")
             android.util.Log.d("BookGridAdapter", "封面腰封将显示的书名: '$bookTitle'")
-            holder.tvBookTitle.text = bookTitle
-            
-            // 设置阅读进度（暂时显示0%，后续可以从数据库读取）
-            holder.tvReadingProgress.text = "0%"
             
             // 加载封面图片
             android.util.Log.d("BookGridAdapter", "开始加载封面: ${epubFile.name}")
@@ -81,17 +74,12 @@ class BookGridAdapter(
                 }
             }
             
-            // 设置菜单按钮点击事件
-            holder.btnBookMenu.setOnClickListener { view ->
-                android.util.Log.d("BookGridAdapter", "菜单按钮点击事件触发: ${epubFile.name}")
-                showBookMenu(view, epubFile)
-            }
+            // 菜单按钮已移除，只保留封面点击功能
             
             android.util.Log.d("BookGridAdapter", "ViewHolder绑定完成: position=$position, 书名=${epubFile.metadata?.title ?: epubFile.name}")
         } catch (e: Exception) {
             android.util.Log.e("BookGridAdapter", "绑定ViewHolder失败: position=$position", e)
             // 设置默认值，避免崩溃
-            holder.tvReadingProgress.text = "0%"
             holder.ivCover.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         }
     }
@@ -295,22 +283,48 @@ class BookGridAdapter(
      */
     private fun changeBookCover(context: android.content.Context, epubFile: EpubFile) {
         try {
-            // 启动封面选择Activity
+            android.util.Log.d("BookGridAdapter", "准备启动封面选择Activity: ${epubFile.name}")
+            
+            // 检查上下文类型
             if (context is androidx.appcompat.app.AppCompatActivity) {
+                android.util.Log.d("BookGridAdapter", "使用startActivityForResult启动封面选择")
+                
+                // 创建Intent并添加书籍数据
                 val intent = android.content.Intent(context, com.ibylin.app.ui.CoverSelectionActivity::class.java).apply {
-                    putExtra("extra_book", epubFile as android.os.Parcelable)
+                    putExtra(com.ibylin.app.ui.CoverSelectionActivity.EXTRA_BOOK, epubFile)
+                    // 添加标志确保Activity能够正常启动
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
+                
+                // 验证Intent数据
+                android.util.Log.d("BookGridAdapter", "Intent数据验证: bookName=${epubFile.name}, bookPath=${epubFile.path}")
+                
+                // 启动Activity
                 context.startActivityForResult(intent, com.ibylin.app.ui.CoverSelectionActivity.RESULT_COVER_UPDATED)
+                
+                android.util.Log.d("BookGridAdapter", "封面选择Activity启动成功")
             } else {
+                android.util.Log.w("BookGridAdapter", "上下文不是Activity，使用普通方式启动")
+                
                 // 如果不是Activity，使用普通方式启动
                 val intent = android.content.Intent(context, com.ibylin.app.ui.CoverSelectionActivity::class.java).apply {
-                    putExtra("extra_book", epubFile as android.os.Parcelable)
+                    putExtra(com.ibylin.app.ui.CoverSelectionActivity.EXTRA_BOOK, epubFile)
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
+                
                 context.startActivity(intent)
+                android.util.Log.d("BookGridAdapter", "封面选择Activity启动成功（普通方式）")
             }
+            
         } catch (e: Exception) {
-            android.util.Log.e("BookGridAdapter", "启动封面选择失败", e)
-            Toast.makeText(context, "启动封面选择失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            android.util.Log.e("BookGridAdapter", "启动封面选择Activity失败: ${epubFile.name}", e)
+            
+            // 显示错误提示
+            android.widget.Toast.makeText(
+                context, 
+                "无法打开封面选择页面: ${e.message}", 
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
