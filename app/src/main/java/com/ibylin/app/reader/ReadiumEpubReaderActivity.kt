@@ -98,6 +98,10 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         navigatorContainer = findViewById(R.id.reader_container)
         loadingView = findViewById(R.id.loading_view)
         
+        // 确保Toolbar初始状态为隐藏
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        toolbar.visibility = View.GONE
+        
         // 设置底部控制栏按钮
         setupBottomControls()
         
@@ -123,9 +127,9 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                         val x = view.width / 2f
                         val y = view.height / 2f
                         
-                        // 如果点击在屏幕中间区域，显示工具栏
+                        // 如果点击在屏幕中间区域，切换菜单栏显示状态
                         if (isClickInCenterArea(view, x, y)) {
-                            showReadingControls(true)
+                            toggleToolbar()
                         }
                     }
                     Log.d(TAG, "点击监听器设置成功")
@@ -153,6 +157,47 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             setDisplayHomeAsUpEnabled(true)
             title = "Readium EPUB阅读器"
             setSubtitle("专业级EPUB阅读体验")
+        }
+    }
+    
+    /**
+     * 切换菜单栏显示/隐藏状态
+     */
+    private fun toggleToolbar() {
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        if (toolbar.visibility == View.VISIBLE) {
+            // 隐藏菜单栏
+            toolbar.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction {
+                    toolbar.visibility = View.GONE
+                }
+                .start()
+            Log.d(TAG, "菜单栏已隐藏")
+        } else {
+            // 显示菜单栏
+            toolbar.visibility = View.VISIBLE
+            toolbar.alpha = 0f
+            toolbar.animate()
+                .alpha(1f)
+                .setDuration(200)
+                .start()
+            Log.d(TAG, "菜单栏已显示")
+            
+            // 3秒后自动隐藏
+            toolbar.postDelayed({
+                if (toolbar.visibility == View.VISIBLE) {
+                    toolbar.animate()
+                        .alpha(0f)
+                        .setDuration(200)
+                        .withEndAction {
+                            toolbar.visibility = View.GONE
+                        }
+                        .start()
+                    Log.d(TAG, "菜单栏自动隐藏")
+                }
+            }, 3000)
         }
     }
     
@@ -291,8 +336,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     // 隐藏加载状态
                     showLoading(false)
                     
-                    // 显示底部控制栏和进度条
-                    showReadingControls(true)
+                    // 设置点击监听器，用于显示/隐藏菜单栏
+                    setupTapListener()
                     
                     // 显示成功信息
                     val title = publication.metadata.title ?: "未知标题"
@@ -1070,5 +1115,99 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "清理临时修复文件失败", e)
         }
+    }
+
+    // 触摸事件状态跟踪
+    private var touchStartTime = 0L
+    private var touchStartX = 0f
+    private var touchStartY = 0f
+    private var isTouchMoved = false
+    private var isLongPress = false
+    private val touchThreshold = 50f // 触摸移动阈值
+    private val touchTimeThreshold = 200L // 触摸时间阈值（毫秒）
+    private val longPressThreshold = 500L // 长按阈值（毫秒）
+
+    /**
+     * 使用Android官方最佳实践处理触摸事件
+     * 确保触摸事件能正确传递给Readium的WebView
+     */
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
+        ev?.let { event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    // 记录触摸开始信息
+                    touchStartTime = System.currentTimeMillis()
+                    touchStartX = event.x
+                    touchStartY = event.y
+                    isTouchMoved = false
+                    isLongPress = false
+                    
+                    Log.d(TAG, "dispatchTouchEvent ACTION_DOWN: x=${event.x}, y=${event.y}")
+                    
+                    // 关键：先让Readium处理DOWN事件，确保触摸事件链正确建立
+                    val handled = super.dispatchTouchEvent(event)
+                    Log.d(TAG, "Readium处理DOWN事件结果: $handled")
+                    return handled
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    // 检测触摸是否移动
+                    val deltaX = Math.abs(event.x - touchStartX)
+                    val deltaY = Math.abs(event.y - touchStartY)
+                    
+                    if (deltaX > touchThreshold || deltaY > touchThreshold) {
+                        isTouchMoved = true
+                        Log.d(TAG, "dispatchTouchEvent ACTION_MOVE: 触摸移动超过阈值，标记为滑动")
+                    }
+                    
+                    // 关键：让Readium处理MOVE事件，确保滑动翻页正常工作
+                    val handled = super.dispatchTouchEvent(event)
+                    Log.d(TAG, "Readium处理MOVE事件结果: $handled")
+                    return handled
+                }
+                android.view.MotionEvent.ACTION_UP -> {
+                    val touchDuration = System.currentTimeMillis() - touchStartTime
+                    val deltaX = Math.abs(event.x - touchStartX)
+                    val deltaY = Math.abs(event.y - touchStartY)
+                    
+                    Log.d(TAG, "dispatchTouchEvent ACTION_UP: x=${event.x}, y=${event.y}, 持续时间=${touchDuration}ms, 移动距离=(${deltaX}, ${deltaY})")
+                    
+                    // 智能判断：只有在短时间、小距离移动的点击时才弹出菜单
+                    if (touchDuration < touchTimeThreshold && 
+                        deltaX < touchThreshold && 
+                        deltaY < touchThreshold && 
+                        !isTouchMoved) {
+                        
+                        // 检查是否在中间区域
+                        val clickX = event.x
+                        val screenWidth = resources.displayMetrics.widthPixels
+                        val leftBound = screenWidth * 0.2f
+                        val rightBound = screenWidth * 0.8f
+                        val isInCenterArea = clickX >= leftBound && clickX <= rightBound
+                        
+                        Log.d(TAG, "智能判断: 点击事件检测 - 中间区域=$isInCenterArea, 坐标=(${clickX}, ${event.y})")
+                        
+                        if (isInCenterArea) {
+                            Log.d(TAG, "智能判断: 决定弹出菜单")
+                            toggleToolbar()
+                        }
+                    } else {
+                        Log.d(TAG, "触摸事件不符合点击条件，不弹出菜单")
+                    }
+                    
+                    // 关键：让Readium处理UP事件，确保触摸事件链完整
+                    val handled = super.dispatchTouchEvent(event)
+                    Log.d(TAG, "Readium处理UP事件结果: $handled")
+                    return handled
+                }
+                else -> {
+                    Log.d(TAG, "dispatchTouchEvent 其他事件: ${event.action}")
+                    // 其他事件也传递给Readium
+                    return super.dispatchTouchEvent(event)
+                }
+            }
+        }
+        
+        // 调用父类的dispatchTouchEvent，让所有触摸事件都能正常工作
+        return super.dispatchTouchEvent(ev)
     }
 }
