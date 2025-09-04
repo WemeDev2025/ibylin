@@ -13,6 +13,14 @@
         android:title="更换封面"
         android:icon="@drawable/ic_image" />
 
+    <!-- 图书上锁 -->
+    <item
+        android:id="@+id/action_lock_book"
+        android:title="图书上锁"
+        android:icon="@drawable/ic_lock" />
+
+
+
     <!-- 分享 -->
     <item
         android:id="@+id/action_share_book"

@@ -250,6 +250,14 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             return
         }
         
+        // 检查图书是否被锁定
+        val fileName = File(filePath).name
+        if (com.ibylin.app.utils.BookLockManager.isBookLocked(this, fileName)) {
+            Log.d(TAG, "检测到图书被锁定: $fileName")
+            showBookLockedDialog(fileName)
+            return
+        }
+        
         // 使用协程加载EPUB
         lifecycleScope.launch {
             try {
@@ -261,6 +269,131 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     finish()
                 }
             }
+        }
+    }
+    
+    /**
+     * 显示图书锁定对话框
+     */
+    private fun showBookLockedDialog(fileName: String) {
+        runOnUiThread {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("图书已锁定")
+                .setMessage("《$fileName》已被锁定，需要指纹识别解锁后才能阅读。")
+                .setPositiveButton("指纹解锁") { _, _ ->
+                    unlockBookForReading(fileName)
+                }
+                .setNegativeButton("返回") { _, _ ->
+                    finish()
+                }
+                .setCancelable(false)
+                .show()
+        }
+    }
+    
+    /**
+     * 解锁图书以进行阅读
+     */
+    private fun unlockBookForReading(fileName: String) {
+        try {
+            // 检查是否支持生物识别
+            if (com.ibylin.app.utils.BiometricHelper.isBiometricAvailable(this)) {
+                // 使用指纹识别解锁
+                com.ibylin.app.utils.BiometricHelper.showBiometricPrompt(
+                    activity = this,
+                    title = "指纹解锁",
+                    subtitle = "请使用指纹解锁《$fileName》",
+                    onSuccess = {
+                        // 指纹识别成功，解锁图书
+                        unlockBookAndLoad(fileName, "FINGERPRINT")
+                    },
+                    onError = { errorMessage ->
+                        Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                        finish()
+                    },
+                    onFailed = {
+                        Toast.makeText(this, "指纹识别失败，请重试", Toast.LENGTH_SHORT).show()
+                        finish()
+                    }
+                )
+            } else {
+                // 不支持指纹识别，使用密码解锁
+                showPasswordUnlockDialog(fileName)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "指纹解锁失败", e)
+            Toast.makeText(this, "指纹解锁失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            finish()
+        }
+    }
+    
+    /**
+     * 显示密码解锁对话框
+     */
+    private fun showPasswordUnlockDialog(fileName: String) {
+        val passwordDialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("密码解锁")
+            .setMessage("请输入密码解锁《$fileName》")
+            .setView(createPasswordInputView())
+            .setPositiveButton("解锁") { dialog, _ ->
+                val passwordInput = (dialog as? androidx.appcompat.app.AlertDialog)?.findViewById<android.widget.EditText>(android.R.id.text1)
+                val password = passwordInput?.text?.toString() ?: ""
+                
+                if (com.ibylin.app.utils.PasswordManager.verifyPassword(this, password)) {
+                    unlockBookAndLoad(fileName, "PASSWORD")
+                } else {
+                    Toast.makeText(this, "密码错误", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            }
+            .setNegativeButton("取消") { _, _ ->
+                finish()
+            }
+            .setCancelable(false)
+            .create()
+        
+        passwordDialog.show()
+    }
+    
+    /**
+     * 创建密码输入视图
+     */
+    private fun createPasswordInputView(): android.widget.EditText {
+        return android.widget.EditText(this).apply {
+            id = android.R.id.text1
+            hint = "请输入密码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(50, 30, 50, 30)
+        }
+    }
+    
+    /**
+     * 解锁图书并加载（通用方法）
+     */
+    private fun unlockBookAndLoad(fileName: String, unlockMethod: String) {
+        try {
+            val success = com.ibylin.app.utils.BookLockManager.unlockBook(this, fileName)
+            if (success) {
+                // 记录解锁历史
+                val record = com.ibylin.app.utils.LockHistoryRecord(
+                    bookName = fileName,
+                    action = "UNLOCK",
+                    timestamp = System.currentTimeMillis(),
+                    unlockMethod = unlockMethod
+                )
+                com.ibylin.app.utils.LockHistoryManager.addHistory(this, record)
+                
+                Toast.makeText(this, "图书已解锁，正在加载...", Toast.LENGTH_SHORT).show()
+                // 重新加载图书
+                loadEpub()
+            } else {
+                Toast.makeText(this, "解锁失败，请重试", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "解锁图书失败", e)
+            Toast.makeText(this, "解锁失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            finish()
         }
     }
     

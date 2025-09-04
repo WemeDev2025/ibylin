@@ -860,6 +860,12 @@ class BookLibraryActivity : AppCompatActivity() {
                     }
                     true
                 }
+                R.id.action_lock_book -> {
+                    android.util.Log.d("BookLibraryActivity", "长按菜单：图书上锁")
+                    toggleBookLock(epubFile)
+                    true
+                }
+
                 R.id.action_share_book -> {
                     android.util.Log.d("BookLibraryActivity", "长按菜单：分享")
                     shareBook(epubFile)
@@ -933,6 +939,534 @@ class BookLibraryActivity : AppCompatActivity() {
             android.util.Log.e("BookLibraryActivity", "恢复默认封面失败", e)
             android.widget.Toast.makeText(this, "恢复默认封面失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+    
+    /**
+     * 切换图书锁定状态
+     */
+    private fun toggleBookLock(epubFile: EpubFile) {
+        try {
+            val isCurrentlyLocked = com.ibylin.app.utils.BookLockManager.isBookLocked(this, epubFile.name)
+            
+            if (isCurrentlyLocked) {
+                // 如果已锁定，显示解锁选项
+                showUnlockBookDialog(epubFile)
+            } else {
+                // 如果未锁定，显示锁定选项
+                showLockBookDialog(epubFile)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "切换图书锁定状态失败", e)
+            android.widget.Toast.makeText(this, "操作失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 显示锁定图书对话框
+     */
+    private fun showLockBookDialog(epubFile: EpubFile) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("图书上锁")
+            .setMessage("确定要锁定《${epubFile.metadata?.title ?: epubFile.name}》吗？\n\n锁定后，下次打开需要指纹识别解锁。")
+            .setPositiveButton("锁定") { _, _ ->
+                lockBook(epubFile)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+    
+    /**
+     * 显示解锁图书对话框
+     */
+    private fun showUnlockBookDialog(epubFile: EpubFile) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("图书解锁")
+            .setMessage("《${epubFile.metadata?.title ?: epubFile.name}》已锁定\n\n请选择解锁方式：")
+            .setPositiveButton("指纹解锁") { _, _ ->
+                unlockBookWithFingerprint(epubFile)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+    
+    /**
+     * 锁定图书
+     */
+    private fun lockBook(epubFile: EpubFile) {
+        try {
+            val success = com.ibylin.app.utils.BookLockManager.lockBook(this, epubFile.name)
+            if (success) {
+                // 记录锁定历史
+                val record = com.ibylin.app.utils.LockHistoryRecord(
+                    bookName = epubFile.name,
+                    action = "LOCK",
+                    timestamp = System.currentTimeMillis()
+                )
+                com.ibylin.app.utils.LockHistoryManager.addHistory(this, record)
+                
+                android.widget.Toast.makeText(this, "图书已锁定", android.widget.Toast.LENGTH_SHORT).show()
+                // 刷新书籍列表，显示锁定状态
+                bookGridAdapter.notifyDataSetChanged()
+            } else {
+                android.widget.Toast.makeText(this, "锁定失败", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "锁定图书失败", e)
+            android.widget.Toast.makeText(this, "锁定失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 使用指纹解锁图书
+     */
+    private fun unlockBookWithFingerprint(epubFile: EpubFile) {
+        try {
+            // 检查是否支持生物识别
+            if (com.ibylin.app.utils.BiometricHelper.isBiometricAvailable(this)) {
+                // 使用真正的指纹识别
+                com.ibylin.app.utils.BiometricHelper.showBiometricPrompt(
+                    activity = this,
+                    title = "指纹解锁",
+                    subtitle = "请使用指纹解锁《${epubFile.metadata?.title ?: epubFile.name}》",
+                    onSuccess = {
+                        // 指纹识别成功，解锁图书
+                        unlockBook(epubFile, "FINGERPRINT")
+                    },
+                    onError = { errorMessage ->
+                        android.widget.Toast.makeText(this, errorMessage, android.widget.Toast.LENGTH_LONG).show()
+                    },
+                    onFailed = {
+                        android.widget.Toast.makeText(this, "指纹识别失败，请重试", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                )
+            } else {
+                // 不支持指纹识别，使用密码解锁
+                showPasswordUnlockDialog(epubFile)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "指纹解锁失败", e)
+            android.widget.Toast.makeText(this, "指纹解锁失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 显示密码解锁对话框
+     */
+    private fun showPasswordUnlockDialog(epubFile: EpubFile) {
+        val passwordDialog = MaterialAlertDialogBuilder(this)
+            .setTitle("密码解锁")
+            .setMessage("请输入密码解锁《${epubFile.metadata?.title ?: epubFile.name}》")
+            .setView(createPasswordInputView())
+            .setPositiveButton("解锁") { dialog, _ ->
+                val passwordInput = (dialog as? androidx.appcompat.app.AlertDialog)?.findViewById<android.widget.EditText>(android.R.id.text1)
+                val password = passwordInput?.text?.toString() ?: ""
+                
+                if (com.ibylin.app.utils.PasswordManager.verifyPassword(this, password)) {
+                    unlockBook(epubFile, "PASSWORD")
+                } else {
+                    android.widget.Toast.makeText(this, "密码错误", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        
+        passwordDialog.show()
+    }
+    
+    /**
+     * 创建密码输入视图
+     */
+    private fun createPasswordInputView(): android.widget.EditText {
+        return android.widget.EditText(this).apply {
+            id = android.R.id.text1
+            hint = "请输入密码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(50, 30, 50, 30)
+        }
+    }
+    
+    /**
+     * 解锁图书（通用方法）
+     */
+    private fun unlockBook(epubFile: EpubFile, unlockMethod: String) {
+        try {
+            val success = com.ibylin.app.utils.BookLockManager.unlockBook(this, epubFile.name)
+            if (success) {
+                // 记录解锁历史
+                val record = com.ibylin.app.utils.LockHistoryRecord(
+                    bookName = epubFile.name,
+                    action = "UNLOCK",
+                    timestamp = System.currentTimeMillis(),
+                    unlockMethod = unlockMethod
+                )
+                com.ibylin.app.utils.LockHistoryManager.addHistory(this, record)
+                
+                android.widget.Toast.makeText(this, "图书已解锁", android.widget.Toast.LENGTH_SHORT).show()
+                bookGridAdapter.notifyDataSetChanged()
+            } else {
+                android.widget.Toast.makeText(this, "解锁失败", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "解锁图书失败", e)
+            android.widget.Toast.makeText(this, "解锁失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 移除图书锁定
+     */
+    private fun removeBookLock(epubFile: EpubFile) {
+        try {
+            val success = com.ibylin.app.utils.BookLockManager.removeBookLock(this, epubFile.name)
+            if (success) {
+                // 记录移除锁定历史
+                val record = com.ibylin.app.utils.LockHistoryRecord(
+                    bookName = epubFile.name,
+                    action = "REMOVE",
+                    timestamp = System.currentTimeMillis(),
+                    unlockMethod = "REMOVE"
+                )
+                com.ibylin.app.utils.LockHistoryManager.addHistory(this, record)
+                
+                android.widget.Toast.makeText(this, "锁定已移除", android.widget.Toast.LENGTH_SHORT).show()
+                bookGridAdapter.notifyDataSetChanged()
+            } else {
+                android.widget.Toast.makeText(this, "移除失败", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "移除图书锁定失败", e)
+            android.widget.Toast.makeText(this, "移除失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+
+    
+
+    
+
+    
+    /**
+     * 显示批量移除锁定对话框
+     */
+    private fun showBatchRemoveLockDialog() {
+        val lockedBooks = com.ibylin.app.utils.BookLockManager.getLockedBooks(this)
+        
+        if (lockedBooks.isEmpty()) {
+            android.widget.Toast.makeText(this, "没有锁定的图书", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val bookNames = lockedBooks.toTypedArray()
+        val checkedItems = BooleanArray(bookNames.size) { false }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("批量移除锁定")
+            .setMultiChoiceItems(bookNames, checkedItems) { dialog, which, isChecked ->
+                checkedItems[which] = isChecked
+            }
+            .setPositiveButton("移除选中") { _, _ ->
+                val selectedBooks = bookNames.filterIndexed { index, _ -> checkedItems[index] }
+                if (selectedBooks.isNotEmpty()) {
+                    batchRemoveBookLocks(selectedBooks)
+                } else {
+                    android.widget.Toast.makeText(this, "请选择要移除锁定的图书", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+    
+    /**
+     * 显示锁定统计对话框
+     */
+    private fun showLockStatisticsDialog() {
+        val stats = com.ibylin.app.utils.BookLockManager.getLockStatistics(this)
+        val message = """
+            锁定统计信息：
+            
+            总锁定数量：${stats["total_locked"]}
+            总图书数量：${stats["total_books"]}
+            锁定比例：${String.format("%.1f", stats["lock_percentage"] as Double)}%
+        """.trimIndent()
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("锁定统计")
+            .setMessage(message)
+            .setPositiveButton("确定", null)
+            .show()
+    }
+    
+    /**
+     * 显示锁定历史对话框
+     */
+    private fun showLockHistoryDialog() {
+        val history = com.ibylin.app.utils.LockHistoryManager.getAllHistory(this)
+        
+        if (history.isEmpty()) {
+            android.widget.Toast.makeText(this, "暂无锁定历史记录", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val historyText = history.take(20).joinToString("\n") { record ->
+            "${record.getFormattedTime()} - ${record.bookName} - ${record.action}"
+        }
+        
+        val message = if (history.size > 20) {
+            "$historyText\n\n... 还有 ${history.size - 20} 条记录"
+        } else {
+            historyText
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("锁定历史记录")
+            .setMessage(message)
+            .setPositiveButton("确定", null)
+            .show()
+    }
+    
+    /**
+     * 批量锁定图书
+     */
+    private fun batchLockBooks(bookNames: List<String>) {
+        try {
+            val successCount = com.ibylin.app.utils.BookLockManager.lockBooks(this, bookNames)
+            
+            // 记录批量锁定历史
+            bookNames.forEach { bookName ->
+                val record = com.ibylin.app.utils.LockHistoryRecord(
+                    bookName = bookName,
+                    action = "LOCK",
+                    timestamp = System.currentTimeMillis()
+                )
+                com.ibylin.app.utils.LockHistoryManager.addHistory(this, record)
+            }
+            
+            android.widget.Toast.makeText(this, "批量锁定完成：$successCount/${bookNames.size} 本图书", android.widget.Toast.LENGTH_SHORT).show()
+            bookGridAdapter.notifyDataSetChanged()
+            
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "批量锁定图书失败", e)
+            android.widget.Toast.makeText(this, "批量锁定失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 批量解锁图书
+     */
+    private fun batchUnlockBooks(bookNames: List<String>) {
+        try {
+            val successCount = com.ibylin.app.utils.BookLockManager.unlockBooks(this, bookNames)
+            
+            // 记录批量解锁历史
+            bookNames.forEach { bookName ->
+                val record = com.ibylin.app.utils.LockHistoryRecord(
+                    bookName = bookName,
+                    action = "UNLOCK",
+                    timestamp = System.currentTimeMillis(),
+                    unlockMethod = "BATCH"
+                )
+                com.ibylin.app.utils.LockHistoryManager.addHistory(this, record)
+            }
+            
+            android.widget.Toast.makeText(this, "批量解锁完成：$successCount/${bookNames.size} 本图书", android.widget.Toast.LENGTH_SHORT).show()
+            bookGridAdapter.notifyDataSetChanged()
+            
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "批量解锁图书失败", e)
+            android.widget.Toast.makeText(this, "批量解锁失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 批量移除图书锁定
+     */
+    private fun batchRemoveBookLocks(bookNames: List<String>) {
+        try {
+            val successCount = com.ibylin.app.utils.BookLockManager.removeBookLocks(this, bookNames)
+            
+            // 记录批量移除锁定历史
+            bookNames.forEach { bookName ->
+                val record = com.ibylin.app.utils.LockHistoryRecord(
+                    bookName = bookName,
+                    action = "REMOVE",
+                    timestamp = System.currentTimeMillis(),
+                    unlockMethod = "BATCH_REMOVE"
+                )
+                com.ibylin.app.utils.LockHistoryManager.addHistory(this, record)
+            }
+            
+            android.widget.Toast.makeText(this, "批量移除锁定完成：$successCount/${bookNames.size} 本图书", android.widget.Toast.LENGTH_SHORT).show()
+            bookGridAdapter.notifyDataSetChanged()
+            
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "批量移除图书锁定失败", e)
+            android.widget.Toast.makeText(this, "批量移除锁定失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 显示密码设置对话框
+     */
+    private fun showPasswordSettingsDialog() {
+        val hasPassword = com.ibylin.app.utils.PasswordManager.hasPassword(this)
+        
+        if (hasPassword) {
+            // 已有密码，显示修改/移除选项
+            val options = arrayOf("修改密码", "移除密码")
+            MaterialAlertDialogBuilder(this)
+                .setTitle("密码设置")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> showChangePasswordDialog()
+                        1 -> showRemovePasswordDialog()
+                    }
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        } else {
+            // 没有密码，显示设置密码
+            showSetPasswordDialog()
+        }
+    }
+    
+    /**
+     * 显示设置密码对话框
+     */
+    private fun showSetPasswordDialog() {
+        val passwordInput = android.widget.EditText(this).apply {
+            hint = "请输入新密码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(50, 30, 50, 30)
+        }
+        
+        val confirmInput = android.widget.EditText(this).apply {
+            hint = "请确认密码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(50, 30, 50, 30)
+        }
+        
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            addView(passwordInput)
+            addView(confirmInput)
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("设置密码")
+            .setMessage("请设置图书解锁密码")
+            .setView(layout)
+            .setPositiveButton("设置") { _, _ ->
+                val password = passwordInput.text.toString()
+                val confirm = confirmInput.text.toString()
+                
+                when {
+                    password.isEmpty() -> android.widget.Toast.makeText(this, "密码不能为空", android.widget.Toast.LENGTH_SHORT).show()
+                    password != confirm -> android.widget.Toast.makeText(this, "两次密码输入不一致", android.widget.Toast.LENGTH_SHORT).show()
+                    password.length < 4 -> android.widget.Toast.makeText(this, "密码长度不能少于4位", android.widget.Toast.LENGTH_SHORT).show()
+                    else -> {
+                        val success = com.ibylin.app.utils.PasswordManager.setPassword(this, password)
+                        if (success) {
+                            android.widget.Toast.makeText(this, "密码设置成功", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(this, "密码设置失败", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+    
+    /**
+     * 显示修改密码对话框
+     */
+    private fun showChangePasswordDialog() {
+        val oldPasswordInput = android.widget.EditText(this).apply {
+            hint = "请输入原密码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(50, 30, 50, 30)
+        }
+        
+        val newPasswordInput = android.widget.EditText(this).apply {
+            hint = "请输入新密码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(50, 30, 50, 30)
+        }
+        
+        val confirmInput = android.widget.EditText(this).apply {
+            hint = "请确认新密码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(50, 30, 50, 30)
+        }
+        
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            addView(oldPasswordInput)
+            addView(newPasswordInput)
+            addView(confirmInput)
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("修改密码")
+            .setMessage("请先验证原密码，然后设置新密码")
+            .setView(layout)
+            .setPositiveButton("修改") { _, _ ->
+                val oldPassword = oldPasswordInput.text.toString()
+                val newPassword = newPasswordInput.text.toString()
+                val confirm = confirmInput.text.toString()
+                
+                when {
+                    oldPassword.isEmpty() -> android.widget.Toast.makeText(this, "原密码不能为空", android.widget.Toast.LENGTH_SHORT).show()
+                    !com.ibylin.app.utils.PasswordManager.verifyPassword(this, oldPassword) -> android.widget.Toast.makeText(this, "原密码错误", android.widget.Toast.LENGTH_SHORT).show()
+                    newPassword.isEmpty() -> android.widget.Toast.makeText(this, "新密码不能为空", android.widget.Toast.LENGTH_SHORT).show()
+                    newPassword != confirm -> android.widget.Toast.makeText(this, "两次新密码输入不一致", android.widget.Toast.LENGTH_SHORT).show()
+                    newPassword.length < 4 -> android.widget.Toast.makeText(this, "新密码长度不能少于4位", android.widget.Toast.LENGTH_SHORT).show()
+                    else -> {
+                        val success = com.ibylin.app.utils.PasswordManager.setPassword(this, newPassword)
+                        if (success) {
+                            android.widget.Toast.makeText(this, "密码修改成功", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(this, "密码修改失败", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+    
+    /**
+     * 显示移除密码对话框
+     */
+    private fun showRemovePasswordDialog() {
+        val passwordInput = android.widget.EditText(this).apply {
+            hint = "请输入当前密码"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(50, 30, 50, 30)
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("移除密码")
+            .setMessage("请输入当前密码以移除密码保护")
+            .setView(passwordInput)
+            .setPositiveButton("移除") { _, _ ->
+                val password = passwordInput.text.toString()
+                
+                if (password.isEmpty()) {
+                    android.widget.Toast.makeText(this, "密码不能为空", android.widget.Toast.LENGTH_SHORT).show()
+                } else if (!com.ibylin.app.utils.PasswordManager.verifyPassword(this, password)) {
+                    android.widget.Toast.makeText(this, "密码错误", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    val success = com.ibylin.app.utils.PasswordManager.removePassword(this)
+                    if (success) {
+                        android.widget.Toast.makeText(this, "密码已移除", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(this, "密码移除失败", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
     
     /**
