@@ -27,8 +27,8 @@ class ReadiumHelper @Inject constructor(
     // EPUB 内容缓存
     private lateinit var epubContent: EpubContent
     
-    // Librera Reader 相关组件
-    private var libreraReader: Any? = null
+    // Readium 阅读器相关组件
+    private var readiumReader: Any? = null
     private var readerContainer: FrameLayout? = null
     
     /**
@@ -133,15 +133,15 @@ class ReadiumHelper @Inject constructor(
      * 打开 PDF 书籍
      */
     private fun openPdfBook(bookPath: String) {
-        // TODO: 集成 Librera Reader PDF 支持
-        // 这里将调用 Librera Reader 的 PDF 解析器
+        // TODO: 集成 Readium PDF 支持
+        // 这里将调用 Readium 的 PDF 解析器
     }
     
     /**
      * 打开通用文档
      */
     private fun openGenericBook(bookPath: String) {
-        // TODO: 集成 Librera Reader 通用文档支持
+        // TODO: 集成 Readium 通用文档支持
         setupGenericReader(bookPath)
     }
     
@@ -525,7 +525,7 @@ class ReadiumHelper @Inject constructor(
                 val fallbackContent = "第 ${currentPage} 页 / 共 ${totalPages} 页\n\n" +
                 "书籍路径: ${currentBookPath}\n\n" +
                 "这是第 ${currentPage} 页的内容。\n\n" +
-                "Librera Reader 正在正常工作！\n\n" +
+                "Readium 阅读器正在正常工作！\n\n" +
                 "您可以：\n" +
                 "• 使用底部按钮翻页\n" +
                 "• 在设置中调整字体大小\n" +
@@ -766,7 +766,7 @@ class ReadiumHelper @Inject constructor(
      */
     fun setFontSize(size: Float) {
         config.fontSize = size
-        // TODO: 调用 Librera Reader 的字体大小设置
+        // TODO: 调用 Readium 的字体大小设置
         updateReaderView()
     }
     
@@ -775,7 +775,7 @@ class ReadiumHelper @Inject constructor(
      */
     fun setLineSpacing(spacing: Float) {
         config.lineSpacing = spacing
-        // TODO: 调用 Librera Reader 的行间距设置
+        // TODO: 调用 Readium 的行间距设置
         updateReaderView()
     }
     
@@ -784,7 +784,7 @@ class ReadiumHelper @Inject constructor(
      */
     fun setTheme(theme: String) {
         config.theme = theme
-        // TODO: 调用 Librera Reader 的主题设置
+        // TODO: 调用 Readium 的主题设置
         updateReaderView()
     }
     
@@ -806,8 +806,8 @@ class ReadiumHelper @Inject constructor(
      */
     fun cleanup() {
         try {
-            // 清理 Librera Reader 资源
-            libreraReader = null
+            // 清理 Readium 阅读器资源
+            readiumReader = null
             readerContainer = null
             isBookLoaded = false
             currentBookPath = null

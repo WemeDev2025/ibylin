@@ -660,7 +660,7 @@ class BookLibraryActivity : AppCompatActivity() {
      * 打开阅读器设置页面
      */
     private fun openReaderSettings() {
-        val intent = Intent(this, com.ibylin.app.ui.LibreraSettingsActivity::class.java)
+        val intent = Intent(this, com.ibylin.app.ui.ReadiumSettingsActivity::class.java)
         startActivity(intent)
     }
     

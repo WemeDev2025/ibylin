@@ -16,7 +16,7 @@ class ReadiumConfig @Inject constructor(
 ) {
     
     companion object {
-        private const val PREFS_NAME = "librera_config"
+        private const val PREFS_NAME = "readium_config"
         private const val KEY_FONT_SIZE = "font_size"
         private const val KEY_LINE_SPACING = "line_spacing"
         private const val KEY_THEME = "theme"
@@ -128,7 +128,7 @@ class ReadiumConfig @Inject constructor(
      */
     fun exportConfig(): String {
         return """
-            Librera Reader 配置
+            Readium 阅读器配置
             ===================
             字体大小: $fontSize
             行间距: $lineSpacing

@@ -39,11 +39,6 @@
             android:theme="@style/Theme.Ibylin" />
             
         <activity
-            android:name=".ui.LibreraSettingsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Ibylin" />
-            
-        <activity
             android:name=".ui.BookLibraryActivity"
             android:exported="false"
             android:theme="@style/Theme.Ibylin" />

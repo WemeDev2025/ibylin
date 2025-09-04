@@ -7,26 +7,26 @@ import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import com.ibylin.app.databinding.ActivityLibreraSettingsBinding
+import com.ibylin.app.databinding.ActivityReadiumSettingsBinding
 import com.ibylin.app.utils.ReadiumConfig
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 /**
- * Librera Reader 设置界面
+ * Readium 阅读器设置界面
  * 提供阅读器的各种配置选项
  */
 @AndroidEntryPoint
 class ReadiumSettingsActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityLibreraSettingsBinding
+    private lateinit var binding: ActivityReadiumSettingsBinding
     
     @Inject
     lateinit var readiumConfig: ReadiumConfig
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityLibreraSettingsBinding.inflate(layoutInflater)
+        binding = ActivityReadiumSettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         initViews()
