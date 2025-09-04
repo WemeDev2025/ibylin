@@ -67,8 +67,8 @@ class BookGridAdapter(
             holder.ivCover.setOnClickListener {
                 android.util.Log.d("BookGridAdapter", "封面点击事件触发: ${epubFile.name}")
                 
-                // 执行点击缩放动画
-                performClickAnimation(holder.ivCover) {
+                // 执行点击缩放动画 - 现在让 CardView 执行动画
+                performClickAnimation(holder.itemView) {
                     // 动画完成后执行点击回调
                     onItemClick?.invoke(epubFile)
                 }

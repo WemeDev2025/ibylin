@@ -6,12 +6,12 @@
     android:layout_margin="8dp"
     android:clickable="true"
     android:focusable="true"
-    android:foreground="?attr/selectableItemBackgroundBorderless"
     app:cardBackgroundColor="#00FFFFFF"
     app:cardElevation="6dp"
     app:cardCornerRadius="0dp"
     app:cardUseCompatPadding="false"
-    app:strokeWidth="0dp">
+    app:strokeWidth="0dp"
+    android:stateListAnimator="@animator/card_scale_animator">
 
     <!-- 封面图片 - 撑满MaterialCardView -->
     <ImageView
