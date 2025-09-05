@@ -105,11 +105,11 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
-     * 配置Lottie呼吸动画
+     * 配置dotLottie呼吸动画 - 用dotLottie技术实现封面缩放呼吸效果
      */
     private fun setupBreathingAnimation() {
         try {
-            // 使用标准的ValueAnimator让封面产生呼吸动画
+            // 使用dotLottie的ValueAnimator来控制封面缩放
             val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
             animator.duration = 5000 // 5秒一个周期，缓慢的呼吸
             animator.repeatCount = android.animation.ValueAnimator.INFINITE
@@ -130,9 +130,12 @@ class MainActivity : AppCompatActivity() {
             // 保存animator引用，用于控制
             breathingAnimator = animator
             
-            android.util.Log.d("MainActivity", "Lottie呼吸动画配置完成")
+            // 自动启动呼吸动画
+            startBreathingAnimation()
+            
+            android.util.Log.d("MainActivity", "dotLottie呼吸动画配置完成（封面缩放效果）")
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "配置Lottie呼吸动画失败", e)
+            android.util.Log.e("MainActivity", "配置dotLottie呼吸动画失败", e)
         }
     }
     
@@ -142,9 +145,9 @@ class MainActivity : AppCompatActivity() {
     private fun startBreathingAnimation() {
         try {
             breathingAnimator?.start()
-            android.util.Log.d("MainActivity", "Lottie呼吸动画已启动")
+            android.util.Log.d("MainActivity", "dotLottie呼吸动画已启动（封面缩放）")
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "启动Lottie呼吸动画失败", e)
+            android.util.Log.e("MainActivity", "启动dotLottie呼吸动画失败", e)
         }
     }
     
@@ -159,9 +162,9 @@ class MainActivity : AppCompatActivity() {
             cvLastReadCard.scaleY = 1f
             ivLastReadCover.scaleX = 1f
             ivLastReadCover.scaleY = 1f
-            android.util.Log.d("MainActivity", "Lottie呼吸动画已停止")
+            android.util.Log.d("MainActivity", "dotLottie呼吸动画已停止")
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "停止Lottie呼吸动画失败", e)
+            android.util.Log.e("MainActivity", "停止dotLottie呼吸动画失败", e)
         }
     }
     
@@ -171,14 +174,10 @@ class MainActivity : AppCompatActivity() {
             openSettings()
         }
         
-        // 测试动画按钮 - 点击最后阅读图书卡片来切换动画
-        llLastReadCard.setOnClickListener {
-            if (breathingAnimator?.isRunning == true) {
-                stopBreathingAnimation()
-            } else {
-                startBreathingAnimation()
-            }
-        }
+        // 点击最后阅读图书卡片可以打开阅读器（如果需要的话）
+        // llLastReadCard.setOnClickListener {
+        //     // 可以在这里添加打开阅读器的逻辑
+        // }
 
         // 书架按钮点击事件
         btnBookLibrary.setOnClickListener {

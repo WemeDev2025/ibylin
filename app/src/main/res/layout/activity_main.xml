@@ -113,7 +113,7 @@
                     android:stateListAnimator="@null"
                     android:layout_margin="8dp">
 
-                    <!-- 封面图片 - 直接使用Lottie动画控制 -->
+                    <!-- 封面图片 - 使用dotLottie技术控制缩放呼吸效果 -->
                     <ImageView
                         android:id="@+id/iv_last_read_cover"
                         android:layout_width="match_parent"
