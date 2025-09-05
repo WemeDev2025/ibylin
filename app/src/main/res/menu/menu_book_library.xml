@@ -23,11 +23,25 @@
         android:icon="@drawable/ic_literature"
         app:showAsAction="never" />
     
-    <!-- 中文图书 -->
+    <!-- 武侠小说 -->
     <item
-        android:id="@+id/category_chinese"
-        android:title="中文"
-        android:icon="@drawable/ic_chinese"
+        android:id="@+id/category_wuxia"
+        android:title="武侠"
+        android:icon="@drawable/ic_sword"
+        app:showAsAction="never" />
+    
+    <!-- 言情小说 -->
+    <item
+        android:id="@+id/category_romance"
+        android:title="言情"
+        android:icon="@drawable/ic_heart"
+        app:showAsAction="never" />
+    
+    <!-- 历史小说 -->
+    <item
+        android:id="@+id/category_history"
+        android:title="历史"
+        android:icon="@drawable/ic_book"
         app:showAsAction="never" />
     
     <!-- 理财 -->
@@ -36,26 +50,19 @@
         android:title="理财"
         android:icon="@drawable/ic_book"
         app:showAsAction="never" />
+    
+    <!-- 英文图书 -->
+    <item
+        android:id="@+id/category_english"
+        android:title="英文"
+        android:icon="@drawable/ic_english"
+        app:showAsAction="never" />
 
     <!-- 分类统计 -->
     <item
         android:id="@+id/action_category_stats"
         android:title="分类统计"
         android:icon="@drawable/ic_stats"
-        app:showAsAction="never" />
-
-    <!-- 重新分类 -->
-    <item
-        android:id="@+id/action_reclassify"
-        android:title="重新分类"
-        android:icon="@drawable/ic_refresh"
-        app:showAsAction="never" />
-
-    <!-- 清除分类 -->
-    <item
-        android:id="@+id/action_clear_categories"
-        android:title="清除分类"
-        android:icon="@drawable/ic_clear"
         app:showAsAction="never" />
 
 </menu>

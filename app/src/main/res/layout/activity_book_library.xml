@@ -6,25 +6,44 @@
     android:orientation="vertical"
     android:background="#FFFFFF">
 
-    <!-- Material 3 标题栏 -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- 自定义顶部导航栏 -->
+    <LinearLayout
+        android:id="@+id/top_navigation_bar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:layout_marginTop="25dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="31dp"
         android:background="@color/material_surface"
         android:elevation="4dp"
-        app:title="我的书库"
-        app:titleTextColor="@color/material_on_surface"
-        app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineSmall"
-        app:menu="@menu/menu_book_library_toolbar"
-        app:navigationIcon="@drawable/ic_arrow_left"
-        app:navigationIconTint="@color/material_on_surface"
-        app:popupTheme="@style/ThemeOverlay.Material3.Light"
-        android:minHeight="?attr/actionBarSize"
-        app:contentInsetStart="16dp"
-        app:contentInsetEnd="16dp"
-        app:contentInsetStartWithNavigation="16dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp">
+
+        <!-- 书架标题 -->
+        <TextView
+            android:id="@+id/tv_shelf_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="书架"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/material_on_surface" />
+
+        <!-- 分类按钮 -->
+        <ImageButton
+            android:id="@+id/btn_category"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_setting"
+            android:contentDescription="分类"
+            android:scaleType="centerInside"
+            android:padding="12dp" />
+
+    </LinearLayout>
 
     <!-- 内容区域 -->
     <RelativeLayout

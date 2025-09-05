@@ -34,10 +34,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var llLastReadCard: android.widget.LinearLayout
     private lateinit var llWelcomeContainer: android.widget.LinearLayout
     private lateinit var ivLastReadCover: android.widget.ImageView
-    private lateinit var tvLastReadTitle: android.widget.TextView
     private lateinit var tvLastReadProgress: android.widget.TextView
     private lateinit var tvLastReadTime: android.widget.TextView
-    private lateinit var btnContinueReading: android.widget.Button
+    
+    
+    // 顶部状态栏相关视图
+    private lateinit var llStatusContainer: android.widget.LinearLayout
+    private lateinit var tvReadingStatus: android.widget.TextView
+    private lateinit var btnSettings: android.widget.ImageButton
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     
@@ -71,25 +75,34 @@ class MainActivity : AppCompatActivity() {
     private fun initViews() {
         btnBookLibrary = findViewById(R.id.btn_book_library)
         
+        // 初始化顶部状态栏相关视图
+        llStatusContainer = findViewById(R.id.ll_status_container)
+        tvReadingStatus = findViewById(R.id.tv_reading_status)
+        btnSettings = findViewById(R.id.btn_settings)
+        
         // 初始化最后阅读图书相关视图
         llLastReadCard = findViewById(R.id.ll_last_read_card)
         llWelcomeContainer = findViewById(R.id.ll_welcome_container)
         ivLastReadCover = findViewById(R.id.iv_last_read_cover)
-        tvLastReadTitle = findViewById(R.id.tv_last_read_title)
         tvLastReadProgress = findViewById(R.id.tv_last_read_progress)
         tvLastReadTime = findViewById(R.id.tv_last_read_time)
-        btnContinueReading = findViewById(R.id.btn_continue_reading)
+        
     }
     
     private fun setupClickListeners() {
+        // 设置按钮点击事件
+        btnSettings.setOnClickListener {
+            openSettings()
+        }
 
         // 书架按钮点击事件
         btnBookLibrary.setOnClickListener {
             openBookLibrary()
         }
         
-        // 继续阅读按钮点击事件
-        btnContinueReading.setOnClickListener {
+        // 封面点击事件 - 进入阅读（现在绑定到CardView）
+        (ivLastReadCover.parent as? com.google.android.material.card.MaterialCardView)?.setOnClickListener {
+            // 直接打开阅读器，无动画
             openLastReadBook()
         }
         
@@ -330,6 +343,20 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
+     * 打开设置页面
+     */
+    private fun openSettings() {
+        try {
+            val intent = android.content.Intent(this, com.ibylin.app.SettingsActivity::class.java)
+            startActivity(intent)
+            android.util.Log.d("MainActivity", "打开设置页面")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "打开设置页面失败", e)
+            android.widget.Toast.makeText(this, "打开设置页面失败", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
      * 检查并显示最后阅读的图书
      */
     private fun checkAndShowLastReadBook() {
@@ -355,9 +382,9 @@ class MainActivity : AppCompatActivity() {
     private fun showLastReadBookCard(lastReadBook: com.ibylin.app.utils.LastReadBook) {
         try {
             // 设置图书信息
-            tvLastReadTitle.text = lastReadBook.name
             tvLastReadProgress.text = lastReadBook.getProgressText()
             tvLastReadTime.text = lastReadBook.getFormattedLastReadTime()
+            
             
             // 尝试加载图书封面
             loadBookCover(lastReadBook.path)
@@ -365,6 +392,9 @@ class MainActivity : AppCompatActivity() {
             // 显示最后阅读卡片，隐藏欢迎界面
             llLastReadCard.visibility = android.view.View.VISIBLE
             llWelcomeContainer.visibility = android.view.View.GONE
+            
+            // 显示状态容器
+            llStatusContainer.visibility = android.view.View.VISIBLE
             
             android.util.Log.d("MainActivity", "显示最后阅读图书卡片: ${lastReadBook.name}")
             
@@ -380,6 +410,11 @@ class MainActivity : AppCompatActivity() {
     private fun showWelcomeInterface() {
         llLastReadCard.visibility = android.view.View.GONE
         llWelcomeContainer.visibility = android.view.View.VISIBLE
+        
+        // 隐藏状态容器
+        llStatusContainer.visibility = android.view.View.GONE
+        
+        
         android.util.Log.d("MainActivity", "显示欢迎界面")
     }
     
@@ -443,4 +478,5 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "打开图书失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
+    
 }

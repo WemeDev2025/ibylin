@@ -37,4 +37,12 @@
         <item name="backgroundTint">@color/book_library_button_pressed</item>
         <item name="elevation">2dp</item>
     </style>
+    
+    <!-- 书库标题样式 - 同步正在读的样式 -->
+    <style name="BookLibraryTitleStyle" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textSize">26sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">#FF000000</item>
+    </style>
+    
 </resources>

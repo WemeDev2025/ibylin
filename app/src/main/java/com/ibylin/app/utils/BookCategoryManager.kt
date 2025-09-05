@@ -5,9 +5,6 @@ import android.content.SharedPreferences
 import android.util.Log
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -49,17 +46,6 @@ object BookCategoryManager {
                 return@withContext fileNameCategory.displayName
             }
             
-            // 1.5. 基于百度百科爬虫分类（优先级第二）
-            try {
-                val baiduCategory = classifyByBaiduBaike(epubFile.name, metadata?.title)
-                Log.d(TAG, "🌐 百度百科爬虫分类结果: '${epubFile.name}' -> ${baiduCategory}")
-                if (baiduCategory != BookCategory.UNKNOWN.displayName) {
-                    Log.d(TAG, "✅ 通过百度百科爬虫分类成功: ${baiduCategory}")
-                    return@withContext baiduCategory
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "⚠️ 百度百科爬虫分类失败: ${e.message}")
-            }
             
             // 2. 基于作者分类
             if (metadata != null) {
@@ -70,7 +56,7 @@ object BookCategoryManager {
                     return@withContext authorCategory.displayName
                 }
                 
-                // 3. 基于标题关键词分类
+                // 2. 基于标题关键词分类
                 val titleCategory = classifyByTitle(metadata.title)
                 Log.d(TAG, "📖 标题分类结果: '${metadata.title}' -> ${titleCategory.displayName}")
                 if (titleCategory != BookCategory.UNKNOWN) {
@@ -78,7 +64,7 @@ object BookCategoryManager {
                     return@withContext titleCategory.displayName
                 }
                 
-                // 4. 基于描述关键词分类
+                // 3. 基于描述关键词分类
                 val descCategory = classifyByDescription(metadata.description)
                 Log.d(TAG, "📝 描述分类结果: '${metadata.description}' -> ${descCategory.category}")
                 if (descCategory != DescriptionCategory.UNKNOWN) {
@@ -86,7 +72,7 @@ object BookCategoryManager {
                     return@withContext descCategory.category
                 }
                 
-                // 5. 基于语言分类
+                // 4. 基于语言分类
                 val languageCategory = classifyByLanguageFromContent(metadata.title, metadata.description)
                 Log.d(TAG, "🌐 语言分类结果: title='${metadata.title}', description='${metadata.description}' -> ${languageCategory.displayName}")
                 if (languageCategory != BookCategory.UNKNOWN) {
@@ -105,7 +91,8 @@ object BookCategoryManager {
     }
     
     /**
-     * 基于文件名分类 - 新增方法
+     * 基于文件名分类 - 增强版
+     * 支持更丰富的关键词匹配和权重计算
      */
     private fun classifyByFileName(fileName: String): BookCategory {
         if (fileName.isBlank()) return BookCategory.UNKNOWN
@@ -113,515 +100,187 @@ object BookCategoryManager {
         val lowerFileName = fileName.lowercase()
         Log.d(TAG, "🔍 分析文件名: '$fileName'")
         
-        return when {
-            // 理财/投资类关键词
-            lowerFileName.contains("rich dad") || 
-            lowerFileName.contains("富爸爸") || 
-            lowerFileName.contains("穷爸爸") ||
-            lowerFileName.contains("理财") || 
-            lowerFileName.contains("投资") || 
-            lowerFileName.contains("财富") ||
-            lowerFileName.contains("finance") || 
-            lowerFileName.contains("money") -> {
-                Log.d(TAG, "💰 文件名包含理财关键词")
-                BookCategory.FINANCE
-            }
-            
-            // 文学作品集关键词
-            lowerFileName.contains("作品全集") || 
-            lowerFileName.contains("works") || 
-            lowerFileName.contains("全集") ||
-            lowerFileName.contains("余华") || 
-            lowerFileName.contains("莫言") || 
-            lowerFileName.contains("鲁迅") ||
-            lowerFileName.contains("literature") -> {
-                Log.d(TAG, "📚 文件名包含文学关键词")
-                BookCategory.LITERATURE
-            }
-            
-            // 武侠小说关键词
-            lowerFileName.contains("武侠") || 
-            lowerFileName.contains("金庸") || 
-            lowerFileName.contains("古龙") ||
-            lowerFileName.contains("梁羽生") || 
-            lowerFileName.contains("温瑞安") -> {
-                Log.d(TAG, "⚔️ 文件名包含武侠关键词")
-                BookCategory.WUXIA
-            }
-            
-            // 仙侠小说关键词
-            lowerFileName.contains("仙侠") || 
-            lowerFileName.contains("修仙") || 
-            lowerFileName.contains("修真") ||
-            lowerFileName.contains("萧鼎") || 
-            lowerFileName.contains("我吃西红柿") -> {
-                Log.d(TAG, "✨ 文件名包含仙侠关键词")
-                BookCategory.XIANXIA
-            }
-            
-            // 科幻小说关键词
-            lowerFileName.contains("科幻") || 
-            lowerFileName.contains("三体") || 
-            lowerFileName.contains("刘慈欣") ||
-            lowerFileName.contains("science fiction") || 
-            lowerFileName.contains("sci-fi") -> {
-                Log.d(TAG, "🚀 文件名包含科幻关键词")
-                Log.d(TAG, "  文件名: '$fileName'")
-                Log.d(TAG, "  小写文件名: '$lowerFileName'")
-                Log.d(TAG, "  分类结果: ${BookCategory.SCIENCE_FICTION.displayName}")
-                BookCategory.SCIENCE_FICTION
-            }
-            
-            // 言情小说关键词
-            lowerFileName.contains("言情") || 
-            lowerFileName.contains("爱情") || 
-            lowerFileName.contains("琼瑶") ||
-            lowerFileName.contains("romance") -> {
-                Log.d(TAG, "💕 文件名包含言情关键词")
-                BookCategory.ROMANCE
-            }
-            
-            // 都市小说关键词
-            lowerFileName.contains("都市") || 
-            lowerFileName.contains("现代") || 
-            lowerFileName.contains("都市小说") -> {
-                Log.d(TAG, "🏙️ 文件名包含都市关键词")
-                BookCategory.URBAN_FICTION
-            }
-            
-            // 历史小说关键词
-            lowerFileName.contains("历史") || 
-            lowerFileName.contains("古代") || 
-            lowerFileName.contains("历史小说") ||
-            lowerFileName.contains("history") -> {
-                Log.d(TAG, "📜 文件名包含历史关键词")
-                BookCategory.HISTORY
-            }
-            
-            // 语言分类
-            lowerFileName.contains("english") || 
-            lowerFileName.contains("英文") -> {
-                Log.d(TAG, "🇺🇸 文件名包含英文关键词")
-                BookCategory.ENGLISH
-            }
-            
-            lowerFileName.contains("japanese") || 
-            lowerFileName.contains("日文") -> {
-                Log.d(TAG, "🇯🇵 文件名包含日文关键词")
-                BookCategory.JAPANESE
-            }
-            
-            // 默认中文
-            lowerFileName.matches(Regex(".*[\\u4e00-\\u9fa5]+.*")) -> {
-                Log.d(TAG, "🇨🇳 文件名包含中文字符，分类为中文")
-                BookCategory.CHINESE
-            }
-            
-            else -> {
-                Log.d(TAG, "❓ 文件名无法识别分类")
-                BookCategory.UNKNOWN
-            }
-        }
-    }
-    
-    /**
-     * 基于百度百科的WebView爬虫分类
-     */
-    private suspend fun classifyByBaiduBaike(fileName: String, title: String?): String = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "🌐 开始百度百科爬虫分类: fileName='$fileName', title='$title'")
-            
-            // 优先使用标题，其次使用文件名
-            val searchQuery = title ?: fileName
-            val cleanQuery = cleanSearchQuery(searchQuery)
-            
-            Log.d(TAG, "🔍 清理后的搜索关键词: '$cleanQuery'")
-            
-            // 构建百度百科URL
-            val baiduUrl = if (cleanQuery.matches(Regex(".*[\\u4e00-\\u9fa5]+.*"))) {
-                // 包含中文字符，直接使用
-                "https://baike.baidu.com/item/$cleanQuery"
-            } else {
-                // 纯英文，尝试翻译为中文或使用搜索
-                val chineseTitle = translateEnglishTitle(cleanQuery)
-                if (chineseTitle != cleanQuery) {
-                    Log.d(TAG, "🔄 英文书名翻译: '$cleanQuery' -> '$chineseTitle'")
-                    "https://baike.baidu.com/item/$chineseTitle"
-                } else {
-                    // 如果无法翻译，跳过百度百科搜索
-                    Log.d(TAG, "⚠️ 英文书名无法翻译，跳过百度百科搜索: '$cleanQuery'")
-                    return@withContext BookCategory.UNKNOWN.displayName
-                }
-            }
-            
-            Log.d(TAG, "📚 百度百科URL: $baiduUrl")
-            Log.d(TAG, "📚 清理后的查询: $cleanQuery")
-            
-            // 发送HTTP请求获取页面内容
-            val connection = URL(baiduUrl).openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-            connection.connectTimeout = 10000
-            connection.readTimeout = 15000
-            
-            Log.d(TAG, "🌐 发送HTTP请求到百度百科...")
-            
-            if (connection.responseCode == 200) {
-                Log.d(TAG, "✅ 百度百科请求成功，开始解析HTML内容")
-                val htmlContent = connection.inputStream.bufferedReader().use { it.readText() }
-                
-                Log.d(TAG, "📄 HTML内容长度: ${htmlContent.length}")
-                Log.d(TAG, "📄 HTML内容前500字符: ${htmlContent.take(500)}")
-                
-                val category = parseBaiduBaikeCategory(htmlContent, cleanQuery)
-                
-                if (category != BookCategory.UNKNOWN.displayName) {
-                    Log.d(TAG, "✅ 百度百科爬虫分类成功: $category")
-                    return@withContext category
-                } else {
-                    Log.d(TAG, "❌ 百度百科爬虫未能提取到有效分类")
-                }
-            } else {
-                Log.w(TAG, "❌ 百度百科请求失败，状态码: ${connection.responseCode}")
-                Log.w(TAG, "❌ 响应消息: ${connection.responseMessage}")
-            }
-            
-            Log.d(TAG, "❌ 百度百科爬虫分类失败")
-            BookCategory.UNKNOWN.displayName
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ 百度百科爬虫分类异常", e)
-            Log.e(TAG, "❌ 异常详情: ${e.message}")
-            BookCategory.UNKNOWN.displayName
-        }
-    }
-    
-    /**
-     * 解析百度百科HTML内容，提取分类信息
-     */
-    private fun parseBaiduBaikeCategory(htmlContent: String, bookTitle: String): String {
-        try {
-            Log.d(TAG, "🔍 开始解析百度百科HTML内容，书名: '$bookTitle'")
-            
-            // 1. 查找标题下方的分类描述
-            // 匹配模式：<h1>书名</h1> 后面的分类描述
-            val titlePattern = Regex("<h1[^>]*>.*?$bookTitle.*?</h1>", RegexOption.DOT_MATCHES_ALL)
-            val titleMatch = titlePattern.find(htmlContent)
-            
-            Log.d(TAG, "🔍 搜索标题模式: <h1[^>]*>.*?$bookTitle.*?</h1>")
-            Log.d(TAG, "🔍 标题匹配结果: ${if (titleMatch != null) "找到" else "未找到"}")
-            
-            if (titleMatch != null) {
-                Log.d(TAG, "📖 找到标题匹配: '${titleMatch.value}'")
-                val titleEnd = titleMatch.range.last + 1
-                val afterTitle = htmlContent.substring(titleEnd)
-                
-                Log.d(TAG, "📖 标题后的内容前200字符: ${afterTitle.take(200)}")
-                
-                // 2. 查找分类描述（通常在标题后的第一个段落或div中）
-                val categoryPatterns = listOf(
-                    Regex("创作的([^，。]+)"), // "创作的网游小说"
-                    Regex("([^，。]*小说)"), // "网游小说"
-                    Regex("([^，。]*文学)"), // "网络文学"
-                    Regex("([^，。]*作品)"), // "文学作品"
-                    Regex("([^，。]*书)") // "工具书"
-                )
-                
-                Log.d(TAG, "🔍 开始匹配分类模式...")
-                for ((index, pattern) in categoryPatterns.withIndex()) {
-                    Log.d(TAG, "🔍 尝试模式 $index: ${pattern.pattern}")
-                    val match = pattern.find(afterTitle)
-                    if (match != null) {
-                        val categoryText = match.groupValues[1].trim()
-                        Log.d(TAG, "📖 找到分类描述: '$categoryText'")
-                        
-                        // 3. 映射到应用分类
-                        val mappedCategory = mapBaiduCategoryToAppCategory(categoryText)
-                        if (mappedCategory != BookCategory.UNKNOWN.displayName) {
-                            Log.d(TAG, "✅ 分类映射成功: '$categoryText' -> '$mappedCategory'")
-                            return mappedCategory
-                        } else {
-                            Log.d(TAG, "❓ 分类映射失败: '$categoryText' -> 未分类")
-                        }
-                    } else {
-                        Log.d(TAG, "❌ 模式 $index 未匹配")
-                    }
-                }
-            } else {
-                Log.d(TAG, "❌ 未找到标题匹配，尝试其他方法")
-            }
-            
-            // 4. 如果没找到，尝试从页面内容中搜索关键词
-            Log.d(TAG, "🔍 尝试从页面内容搜索关键词...")
-            val contentCategory = searchCategoryInContent(htmlContent)
-            if (contentCategory != BookCategory.UNKNOWN.displayName) {
-                Log.d(TAG, "✅ 从页面内容找到分类: '$contentCategory'")
-                return contentCategory
-            }
-            
-            Log.d(TAG, "❌ 未能从百度百科提取分类信息")
-            return BookCategory.UNKNOWN.displayName
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ 解析百度百科HTML失败", e)
-            Log.e(TAG, "❌ 异常详情: ${e.message}")
-            return BookCategory.UNKNOWN.displayName
-        }
-    }
-    
-    /**
-     * 将百度百科的分类描述映射到应用分类
-     */
-    private fun mapBaiduCategoryToAppCategory(baiduCategory: String): String {
-        val lowerCategory = baiduCategory.lowercase()
+        // 使用权重计算提高准确性
+        val categoryScores = mutableMapOf<BookCategory, Int>()
         
-        return when {
-            // 科幻类
-            lowerCategory.contains("科幻") || 
-            lowerCategory.contains("science fiction") || 
-            lowerCategory.contains("sci-fi") -> BookCategory.SCIENCE_FICTION.displayName
-            
-            // 武侠类
-            lowerCategory.contains("武侠") || 
-            lowerCategory.contains("武侠小说") -> BookCategory.WUXIA.displayName
-            
-            // 仙侠类
-            lowerCategory.contains("仙侠") || 
-            lowerCategory.contains("修仙") || 
-            lowerCategory.contains("修真") -> BookCategory.XIANXIA.displayName
-            
-            // 言情类
-            lowerCategory.contains("言情") || 
-            lowerCategory.contains("爱情") || 
-            lowerCategory.contains("romance") -> BookCategory.ROMANCE.displayName
-            
-            // 都市类
-            lowerCategory.contains("都市") || 
-            lowerCategory.contains("现代") || 
-            lowerCategory.contains("网游") || 
-            lowerCategory.contains("网络") -> BookCategory.URBAN_FICTION.displayName
-            
-            // 历史类
-            lowerCategory.contains("历史") || 
-            lowerCategory.contains("historical") -> BookCategory.HISTORY.displayName
-            
-            // 文学类
-            lowerCategory.contains("文学") || 
-            lowerCategory.contains("小说") || 
-            lowerCategory.contains("literature") -> BookCategory.LITERATURE.displayName
-            
-            // 理财类
-            lowerCategory.contains("理财") || 
-            lowerCategory.contains("投资") || 
-            lowerCategory.contains("财富") -> BookCategory.FINANCE.displayName
-            
-            else -> {
-                Log.d(TAG, "❓ 未识别的分类: '$baiduCategory'")
-                BookCategory.UNKNOWN.displayName
-            }
-        }
-    }
-    
-    /**
-     * 从页面内容中搜索分类关键词
-     */
-    private fun searchCategoryInContent(htmlContent: String): String {
-        val content = htmlContent.lowercase()
-        
-        // 搜索常见的分类关键词
-        val categoryKeywords = mapOf(
-            "科幻" to BookCategory.SCIENCE_FICTION.displayName,
-            "武侠" to BookCategory.WUXIA.displayName,
-            "仙侠" to BookCategory.XIANXIA.displayName,
-            "言情" to BookCategory.ROMANCE.displayName,
-            "都市" to BookCategory.URBAN_FICTION.displayName,
-            "网游" to BookCategory.URBAN_FICTION.displayName,
-            "历史" to BookCategory.HISTORY.displayName,
-            "文学" to BookCategory.LITERATURE.displayName,
-            "理财" to BookCategory.FINANCE.displayName
+        // 理财/投资类关键词 - 权重增强
+        val financeKeywords = listOf(
+            "rich dad", "富爸爸", "穷爸爸", "理财", "投资", "财富", 
+            "finance", "money", "股票", "基金", "债券", "经济", "商业",
+            // 理财子分类关键词
+            "个人理财", "家庭理财", "企业理财", "投资理财", "财富管理", "资产管理",
+            "股票投资", "基金投资", "债券投资", "期货投资", "外汇投资", "黄金投资",
+            "房地产投资", "房产投资", "地产投资", "商铺投资", "写字楼投资", "住宅投资",
+            "创业投资", "风险投资", "天使投资", "私募投资", "公募投资", "机构投资",
+            "价值投资", "成长投资", "趋势投资", "技术分析", "基本面分析", "量化投资",
+            "股票", "基金", "债券", "期货", "外汇", "黄金", "白银", "原油",
+            "房地产", "房产", "地产", "商铺", "写字楼", "住宅", "别墅", "公寓",
+            "银行", "保险", "证券", "信托", "私募", "公募", "资管", "理财",
+            "储蓄", "存款", "贷款", "信用卡", "消费", "支出", "收入", "预算",
+            "税务", "税收", "税务筹划", "税务优化", "税务规划", "税务管理",
+            "财务报表", "财务分析", "财务规划", "财务自由", "财务独立", "财务安全",
+            "经济学", "金融学", "会计学", "管理学", "市场营销", "商业管理",
+            "创业", "企业家", "企业家精神", "商业模式", "商业计划", "商业策略"
         )
-        
-        for ((keyword, category) in categoryKeywords) {
-            if (content.contains(keyword)) {
-                Log.d(TAG, "🔍 在页面内容中找到关键词: '$keyword' -> '$category'")
-                return category
-            }
+        if (financeKeywords.any { lowerFileName.contains(it) }) {
+            categoryScores[BookCategory.FINANCE] = 10
+            Log.d(TAG, "💰 文件名包含理财关键词")
         }
         
-        return BookCategory.UNKNOWN.displayName
-    }
-    
-    /**
-     * 翻译英文书名为中文
-     */
-    private fun translateEnglishTitle(englishTitle: String): String {
-        // 常见英文书名的中文翻译
-        val translations = mapOf(
-            "A Christmas Carol" to "圣诞颂歌",
-            "The Three-Body Problem" to "三体",
-            "Rich Dad Poor Dad" to "富爸爸穷爸爸",
-            "The Great Gatsby" to "了不起的盖茨比",
-            "To Kill a Mockingbird" to "杀死一只知更鸟",
-            "1984" to "一九八四",
-            "Pride and Prejudice" to "傲慢与偏见",
-            "The Catcher in the Rye" to "麦田里的守望者",
-            "Lord of the Flies" to "蝇王",
-            "The Hobbit" to "霍比特人",
-            "The Lord of the Rings" to "指环王",
-            "Harry Potter" to "哈利波特",
-            "The Chronicles of Narnia" to "纳尼亚传奇",
-            "Alice in Wonderland" to "爱丽丝梦游仙境",
-            "The Little Prince" to "小王子",
-            "Gone with the Wind" to "飘",
-            "The Old Man and the Sea" to "老人与海",
-            "The Sun Also Rises" to "太阳照常升起",
-            "For Whom the Bell Tolls" to "丧钟为谁而鸣",
-            "The Grapes of Wrath" to "愤怒的葡萄"
+        // 文学作品集关键词 - 权重增强
+        val literatureKeywords = listOf(
+            "作品全集", "works", "全集", "余华", "莫言", "鲁迅", "literature",
+            "围城", "活着", "平凡的世界", "白鹿原", "红高粱", "经典", "名著",
+            // 文学子分类关键词
+            "现代文学", "当代文学", "古典文学", "古代文学", "近代文学", "现代小说",
+            "当代小说", "古典小说", "古代小说", "近代小说", "现实主义", "浪漫主义",
+            "现代主义", "后现代主义", "意识流", "魔幻现实主义", "超现实主义", "存在主义",
+            "散文", "诗歌", "小说", "戏剧", "剧本", "随笔", "杂文", "评论",
+            "传记", "自传", "回忆录", "日记", "书信", "游记", "报告文学", "纪实文学",
+            "茅盾文学奖", "诺贝尔文学奖", "鲁迅文学奖", "老舍文学奖", "冰心文学奖",
+            "鲁迅", "老舍", "巴金", "茅盾", "沈从文", "张爱玲", "钱钟书", "林语堂",
+            "余华", "莫言", "贾平凹", "陈忠实", "路遥", "王小波", "王朔", "苏童",
+            "格非", "余秋雨", "史铁生", "汪曾祺", "孙犁", "赵树理", "周立波", "丁玲",
+            "冰心", "萧红", "萧军", "端木蕻良", "艾青", "臧克家", "何其芳", "卞之琳",
+            "经典", "名著", "传世", "不朽", "永恒", "伟大", "杰出", "优秀",
+            "文学史", "文学理论", "文学批评", "文学研究", "文学评论", "文学创作"
         )
-        
-        val lowerTitle = englishTitle.lowercase().trim()
-        for ((english, chinese) in translations) {
-            if (lowerTitle.contains(english.lowercase())) {
-                Log.d(TAG, "📚 找到英文书名翻译: '$englishTitle' -> '$chinese'")
-                return chinese
-            }
+        if (literatureKeywords.any { lowerFileName.contains(it) }) {
+            categoryScores[BookCategory.LITERATURE] = 10
+            Log.d(TAG, "📚 文件名包含文学关键词")
         }
         
-        Log.d(TAG, "❓ 未找到英文书名翻译: '$englishTitle'")
-        return englishTitle
-    }
-    
-    /**
-     * 清理搜索关键词
-     */
-    private fun cleanSearchQuery(query: String): String {
-        return query
-            .replace(Regex("[\\[\\]()（）【】《》\"\"''`~!@#$%^&*+=|\\\\:;\"'<>,.?/]"), " ") // 移除特殊字符
-            .replace(Regex("\\s+"), " ") // 合并多个空格
-            .trim()
-            .take(50) // 限制长度
-    }
-    
-    /**
-     * 搜索Open Library API
-     */
-    private suspend fun searchOpenLibrary(query: String): String = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "📚 搜索Open Library: '$query'")
-            
-            val encodedQuery = URLEncoder.encode(query, "UTF-8")
-            val url = "https://openlibrary.org/search.json?title=$encodedQuery&limit=1"
-            
-            val connection = URL(url).openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (compatible; BookClassifier/1.0)")
-            connection.connectTimeout = 5000
-            connection.readTimeout = 10000
-            
-            if (connection.responseCode == 200) {
-                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                val json = JSONObject(response)
-                
-                val docs = json.optJSONArray("docs")
-                if (docs != null && docs.length() > 0) {
-                    val firstBook = docs.getJSONObject(0)
-                    val subjects = firstBook.optJSONArray("subject")
-                    
-                    if (subjects != null) {
-                        for (i in 0 until subjects.length()) {
-                            val subject = subjects.getString(i)
-                            val category = mapOpenLibrarySubject(subject)
-                            if (category != BookCategory.UNKNOWN.displayName) {
-                                Log.d(TAG, "📖 Open Library找到分类: '$subject' -> '$category'")
-                                return@withContext category
-                            }
-                        }
-                    }
-                }
-            }
-            
-            Log.d(TAG, "❌ Open Library搜索无结果")
-            BookCategory.UNKNOWN.displayName
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Open Library搜索失败", e)
-            BookCategory.UNKNOWN.displayName
+        // 武侠小说关键词 - 权重增强
+        val wuxiaKeywords = listOf(
+            "武侠", "金庸", "古龙", "梁羽生", "温瑞安", "黄易", "卧龙生",
+            "仙侠", "修仙", "修真", "萧鼎", "我吃西红柿", "唐家三少", "天蚕土豆",
+            "江湖", "武林", "剑客", "侠客", "武功", "内功", "轻功",
+            // 武侠子分类关键词
+            "玄幻", "奇幻", "魔幻", "东方玄幻", "西方奇幻", "异世", "异界",
+            "修炼", "境界", "突破", "渡劫", "飞升", "成仙", "成神", "成圣",
+            "功法", "秘籍", "心法", "武技", "神通", "法术", "符咒", "阵法",
+            "灵根", "灵脉", "丹田", "经脉", "穴位", "真气", "灵力", "法力",
+            "法宝", "法器", "灵器", "仙器", "神器", "圣器", "武器", "装备",
+            "丹药", "灵药", "仙药", "神药", "炼器", "炼丹", "制符", "布阵",
+            "宗门", "门派", "帮派", "势力", "家族", "皇朝", "帝国", "王朝",
+            "师父", "师傅", "弟子", "师兄", "师姐", "师弟", "师妹", "师叔",
+            "魔道", "正道", "邪道", "妖道", "鬼道", "佛道", "儒道", "道门",
+            "妖兽", "魔兽", "神兽", "圣兽", "灵兽", "凶兽", "异兽", "神兽",
+            "秘境", "洞府", "遗迹", "古墓", "禁地", "险地", "福地", "宝地"
+        )
+        if (wuxiaKeywords.any { lowerFileName.contains(it) }) {
+            categoryScores[BookCategory.WUXIA] = 10
+            Log.d(TAG, "⚔️ 文件名包含武侠关键词")
         }
-    }
-    
-    /**
-     * 映射Open Library主题到应用分类
-     */
-    private fun mapOpenLibrarySubject(subject: String): String {
-        val lowerSubject = subject.lowercase()
         
-        return when {
-            // 文学类
-            lowerSubject.contains("fiction") || 
-            lowerSubject.contains("novel") || 
-            lowerSubject.contains("literature") ||
-            lowerSubject.contains("小说") || 
-            lowerSubject.contains("文学") -> BookCategory.LITERATURE.displayName
-            
-            // 科幻类
-            lowerSubject.contains("science fiction") || 
-            lowerSubject.contains("sci-fi") || 
-            lowerSubject.contains("科幻") -> BookCategory.SCIENCE_FICTION.displayName
-            
-            // 言情类
-            lowerSubject.contains("romance") || 
-            lowerSubject.contains("love") || 
-            lowerSubject.contains("言情") -> BookCategory.ROMANCE.displayName
-            
-            // 历史类
-            lowerSubject.contains("history") || 
-            lowerSubject.contains("historical") || 
-            lowerSubject.contains("历史") -> BookCategory.HISTORY.displayName
-            
-            // 理财类
-            lowerSubject.contains("business") || 
-            lowerSubject.contains("economics") || 
-            lowerSubject.contains("finance") || 
-            lowerSubject.contains("理财") || 
-            lowerSubject.contains("经济") -> BookCategory.FINANCE.displayName
-            
-            // 武侠类
-            lowerSubject.contains("martial arts") || 
-            lowerSubject.contains("武侠") -> BookCategory.WUXIA.displayName
-            
-            // 仙侠类
-            lowerSubject.contains("fantasy") || 
-            lowerSubject.contains("仙侠") || 
-            lowerSubject.contains("修仙") -> BookCategory.XIANXIA.displayName
-            
-            // 都市类
-            lowerSubject.contains("urban") || 
-            lowerSubject.contains("都市") -> BookCategory.URBAN_FICTION.displayName
-            
-            else -> BookCategory.UNKNOWN.displayName
+        // 科幻小说关键词 - 权重增强
+        val scifiKeywords = listOf(
+            "科幻", "三体", "刘慈欣", "science fiction", "sci-fi", "太空", "星际",
+            "未来", "机器人", "AI", "虚拟现实", "时间旅行", "银河", "宇宙",
+            // 科幻子分类关键词
+            "硬科幻", "软科幻", "太空歌剧", "赛博朋克", "蒸汽朋克", "反乌托邦",
+            "外星人", "UFO", "星际战争", "星际迷航", "星球大战", "银河系",
+            "时空", "虫洞", "黑洞", "量子", "基因工程", "克隆", "人工智能",
+            "机械", "机甲", "飞船", "太空站", "殖民", "星际文明", "超能力",
+            "变异", "进化", "末日", "灾难", "核战", "生化", "病毒", "疫苗",
+            "纳米", "生物技术", "神经", "意识", "记忆", "梦境", "平行宇宙",
+            "多维", "维度", "穿越", "重生", "轮回", "预言", "先知", "超自然"
+        )
+        if (scifiKeywords.any { lowerFileName.contains(it) }) {
+            categoryScores[BookCategory.SCIENCE_FICTION] = 10
+            Log.d(TAG, "🚀 文件名包含科幻关键词")
+        }
+        
+        // 言情小说关键词 - 权重增强
+        val romanceKeywords = listOf(
+            "言情", "爱情", "琼瑶", "romance", "霸道总裁", "甜宠", "虐恋",
+            "重生", "穿越", "豪门", "都市", "现代", "都市小说", "总裁",
+            // 言情子分类关键词
+            "现代言情", "古代言情", "都市言情", "校园言情", "职场言情", "豪门言情",
+            "总裁文", "霸总", "高冷", "腹黑", "温柔", "暖男", "男神", "女神",
+            "校草", "校花", "学霸", "学渣", "老师", "学生", "医生", "律师",
+            "明星", "演员", "歌手", "模特", "设计师", "画家", "作家", "记者",
+            "警察", "军人", "特工", "保镖", "司机", "厨师", "服务员", "秘书",
+            "青梅竹马", "两小无猜", "一见钟情", "日久生情", "暗恋", "单恋", "失恋",
+            "初恋", "热恋", "分手", "复合", "结婚", "离婚", "再婚", "单身",
+            "甜文", "虐文", "宠文", "爽文", "苏文", "玛丽苏", "杰克苏", "白莲花",
+            "绿茶", "心机", "腹黑", "傲娇", "病娇", "忠犬", "狼狗", "奶狗",
+            "重生文", "穿越文", "快穿文", "系统文", "空间文", "末世文", "校园文",
+            "娱乐圈", "娱乐圈文", "娱乐圈小说", "明星文", "影帝", "影后", "流量",
+            "网红", "直播", "短视频", "综艺", "选秀", "出道", "粉丝", "黑粉"
+        )
+        if (romanceKeywords.any { lowerFileName.contains(it) }) {
+            categoryScores[BookCategory.ROMANCE] = 10
+            Log.d(TAG, "💕 文件名包含言情关键词")
+        }
+        
+        // 历史小说关键词 - 权重增强
+        val historyKeywords = listOf(
+            "历史", "古代", "历史小说", "history", "王朝", "皇帝", "将军",
+            "公主", "宫廷", "战争", "古代", "汉朝", "唐朝", "宋朝",
+            // 历史子分类关键词
+            "历史架空", "架空历史", "穿越历史", "重生历史", "历史军事", "历史权谋",
+            "夏朝", "商朝", "周朝", "春秋", "战国", "秦朝", "汉朝", "三国",
+            "晋朝", "南北朝", "隋朝", "唐朝", "五代十国", "宋朝", "元朝", "明朝", "清朝",
+            "民国", "近代", "现代", "当代", "古代", "上古", "中古", "近古",
+            "皇帝", "皇后", "太后", "太子", "皇子", "公主", "郡主", "县主",
+            "丞相", "宰相", "尚书", "侍郎", "将军", "元帅", "都督", "都尉",
+            "太监", "宫女", "侍卫", "禁军", "御林军", "锦衣卫", "东厂", "西厂",
+            "科举", "状元", "榜眼", "探花", "进士", "举人", "秀才", "童生",
+            "宫廷", "皇宫", "紫禁城", "后宫", "东宫", "西宫", "冷宫", "御花园",
+            "战争", "战役", "战斗", "军事", "兵法", "谋略", "计策", "策略",
+            "权谋", "政治", "朝政", "朝堂", "朝会", "朝议", "朝臣", "朝野",
+            "江湖", "武林", "门派", "帮派", "绿林", "山贼", "土匪", "盗匪",
+            "商贾", "商人", "商队", "贸易", "商业", "经济", "财政", "税收"
+        )
+        if (historyKeywords.any { lowerFileName.contains(it) }) {
+            categoryScores[BookCategory.HISTORY] = 10
+            Log.d(TAG, "📜 文件名包含历史关键词")
+        }
+        
+        // 英文图书关键词 - 权重增强
+        val englishKeywords = listOf(
+            "english", "英文", "English", "ENGLISH", "eng", "ENG",
+            // 英文图书常见标题关键词
+            "The", "A", "An", "Of", "And", "In", "On", "At", "To", "For",
+            "With", "By", "From", "About", "Into", "Through", "During",
+            "Before", "After", "Above", "Below", "Between", "Among",
+            // 英文图书分类关键词
+            "Novel", "Story", "Tale", "Fiction", "Non-fiction", "Biography",
+            "Autobiography", "Memoir", "History", "Science", "Technology",
+            "Business", "Finance", "Investment", "Marketing", "Management",
+            "Psychology", "Philosophy", "Religion", "Politics", "Economics",
+            "Literature", "Poetry", "Drama", "Comedy", "Tragedy", "Romance",
+            "Mystery", "Thriller", "Horror", "Fantasy", "Adventure", "Action",
+            "Crime", "Detective", "Suspense", "Drama", "Comedy", "Romance"
+        )
+        val isEnglishOnly = lowerFileName.matches(Regex(".*[a-zA-Z]+.*")) && 
+                           !lowerFileName.matches(Regex(".*[\\u4e00-\\u9fa5]+.*"))
+        
+        if (englishKeywords.any { lowerFileName.contains(it) } || isEnglishOnly) {
+            categoryScores[BookCategory.ENGLISH] = 10
+            Log.d(TAG, "🇺🇸 文件名包含英文关键词，分类为英文")
+        }
+        
+        // 返回得分最高的分类
+        return if (categoryScores.isNotEmpty()) {
+            val bestCategory = categoryScores.maxByOrNull { it.value }?.key ?: BookCategory.UNKNOWN
+            Log.d(TAG, "✅ 文件名分类结果: ${bestCategory.displayName} (得分: ${categoryScores[bestCategory]})")
+            bestCategory
+        } else {
+            Log.d(TAG, "❓ 文件名无法识别分类")
+            BookCategory.UNKNOWN
         }
     }
     
-    /**
-     * 简单的网络内容搜索（备选方案）
-     */
-    private suspend fun searchWebContent(query: String): String = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "🔍 执行简单网络搜索: '$query'")
-            
-            // 这里可以实现简单的网络搜索逻辑
-            // 比如搜索书名 + "分类" 关键词
-            val searchQuery = "$query 分类 类型"
-            Log.d(TAG, "🔍 搜索关键词: '$searchQuery'")
-            
-            // 暂时返回未知，实际实现中可以解析搜索结果
-            BookCategory.UNKNOWN.displayName
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "网络内容搜索失败", e)
-            BookCategory.UNKNOWN.displayName
-        }
-    }
+    
+    
+    
+    
+    
+    
+    
+    
     
     /**
      * 基于作者分类
@@ -630,35 +289,124 @@ object BookCategoryManager {
         if (author.isNullOrBlank()) return BookCategory.UNKNOWN
         
         return when {
-            // 武侠小说作者
+            // 武侠小说作者 - 传统武侠
             author.contains("金庸") || author.contains("古龙") || 
             author.contains("梁羽生") || author.contains("温瑞安") ||
             author.contains("黄易") || author.contains("卧龙生") ||
-            author.contains("司马翎") || author.contains("诸葛青云") -> BookCategory.WUXIA
+            author.contains("司马翎") || author.contains("诸葛青云") ||
+            author.contains("还珠楼主") || author.contains("平江不肖生") ||
+            author.contains("王度庐") || author.contains("宫白羽") ||
+            author.contains("小椴") || author.contains("凤歌") ||
+            author.contains("沧月") || author.contains("步非烟") ||
+            author.contains("时未寒") || author.contains("方白羽") ||
+            author.contains("杨叛") || author.contains("李凉") ||
+            author.contains("司马紫烟") || author.contains("云中岳") ||
+            author.contains("柳残阳") || author.contains("独孤红") ||
+            author.contains("陈青云") || author.contains("萧逸") -> BookCategory.WUXIA
             
-            // 仙侠小说作者
+            // 仙侠小说作者 - 网络仙侠
             author.contains("萧鼎") || author.contains("我吃西红柿") ||
             author.contains("唐家三少") || author.contains("天蚕土豆") ||
-            author.contains("辰东") || author.contains("忘语") -> BookCategory.XIANXIA
+            author.contains("辰东") || author.contains("忘语") ||
+            author.contains("耳根") || author.contains("猫腻") ||
+            author.contains("烽火戏诸侯") || author.contains("梦入神机") ||
+            author.contains("血红") || author.contains("跳舞") ||
+            author.contains("月关") || author.contains("孑与2") ||
+            author.contains("厌笔萧生") || author.contains("风凌天下") ||
+            author.contains("净无痕") || author.contains("鱼人二代") ||
+            author.contains("宅猪") || author.contains("牧神记") ||
+            author.contains("圣墟") || author.contains("完美世界") ||
+            author.contains("遮天") || author.contains("神墓") ||
+            author.contains("长生界") || author.contains("不死不灭") ||
+            author.contains("番茄") || author.contains("三少") ||
+            author.contains("土豆") || author.contains("东哥") -> BookCategory.WUXIA
             
-            // 科幻小说作者
+            // 科幻小说作者 - 中国科幻
             author.contains("刘慈欣") || author.contains("王晋康") ||
-            author.contains("何夕") || author.contains("韩松") -> BookCategory.SCIENCE_FICTION
+            author.contains("何夕") || author.contains("韩松") ||
+            author.contains("郝景芳") || author.contains("陈楸帆") ||
+            author.contains("江波") || author.contains("夏笳") ||
+            author.contains("刘宇昆") || author.contains("宝树") ||
+            author.contains("大刘") || author.contains("三体") ||
+            author.contains("流浪地球") || author.contains("球状闪电") ||
+            author.contains("超新星纪元") || author.contains("中国太阳") ||
+            author.contains("乡村教师") || author.contains("全频带阻塞干扰") -> BookCategory.SCIENCE_FICTION
             
-            // 言情小说作者
+            // 科幻小说作者 - 国际科幻
+            author.contains("阿西莫夫") || author.contains("海因莱因") ||
+            author.contains("克拉克") || author.contains("菲利普·K·迪克") ||
+            author.contains("阿瑟·克拉克") || author.contains("罗伯特·海因莱因") ||
+            author.contains("艾萨克·阿西莫夫") || author.contains("菲利普·迪克") ||
+            author.contains("弗兰克·赫伯特") || author.contains("沙丘") ||
+            author.contains("基地") || author.contains("银河帝国") ||
+            author.contains("机器人") || author.contains("我，机器人") ||
+            author.contains("2001太空漫游") || author.contains("2010太空漫游") -> BookCategory.SCIENCE_FICTION
+            
+            // 言情小说作者 - 传统言情
             author.contains("琼瑶") || author.contains("席绢") ||
-            author.contains("古灵") || author.contains("楼雨晴") -> BookCategory.ROMANCE
+            author.contains("古灵") || author.contains("楼雨晴") ||
+            author.contains("于晴") || author.contains("典心") ||
+            author.contains("决明") || author.contains("绿痕") ||
+            author.contains("寄秋") || author.contains("简璎") ||
+            author.contains("子纹") || author.contains("子心") ||
+            author.contains("子澄") || author.contains("子心") -> BookCategory.ROMANCE
             
-            // 都市小说作者
-            author.contains("都市") || author.contains("现代") -> BookCategory.URBAN_FICTION
+            // 言情小说作者 - 网络言情
+            author.contains("顾漫") || author.contains("丁墨") ||
+            author.contains("匪我思存") || author.contains("桐华") ||
+            author.contains("辛夷坞") || author.contains("明晓溪") ||
+            author.contains("八月长安") || author.contains("九夜茴") ||
+            author.contains("饶雪漫") || author.contains("郭敬明") ||
+            author.contains("墨宝非宝") || author.contains("北倾") ||
+            author.contains("东奔西顾") || author.contains("酒小七") ||
+            author.contains("板栗子") || author.contains("春风榴火") ||
+            author.contains("时星草") -> BookCategory.ROMANCE
+            
+            // 都市小说作者 - 合并到言情
+            author.contains("都市") || author.contains("现代") -> BookCategory.ROMANCE
             
             // 历史小说作者
-            author.contains("历史") || author.contains("古代") -> BookCategory.HISTORY
+            author.contains("历史") || author.contains("古代") ||
+            author.contains("当年明月") || author.contains("易中天") ||
+            author.contains("袁腾飞") || author.contains("高晓松") -> BookCategory.HISTORY
             
-            // 文学作者
+            // 文学作者 - 现代文学
             author.contains("鲁迅") || author.contains("老舍") ||
             author.contains("巴金") || author.contains("茅盾") ||
-            author.contains("沈从文") || author.contains("张爱玲") -> BookCategory.LITERATURE
+            author.contains("沈从文") || author.contains("张爱玲") ||
+            author.contains("钱钟书") || author.contains("林语堂") ||
+            author.contains("郁达夫") || author.contains("徐志摩") -> BookCategory.LITERATURE
+            
+            // 文学作者 - 当代文学
+            author.contains("余华") || author.contains("莫言") ||
+            author.contains("贾平凹") || author.contains("陈忠实") ||
+            author.contains("路遥") || author.contains("王小波") ||
+            author.contains("王朔") || author.contains("苏童") ||
+            author.contains("格非") || author.contains("余秋雨") ||
+            author.contains("史铁生") || author.contains("汪曾祺") -> BookCategory.LITERATURE
+            
+            // 理财投资作者
+            author.contains("罗伯特·清崎") || author.contains("富爸爸") ||
+            author.contains("穷爸爸") || author.contains("巴菲特") ||
+            author.contains("查理·芒格") || author.contains("彼得·林奇") ||
+            author.contains("本杰明·格雷厄姆") || author.contains("约翰·博格") ||
+            author.contains("瑞·达利欧") || author.contains("纳西姆·塔勒布") ||
+            author.contains("沃伦·巴菲特") || author.contains("查理·芒格") ||
+            author.contains("彼得·林奇") || author.contains("本杰明·格雷厄姆") ||
+            author.contains("约翰·博格") || author.contains("瑞·达利欧") ||
+            author.contains("纳西姆·塔勒布") -> BookCategory.FINANCE
+            
+            // 英文作者识别
+            author.contains("Stephen King") || author.contains("J.K. Rowling") ||
+            author.contains("George R.R. Martin") || author.contains("Dan Brown") ||
+            author.contains("Agatha Christie") || author.contains("Ernest Hemingway") ||
+            author.contains("Mark Twain") || author.contains("Charles Dickens") ||
+            author.contains("Jane Austen") || author.contains("William Shakespeare") ||
+            author.contains("J.R.R. Tolkien") || author.contains("Lord of the Rings") ||
+            author.contains("The Hobbit") || author.contains("Harry Potter") ||
+            author.contains("Game of Thrones") || author.contains("A Song of Ice and Fire") ||
+            author.contains("The Da Vinci Code") || author.contains("Angels and Demons") ||
+            author.contains("Murder on the Orient Express") || author.contains("The Old Man and the Sea") -> BookCategory.ENGLISH
             
             else -> BookCategory.UNKNOWN
         }
@@ -680,11 +428,11 @@ object BookCategoryManager {
             title.contains("倚天") || title.contains("天龙") ||
             title.contains("笑傲") || title.contains("鹿鼎") -> BookCategory.WUXIA
             
-            // 仙侠关键词
+            // 仙侠关键词 - 合并到武侠
             title.contains("仙侠") || title.contains("修仙") ||
             title.contains("修真") || title.contains("仙") ||
             title.contains("道") || title.contains("魔") ||
-            title.contains("神") || title.contains("妖") -> BookCategory.XIANXIA
+            title.contains("神") || title.contains("妖") -> BookCategory.WUXIA
             
             // 科幻关键词
             title.contains("科幻") || title.contains("未来") ||
@@ -697,9 +445,9 @@ object BookCategoryManager {
             title.contains("恋") || title.contains("婚") ||
             title.contains("情") || title.contains("爱") -> BookCategory.ROMANCE
             
-            // 都市关键词
+            // 都市关键词 - 合并到言情
             title.contains("都市") || title.contains("现代") ||
-            title.contains("都市") || title.contains("城市") -> BookCategory.URBAN_FICTION
+            title.contains("都市") || title.contains("城市") -> BookCategory.ROMANCE
             
             // 历史关键词
             title.contains("历史") || title.contains("古代") ||
@@ -725,7 +473,7 @@ object BookCategoryManager {
             description.contains("侠义") || description.contains("武功") -> DescriptionCategory.WUXIA
             
             description.contains("修仙") || description.contains("修真") ||
-            description.contains("仙法") || description.contains("法术") -> DescriptionCategory.XIANXIA
+            description.contains("仙法") || description.contains("法术") -> DescriptionCategory.WUXIA
             
             description.contains("科幻") || description.contains("未来") ||
             description.contains("科技") || description.contains("机器人") -> DescriptionCategory.SCIENCE_FICTION
@@ -734,7 +482,7 @@ object BookCategoryManager {
             description.contains("浪漫") || description.contains("情感") -> DescriptionCategory.ROMANCE
             
             description.contains("都市") || description.contains("现代") ||
-            description.contains("城市") || description.contains("职场") -> DescriptionCategory.URBAN_FICTION
+            description.contains("城市") || description.contains("职场") -> DescriptionCategory.ROMANCE
             
             description.contains("历史") || description.contains("古代") ||
             description.contains("王朝") || description.contains("战争") -> DescriptionCategory.HISTORY
@@ -755,8 +503,7 @@ object BookCategoryManager {
         return when {
             subject.contains("武侠") || subject.contains("仙侠") -> BookCategory.WUXIA
             subject.contains("科幻") -> BookCategory.SCIENCE_FICTION
-            subject.contains("言情") -> BookCategory.ROMANCE
-            subject.contains("都市") -> BookCategory.URBAN_FICTION
+            subject.contains("言情") || subject.contains("都市") -> BookCategory.ROMANCE
             subject.contains("历史") -> BookCategory.HISTORY
             subject.contains("文学") -> BookCategory.LITERATURE
             else -> BookCategory.UNKNOWN
@@ -770,9 +517,7 @@ object BookCategoryManager {
         if (language.isNullOrBlank()) return BookCategory.UNKNOWN
         
         return when {
-            language.contains("zh") || language.contains("中文") -> BookCategory.CHINESE
             language.contains("en") || language.contains("英文") -> BookCategory.ENGLISH
-            language.contains("ja") || language.contains("日文") -> BookCategory.JAPANESE
             else -> BookCategory.UNKNOWN
         }
     }
@@ -803,11 +548,6 @@ object BookCategoryManager {
                 Log.d(TAG, "  ✅ 纯英文内容，分类为英文")
                 BookCategory.ENGLISH
             }
-            // 如果包含中文且不包含英文，分类为中文
-            hasChineseContent && !hasEnglishContent -> {
-                Log.d(TAG, "  ✅ 纯中文内容，分类为中文")
-                BookCategory.CHINESE
-            }
             // 如果同时包含中英文，根据主要语言判断
             hasEnglishContent && hasChineseContent -> {
                 // 统计中英文字符数量
@@ -820,8 +560,8 @@ object BookCategoryManager {
                     Log.d(TAG, "  ✅ 英文为主，分类为英文")
                     BookCategory.ENGLISH
                 } else {
-                    Log.d(TAG, "  ✅ 中文为主，分类为中文")
-                    BookCategory.CHINESE
+                    Log.d(TAG, "  ✅ 中文为主，分类为未分类")
+                    BookCategory.UNKNOWN
                 }
             }
             else -> {
@@ -931,9 +671,38 @@ object BookCategoryManager {
     }
     
     /**
-     * 获取分类统计
+     * 获取分类统计 - 动态计算版本
      */
     fun getCategoryStats(context: Context): Map<String, Int> {
+        return try {
+            val prefs = getPrefs(context)
+            val categoriesJson = prefs.getString(KEY_CATEGORIES, "{}")
+            val categories = JSONObject(categoriesJson)
+            
+            val result = mutableMapOf<String, Int>()
+            val iterator = categories.keys()
+            while (iterator.hasNext()) {
+                val bookPath = iterator.next()
+                val category = categories.getString(bookPath)
+                result[category] = result.getOrDefault(category, 0) + 1
+            }
+            
+            Log.d(TAG, "📊 动态分类统计:")
+            result.forEach { (category, count) ->
+                Log.d(TAG, "  $category: ${count}本")
+            }
+            
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "获取分类统计失败", e)
+            emptyMap()
+        }
+    }
+    
+    /**
+     * 获取分类统计 - 旧版本（保留兼容性）
+     */
+    fun getCategoryStatsLegacy(context: Context): Map<String, Int> {
         return try {
             val prefs = getPrefs(context)
             val statsJson = prefs.getString(KEY_CATEGORY_STATS, "{}")
@@ -967,6 +736,44 @@ object BookCategoryManager {
             prefs.edit().putString(KEY_CATEGORY_STATS, stats.toString()).apply()
         } catch (e: Exception) {
             Log.e(TAG, "更新分类统计失败", e)
+        }
+    }
+    
+    /**
+     * 重新计算所有分类统计 - 基于实际分类数据
+     */
+    fun recalculateCategoryStats(context: Context) {
+        try {
+            Log.d(TAG, "🔄 开始重新计算分类统计...")
+            
+            val prefs = getPrefs(context)
+            val categoriesJson = prefs.getString(KEY_CATEGORIES, "{}")
+            val categories = JSONObject(categoriesJson)
+            
+            // 计算新的统计
+            val newStats = mutableMapOf<String, Int>()
+            val iterator = categories.keys()
+            while (iterator.hasNext()) {
+                val bookPath = iterator.next()
+                val category = categories.getString(bookPath)
+                newStats[category] = newStats.getOrDefault(category, 0) + 1
+            }
+            
+            // 保存新的统计
+            val newStatsJson = JSONObject()
+            newStats.forEach { (category, count) ->
+                newStatsJson.put(category, count)
+            }
+            
+            prefs.edit().putString(KEY_CATEGORY_STATS, newStatsJson.toString()).apply()
+            
+            Log.d(TAG, "✅ 分类统计重新计算完成:")
+            newStats.forEach { (category, count) ->
+                Log.d(TAG, "  $category: ${count}本")
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "重新计算分类统计失败", e)
         }
     }
     
@@ -1007,27 +814,139 @@ object BookCategoryManager {
             Log.e(TAG, "清除分类数据失败", e)
         }
     }
+    
+    /**
+     * 机器学习分类器接口 - 为未来扩展准备
+     */
+    interface MLClassifier {
+        suspend fun train(trainingData: List<BookSample>)
+        suspend fun classify(book: EpubFile): String
+        fun getAccuracy(): Double
+    }
+    
+    /**
+     * 图书样本数据类 - 用于机器学习训练
+     */
+    data class BookSample(
+        val fileName: String,
+        val title: String?,
+        val author: String?,
+        val description: String?,
+        val trueCategory: String,
+        val features: BookFeatures = BookFeatures()
+    )
+    
+    /**
+     * 图书特征数据类
+     */
+    data class BookFeatures(
+        val fileNameKeywords: List<String> = emptyList(),
+        val authorKeywords: List<String> = emptyList(),
+        val titleKeywords: List<String> = emptyList(),
+        val descriptionKeywords: List<String> = emptyList(),
+        val languageFeatures: LanguageFeatures = LanguageFeatures(),
+        val lengthFeatures: LengthFeatures = LengthFeatures()
+    )
+    
+    /**
+     * 语言特征
+     */
+    data class LanguageFeatures(
+        val hasChinese: Boolean = false,
+        val hasEnglish: Boolean = false,
+        val chineseRatio: Double = 0.0,
+        val englishRatio: Double = 0.0
+    )
+    
+    /**
+     * 长度特征
+     */
+    data class LengthFeatures(
+        val fileNameLength: Int = 0,
+        val titleLength: Int = 0,
+        val descriptionLength: Int = 0
+    )
+    
+    /**
+     * 用户反馈数据类
+     */
+    data class UserFeedback(
+        val bookPath: String,
+        val predictedCategory: String,
+        val userCorrectedCategory: String,
+        val timestamp: Long = System.currentTimeMillis()
+    )
+    
+    /**
+     * 保存用户反馈
+     */
+    fun saveUserFeedback(context: Context, feedback: UserFeedback) {
+        try {
+            val prefs = getPrefs(context)
+            val feedbackKey = "user_feedback_${feedback.timestamp}"
+            val feedbackJson = JSONObject().apply {
+                put("bookPath", feedback.bookPath)
+                put("predictedCategory", feedback.predictedCategory)
+                put("userCorrectedCategory", feedback.userCorrectedCategory)
+                put("timestamp", feedback.timestamp)
+            }
+            prefs.edit().putString(feedbackKey, feedbackJson.toString()).apply()
+            Log.d(TAG, "用户反馈已保存: ${feedback.bookPath}")
+        } catch (e: Exception) {
+            Log.e(TAG, "保存用户反馈失败", e)
+        }
+    }
+    
+    /**
+     * 获取所有用户反馈
+     */
+    fun getAllUserFeedback(context: Context): List<UserFeedback> {
+        return try {
+            val prefs = getPrefs(context)
+            val allPrefs = prefs.all
+            val feedbacks = mutableListOf<UserFeedback>()
+            
+            allPrefs.forEach { (key, value) ->
+                if (key.startsWith("user_feedback_") && value is String) {
+                    try {
+                        val json = JSONObject(value)
+                        val feedback = UserFeedback(
+                            bookPath = json.getString("bookPath"),
+                            predictedCategory = json.getString("predictedCategory"),
+                            userCorrectedCategory = json.getString("userCorrectedCategory"),
+                            timestamp = json.getLong("timestamp")
+                        )
+                        feedbacks.add(feedback)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "解析用户反馈失败: $key", e)
+                    }
+                }
+            }
+            
+            feedbacks.sortedByDescending { it.timestamp }
+        } catch (e: Exception) {
+            Log.e(TAG, "获取用户反馈失败", e)
+            emptyList()
+        }
+    }
 }
 
 /**
- * 图书分类枚举
+ * 图书分类枚举 - 优化版
+ * 精简为8个核心分类，去掉中文分类，加入英文分类
  */
 enum class BookCategory(
     val displayName: String,
     val color: Int,
     val icon: String
 ) {
-    WUXIA("武侠", -0x71B5B53, "⚔️"),
-    XIANXIA("仙侠", -0x64A4A4A, "✨"),
     SCIENCE_FICTION("科幻", -0xCB6BA2, "🚀"),
-    ROMANCE("言情", -0x18B3C4, "💕"),
-    URBAN_FICTION("都市", -0xCB6704, "🏙️"),
-    HISTORY("历史", -0x6A5A5A, "📚"),
     LITERATURE("文学", -0xC0634, "📖"),
+    WUXIA("武侠", -0x71B5B53, "⚔️"),
+    ROMANCE("言情", -0x18B3C4, "💕"),
+    HISTORY("历史", -0x6A5A5A, "📚"),
     FINANCE("理财", -0x3F7F3F, "💰"),
-    CHINESE("中文", -0xD1338F, "🇨🇳"),
     ENGLISH("英文", -0xE54363, "🇺🇸"),
-    JAPANESE("日文", -0x1981E2, "🇯🇵"),
     UNKNOWN("未分类", -0x807372, "❓");
     
     companion object {
@@ -1038,14 +957,12 @@ enum class BookCategory(
 }
 
 /**
- * 描述分类（用于描述关键词匹配）
+ * 描述分类（用于描述关键词匹配）- 优化版
  */
 enum class DescriptionCategory(val category: String) {
     WUXIA("武侠"),
-    XIANXIA("仙侠"),
     SCIENCE_FICTION("科幻"),
     ROMANCE("言情"),
-    URBAN_FICTION("都市"),
     HISTORY("历史"),
     LITERATURE("文学"),
     UNKNOWN("未分类");

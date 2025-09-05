@@ -69,7 +69,7 @@
         android:layout_width="60dp"
         android:layout_height="60dp"
         android:layout_marginEnd="24dp"
-        android:layout_marginBottom="120dp"
+        android:layout_marginBottom="60dp"
         android:background="@drawable/ios_menu_background"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -96,7 +96,7 @@
         android:visibility="gone"
         app:cardCornerRadius="16dp"
         app:cardElevation="8dp"
-        app:cardBackgroundColor="#80000000"
+        app:cardBackgroundColor="#40353A"
         app:layout_constraintBottom_toTopOf="@id/ios_menu_container"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -112,20 +112,23 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="20dp">
+                android:layout_marginBottom="20dp"
+                android:paddingEnd="8dp">
 
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_brightness"
-                    android:layout_marginEnd="12dp" />
+                    android:tint="#FFFFFF"
+                    android:layout_marginEnd="6dp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="亮度"
                     android:textSize="16sp"
-                    android:layout_marginEnd="16dp" />
+                    android:textColor="#FFFFFF"
+                    android:layout_marginEnd="6dp" />
 
                 <SeekBar
                     android:id="@+id/brightness_seekbar"
@@ -135,8 +138,8 @@
                     android:max="100"
                     android:progress="50"
                     android:minHeight="48dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp" />
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp" />
 
             </LinearLayout>
 
@@ -146,14 +149,6 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:layout_marginBottom="20dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="章节"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="12dp" />
 
                 <HorizontalScrollView
                     android:layout_width="match_parent"
@@ -187,6 +182,7 @@
                     android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_theme"
+                    android:tint="#FFFFFF"
                     android:layout_marginEnd="16dp"
                     android:contentDescription="主题设置" />
 
@@ -196,6 +192,7 @@
                     android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_font_size"
+                    android:tint="#FFFFFF"
                     android:layout_marginEnd="16dp"
                     android:contentDescription="字体大小" />
 
@@ -205,6 +202,7 @@
                     android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_search"
+                    android:tint="#FFFFFF"
                     android:layout_marginEnd="16dp"
                     android:contentDescription="搜索" />
 
@@ -214,6 +212,7 @@
                     android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_bookmark"
+                    android:tint="#FFFFFF"
                     android:contentDescription="书签" />
 
             </LinearLayout>

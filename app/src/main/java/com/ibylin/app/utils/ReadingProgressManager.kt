@@ -30,7 +30,8 @@ object ReadingProgressManager {
         context: Context,
         bookPath: String,
         position: Double = 0.0,
-        timestamp: Long = System.currentTimeMillis()
+        timestamp: Long = System.currentTimeMillis(),
+        recentContent: String? = null
     ) {
         try {
             val prefs = getPrefs(context)
@@ -42,6 +43,9 @@ object ReadingProgressManager {
                 put("name", bookFile.name)
                 put("lastReadTime", timestamp)
                 put("position", position)
+                if (recentContent != null) {
+                    put("recentContent", recentContent)
+                }
             }
             
             prefs.edit()
@@ -70,6 +74,9 @@ object ReadingProgressManager {
                 val bookName = bookInfo.getString("name")
                 val lastReadTime = bookInfo.getLong("lastReadTime")
                 val position = bookInfo.getDouble("position")
+                val recentContent = if (bookInfo.has("recentContent")) {
+                    bookInfo.getString("recentContent")
+                } else null
                 
                 // 检查文件是否仍然存在
                 val bookFile = File(bookPath)
@@ -78,7 +85,8 @@ object ReadingProgressManager {
                         path = bookPath,
                         name = bookName,
                         lastReadTime = lastReadTime,
-                        position = position
+                        position = position,
+                        recentContent = recentContent
                     )
                 } else {
                     Log.w(TAG, "最后阅读的图书文件不存在: $bookPath")
@@ -139,7 +147,8 @@ data class LastReadBook(
     val path: String,
     val name: String,
     val lastReadTime: Long,
-    val position: Double
+    val position: Double,
+    val recentContent: String? = null
 ) {
     fun getFormattedLastReadTime(): String {
         val currentTime = System.currentTimeMillis()
@@ -161,6 +170,24 @@ data class LastReadBook(
     fun getProgressText(): String {
         val percentage = (position * 100).toInt()
         return "已读 $percentage%"
+    }
+    
+    fun getRecentContentSummary(maxLength: Int = 100): String {
+        return if (recentContent != null && recentContent.isNotBlank()) {
+            // 清理HTML标签和多余空白
+            val cleanContent = recentContent
+                .replace(Regex("<[^>]*>"), "") // 移除HTML标签
+                .replace(Regex("\\s+"), " ") // 合并多个空白字符
+                .trim()
+            
+            if (cleanContent.length <= maxLength) {
+                cleanContent
+            } else {
+                cleanContent.substring(0, maxLength) + "..."
+            }
+        } else {
+            "暂无阅读内容"
+        }
     }
 }
 

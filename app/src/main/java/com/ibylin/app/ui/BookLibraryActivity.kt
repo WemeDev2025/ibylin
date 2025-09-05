@@ -11,6 +11,7 @@ import android.provider.Settings
 import android.view.View
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import android.util.Log
@@ -38,7 +39,7 @@ import kotlinx.coroutines.withContext
 
 class BookLibraryActivity : AppCompatActivity() {
     
-    private lateinit var toolbar: MaterialToolbar
+    private lateinit var btnCategory: ImageButton
     private lateinit var rvBooks: RecyclerView
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var llScanning: android.widget.LinearLayout
@@ -87,28 +88,7 @@ class BookLibraryActivity : AppCompatActivity() {
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         Log.d("BookLibraryActivity", "🎯 onCreateOptionsMenu被调用")
-        menuInflater.inflate(R.menu.menu_book_library, menu)
-        Log.d("BookLibraryActivity", "🎯 菜单已创建，菜单项数量: ${menu?.size()}")
-        
-        // 调试：打印所有菜单项
-        if (menu != null) {
-            for (i in 0 until menu.size()) {
-                val item = menu.getItem(i)
-                Log.d("BookLibraryActivity", "🎯 菜单项[$i]: ${item.title} (ID: ${item.itemId})")
-                if (item.hasSubMenu()) {
-                    val subMenu = item.subMenu
-                    Log.d("BookLibraryActivity", "🎯   子菜单项数量: ${subMenu?.size()}")
-                    for (j in 0 until (subMenu?.size() ?: 0)) {
-                        val subItem = subMenu?.getItem(j)
-                        Log.d("BookLibraryActivity", "🎯   子菜单项[$j]: ${subItem?.title} (ID: ${subItem?.itemId})")
-                    }
-                }
-            }
-        }
-        
-        // 强制显示Toast，确保菜单创建成功
-        Toast.makeText(this, "菜单已创建，菜单项数量: ${menu?.size()}", Toast.LENGTH_LONG).show()
-        
+        // 不创建系统菜单，改为使用自定义PopupMenu
         return true
     }
     
@@ -124,17 +104,13 @@ class BookLibraryActivity : AppCompatActivity() {
         Log.d("BookLibraryActivity", "  R.id.category_all = ${R.id.category_all}")
         Log.d("BookLibraryActivity", "  R.id.category_science_fiction = ${R.id.category_science_fiction}")
         Log.d("BookLibraryActivity", "  R.id.category_literature = ${R.id.category_literature}")
-        Log.d("BookLibraryActivity", "  R.id.category_chinese = ${R.id.category_chinese}")
+        Log.d("BookLibraryActivity", "  R.id.category_wuxia = ${R.id.category_wuxia}")
+        Log.d("BookLibraryActivity", "  R.id.category_romance = ${R.id.category_romance}")
+        Log.d("BookLibraryActivity", "  R.id.category_history = ${R.id.category_history}")
         Log.d("BookLibraryActivity", "  R.id.category_finance = ${R.id.category_finance}")
+        Log.d("BookLibraryActivity", "  R.id.category_english = ${R.id.category_english}")
         
-        // 添加Toast提示，确保用户能看到点击反馈
-        Toast.makeText(this, "菜单项被点击: ${item.title}", Toast.LENGTH_SHORT).show()
         
-        // 强制显示Toast，确保用户能看到
-        Toast.makeText(this, "菜单项被点击: ${item.title}", Toast.LENGTH_LONG).show()
-        
-        // 立即显示Toast确认方法被调用
-        Toast.makeText(this, "onOptionsItemSelected被调用!", Toast.LENGTH_LONG).show()
         
         return when (item.itemId) {
             // 分类筛选菜单
@@ -146,7 +122,6 @@ class BookLibraryActivity : AppCompatActivity() {
             R.id.category_science_fiction -> {
                 Log.d("BookLibraryActivity", "📋 用户选择分类: 科幻")
                 Log.d("BookLibraryActivity", "🚀 科幻分类点击事件触发!")
-                Toast.makeText(this, "科幻分类被点击!", Toast.LENGTH_LONG).show()
                 filterBooksByCategory("科幻")
                 true
             }
@@ -155,9 +130,19 @@ class BookLibraryActivity : AppCompatActivity() {
                 filterBooksByCategory("文学")
                 true
             }
-            R.id.category_chinese -> {
-                Log.d("BookLibraryActivity", "📋 用户选择分类: 中文")
-                filterBooksByCategory("中文")
+            R.id.category_wuxia -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 武侠")
+                filterBooksByCategory("武侠")
+                true
+            }
+            R.id.category_romance -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 言情")
+                filterBooksByCategory("言情")
+                true
+            }
+            R.id.category_history -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 历史")
+                filterBooksByCategory("历史")
                 true
             }
             R.id.category_finance -> {
@@ -165,21 +150,16 @@ class BookLibraryActivity : AppCompatActivity() {
                 filterBooksByCategory("理财")
                 true
             }
+            R.id.category_english -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 英文")
+                filterBooksByCategory("英文")
+                true
+            }
             
             // 其他菜单项
             R.id.action_category_stats -> {
                 Log.d("BookLibraryActivity", "📊 显示分类统计")
                 showCategoryStats()
-                true
-            }
-            R.id.action_reclassify -> {
-                Log.d("BookLibraryActivity", "🔄 重新分类所有图书")
-                reclassifyAllBooks()
-                true
-            }
-            R.id.action_clear_categories -> {
-                Log.d("BookLibraryActivity", "🗑️ 清除所有分类")
-                clearAllCategories()
                 true
             }
             else -> {
@@ -230,41 +210,60 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     private fun initViews() {
-        toolbar = findViewById(R.id.toolbar)
+        btnCategory = findViewById(R.id.btn_category)
         rvBooks = findViewById(R.id.rv_books)
         swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout)
         llScanning = findViewById(R.id.ll_scanning)
         llNoBooks = findViewById(R.id.ll_no_books)
         
-        // 设置标题栏
-        setupToolbar()
+        // 设置顶部导航栏
+        setupTopNavigation()
     }
     
     /**
-     * 设置标题栏
+     * 设置顶部导航栏
      */
-    private fun setupToolbar() {
-        setSupportActionBar(toolbar)
-        
-        // 设置返回按钮点击事件
-        toolbar.setNavigationOnClickListener {
-            onBackPressed()
+    private fun setupTopNavigation() {
+        // 设置分类按钮点击事件
+        btnCategory.setOnClickListener {
+            Log.d("BookLibraryActivity", "🎯 分类按钮被点击")
+            showCategoryMenu(btnCategory)
         }
+        
+        Log.d("BookLibraryActivity", "🎯 顶部导航栏设置完成")
+    }
+    
+    /**
+     * 显示分类菜单
+     */
+    private fun showCategoryMenu(anchorView: View) {
+        Log.d("BookLibraryActivity", "🎯 开始显示分类菜单")
+        Log.d("BookLibraryActivity", "  锚点视图: $anchorView")
+        
+        val popupMenu = android.widget.PopupMenu(this, anchorView)
+        popupMenu.inflate(R.menu.menu_book_library)
+        
+        Log.d("BookLibraryActivity", "  菜单已填充，菜单项数量: ${popupMenu.menu.size()}")
+        
+        // 打印所有菜单项
+        for (i in 0 until popupMenu.menu.size()) {
+            val item = popupMenu.menu.getItem(i)
+            Log.d("BookLibraryActivity", "    菜单项[$i]: ${item.title} (ID: ${item.itemId})")
+        }
+        
+        // 使用原生样式，不设置自定义背景
         
         // 设置菜单项点击事件
-        toolbar.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.action_settings -> {
-                    // 打开设置页面
-                    openSettings()
-                    true
-                }
-                else -> {
-                    // 其他菜单项传递给onOptionsItemSelected处理
-                    onOptionsItemSelected(menuItem)
-                }
-            }
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            Log.d("BookLibraryActivity", "🎯 分类菜单项被点击: ${menuItem.title} (ID: ${menuItem.itemId})")
+            onOptionsItemSelected(menuItem)
+            true
         }
+        
+        // 显示菜单
+        Log.d("BookLibraryActivity", "  准备显示菜单")
+        popupMenu.show()
+        Log.d("BookLibraryActivity", "  菜单已显示")
     }
     
     private fun setupRecyclerView() {
@@ -939,22 +938,31 @@ class BookLibraryActivity : AppCompatActivity() {
     private fun showBookLongPressMenu(epubFile: EpubFile, anchorView: View) {
         android.util.Log.d("BookLibraryActivity", "显示书籍长按菜单: ${epubFile.name}")
         
-        val popupMenu = android.widget.PopupMenu(this, anchorView)
-        popupMenu.inflate(R.menu.menu_book_item_long_press)
+        // 使用 androidx.appcompat.widget.PopupMenu 并设置主题
+        val popupMenu = androidx.appcompat.widget.PopupMenu(this, anchorView)
+        popupMenu.menuInflater.inflate(R.menu.menu_book_item_long_press, popupMenu.menu)
         
-        // 根据当前封面状态动态设置菜单项
-        val changeCoverMenuItem = popupMenu.menu.findItem(R.id.action_change_cover)
-        if (com.ibylin.app.utils.CoverManager.hasCustomCover(this, epubFile.name)) {
-            // 如果有自定义封面，显示"恢复默认"
-            changeCoverMenuItem.title = "恢复默认"
-            changeCoverMenuItem.setIcon(R.drawable.ic_restore)
-        } else {
-            // 如果没有自定义封面，显示"更换封面"
-            changeCoverMenuItem.title = "更换封面"
-            changeCoverMenuItem.setIcon(R.drawable.ic_image)
+        // 设置菜单主题
+        try {
+            val popup = androidx.appcompat.widget.PopupMenu::class.java.getDeclaredField("mPopup")
+            popup.isAccessible = true
+            val popupWindow = popup.get(popupMenu) as androidx.appcompat.widget.ListPopupWindow
+            
+            // 设置背景色为 #40353A
+            val backgroundDrawable = android.graphics.drawable.ColorDrawable(android.graphics.Color.parseColor("#FF40353A"))
+            popupWindow.setBackgroundDrawable(backgroundDrawable)
+            
+            // 设置文字颜色为白色
+            popupWindow.listView?.let { listView ->
+                // 这里暂时不设置，因为setTextColor方法可能不存在
+            }
+            
+            android.util.Log.d("BookLibraryActivity", "长按菜单样式设置成功")
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "设置长按菜单样式失败", e)
         }
         
-        // 设置菜单项点击事件
+        // 设置菜单主题
         popupMenu.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.action_book_info -> {
@@ -977,7 +985,6 @@ class BookLibraryActivity : AppCompatActivity() {
                     toggleBookLock(epubFile)
                     true
                 }
-
                 R.id.action_share_book -> {
                     android.util.Log.d("BookLibraryActivity", "长按菜单：分享")
                     shareBook(epubFile)
@@ -992,8 +999,47 @@ class BookLibraryActivity : AppCompatActivity() {
             }
         }
         
+        // 根据当前封面状态动态设置菜单项
+        val changeCoverMenuItem = popupMenu.menu.findItem(R.id.action_change_cover)
+        if (com.ibylin.app.utils.CoverManager.hasCustomCover(this, epubFile.name)) {
+            // 如果有自定义封面，显示"恢复默认"
+            changeCoverMenuItem.title = "恢复默认"
+            changeCoverMenuItem.setIcon(R.drawable.ic_restore)
+        } else {
+            // 如果没有自定义封面，显示"更换封面"
+            changeCoverMenuItem.title = "更换封面"
+            changeCoverMenuItem.setIcon(R.drawable.ic_image)
+        }
+        
         // 显示菜单
         popupMenu.show()
+        
+        // 延迟设置文字颜色，确保菜单已经显示
+        anchorView.postDelayed({
+            try {
+                val popup = androidx.appcompat.widget.PopupMenu::class.java.getDeclaredField("mPopup")
+                popup.isAccessible = true
+                val popupWindow = popup.get(popupMenu) as androidx.appcompat.widget.ListPopupWindow
+                
+                // 设置文字颜色为白色
+                popupWindow.listView?.let { listView ->
+                    for (i in 0 until listView.childCount) {
+                        val child = listView.getChildAt(i)
+                        if (child is android.widget.TextView) {
+                            child.setTextColor(android.graphics.Color.WHITE)
+                        } else {
+                            // 查找子视图中的TextView
+                            val textView = child.findViewById<android.widget.TextView>(android.R.id.text1)
+                            textView?.setTextColor(android.graphics.Color.WHITE)
+                        }
+                    }
+                }
+                
+                android.util.Log.d("BookLibraryActivity", "长按菜单文字颜色设置成功")
+            } catch (e: Exception) {
+                android.util.Log.e("BookLibraryActivity", "设置长按菜单文字颜色失败", e)
+            }
+        }, 100) // 延迟100ms
     }
     
     /**
@@ -1674,8 +1720,6 @@ class BookLibraryActivity : AppCompatActivity() {
             Log.d("BookLibraryActivity", "  总图书数量: ${cachedEpubFiles.size}")
             Log.d("BookLibraryActivity", "  筛选目标分类: '$category'")
             
-            // 立即显示Toast确认方法被调用
-            Toast.makeText(this, "开始筛选: $category", Toast.LENGTH_SHORT).show()
             
             // 调试：打印所有已保存的分类
             com.ibylin.app.utils.BookCategoryManager.debugPrintAllCategories(this)
@@ -1760,9 +1804,6 @@ class BookLibraryActivity : AppCompatActivity() {
             Log.d("BookLibraryActivity", "  适配器已更新")
             Log.d("BookLibraryActivity", "  更新后适配器状态: ${bookGridAdapter.itemCount} 项")
             
-            // 更新标题栏显示分类信息
-            supportActionBar?.subtitle = "分类：$category (${filteredBooks.size}本)"
-            Log.d("BookLibraryActivity", "  标题栏已更新: 分类：$category (${filteredBooks.size}本)")
             
             // 显示筛选结果提示
             Toast.makeText(this, "筛选完成：$category (${filteredBooks.size}本)", Toast.LENGTH_SHORT).show()
@@ -1781,10 +1822,13 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     /**
-     * 显示分类统计信息
+     * 显示分类统计信息 - 直接调用现有数据
      */
     private fun showCategoryStats() {
         try {
+            Log.d("BookLibraryActivity", "📊 开始显示分类统计...")
+            
+            // 直接获取现有的分类统计数据
             val stats = com.ibylin.app.utils.BookCategoryManager.getCategoryStats(this)
             
             if (stats.isEmpty()) {
@@ -1814,115 +1858,6 @@ class BookLibraryActivity : AppCompatActivity() {
         }
     }
     
-    /**
-     * 重新分类所有图书
-     */
-    private fun reclassifyAllBooks() {
-        try {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("重新分类")
-                .setMessage("确定要重新分类所有图书吗？这将基于最新的元数据重新进行分类。")
-                .setPositiveButton("确定") { _, _ ->
-                    performReclassification()
-                }
-                .setNegativeButton("取消", null)
-                .show()
-        } catch (e: Exception) {
-            Log.e("BookLibraryActivity", "显示重新分类对话框失败", e)
-        }
-    }
-    
-    /**
-     * 执行重新分类
-     */
-    private fun performReclassification() {
-        try {
-            Toast.makeText(this, "开始重新分类...", Toast.LENGTH_SHORT).show()
-            
-            coroutineScope.launch {
-                try {
-                    val allBooks = cachedEpubFiles
-                    
-                    // 执行批量分类
-                    val classifications = com.ibylin.app.utils.BookCategoryManager.classifyBooks(this@BookLibraryActivity, allBooks)
-                    
-                    withContext(Dispatchers.Main) {
-                        // 显示分类结果
-                        val categoryCounts = classifications.values.groupingBy { it }.eachCount()
-                        val resultMessage = buildString {
-                            appendLine("✅ 重新分类完成")
-                            appendLine()
-                            categoryCounts.forEach { (category, count) ->
-                                appendLine("$category: ${count}本")
-                            }
-                        }
-                        
-                        MaterialAlertDialogBuilder(this@BookLibraryActivity)
-                            .setTitle("分类完成")
-                            .setMessage(resultMessage)
-                            .setPositiveButton("确定", null)
-                            .show()
-                        
-                        // 刷新图书列表
-                        bookGridAdapter.updateEpubFiles(allBooks)
-                        
-                        Toast.makeText(this@BookLibraryActivity, "重新分类完成！", Toast.LENGTH_SHORT).show()
-                    }
-                    
-                } catch (e: Exception) {
-                    Log.e("BookLibraryActivity", "重新分类失败", e)
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@BookLibraryActivity, "重新分类失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-            
-        } catch (e: Exception) {
-            Log.e("BookLibraryActivity", "执行重新分类失败", e)
-            Toast.makeText(this, "重新分类失败: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-    
-    /**
-     * 清除所有分类
-     */
-    private fun clearAllCategories() {
-        try {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("清除分类")
-                .setMessage("确定要清除所有图书分类吗？此操作不可撤销。")
-                .setPositiveButton("确定") { _, _ ->
-                    performClearCategories()
-                }
-                .setNegativeButton("取消", null)
-                .show()
-        } catch (e: Exception) {
-            Log.e("BookLibraryActivity", "显示清除分类对话框失败", e)
-        }
-    }
-    
-    /**
-     * 执行清除分类
-     */
-    private fun performClearCategories() {
-        try {
-            com.ibylin.app.utils.BookCategoryManager.clearCategories(this)
-            
-            Toast.makeText(this, "分类已清除", Toast.LENGTH_SHORT).show()
-            
-            // 刷新图书列表
-            bookGridAdapter.updateEpubFiles(cachedEpubFiles)
-            
-            // 更新标题栏
-            supportActionBar?.subtitle = "书库 (${cachedEpubFiles.size}本)"
-            
-            Log.d("BookLibraryActivity", "分类已清除")
-            
-        } catch (e: Exception) {
-            Log.e("BookLibraryActivity", "清除分类失败", e)
-            Toast.makeText(this, "清除分类失败: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
     
     /**
      * 在扫描图书时自动分类 - 支持协程
@@ -1943,8 +1878,6 @@ class BookLibraryActivity : AppCompatActivity() {
                         Log.d("BookLibraryActivity", "    $category: ${count}本")
                     }
                     
-                    // 显示分类完成提示
-                    Toast.makeText(this@BookLibraryActivity, "智能分类完成！", Toast.LENGTH_SHORT).show()
                 }
                 
             } catch (e: Exception) {

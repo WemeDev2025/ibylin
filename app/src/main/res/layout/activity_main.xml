@@ -1,23 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white">
 
 
 
+    <!-- 顶部状态栏容器 -->
+    <LinearLayout
+        android:id="@+id/ll_top_status_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="horizontal"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="31dp"
+        android:paddingBottom="16dp"
+        android:gravity="center_vertical">
+
+        <!-- 状态和设置容器 -->
+        <LinearLayout
+            android:id="@+id/ll_status_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <!-- 正在读状态 -->
+            <TextView
+                android:id="@+id/tv_reading_status"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_gravity="center_vertical"
+                android:gravity="center_vertical"
+                android:text="正在读"
+                android:textColor="#FF000000"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+
+            <!-- 设置按钮 -->
+            <ImageButton
+                android:id="@+id/btn_settings"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="设置"
+                android:src="@drawable/ic_setting"
+                android:scaleType="centerInside"
+                android:padding="12dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
     <!-- 主要内容容器 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_below="@+id/ll_top_status_bar"
+        android:layout_above="@+id/btn_book_library"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:paddingTop="80dp"
+        android:paddingTop="32dp"
         android:paddingBottom="40dp">
 
 
 
-        <!-- 最后阅读图书卡片 -->
+                    <!-- 最近阅读区域 -->
         <LinearLayout
             android:id="@+id/ll_last_read_card"
             android:layout_width="match_parent"
@@ -25,71 +78,88 @@
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginBottom="24dp"
-            android:background="@drawable/last_read_card_background"
             android:orientation="vertical"
-            android:padding="20dp"
             android:visibility="gone">
 
+            <!-- 封面区域 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="-14dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:orientation="vertical">
+
+                <!-- Material 3 CardView 容器 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="260dp"
+                    android:layout_height="360dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:cardBackgroundColor="@android:color/white"
+                    app:cardElevation="12dp"
+                    app:cardCornerRadius="0dp"
+                    app:cardUseCompatPadding="true"
+                    app:strokeWidth="0dp"
+                    app:cardForegroundColor="@android:color/transparent"
+                    android:stateListAnimator="@null"
+                    android:layout_margin="8dp">
+
+                    <!-- 封面图片 -->
+                    <ImageView
+                        android:id="@+id/iv_last_read_cover"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/placeholder_cover"
+                        android:contentDescription="最后阅读图书封面"
+                        android:scaleType="centerCrop" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+            <!-- 图书信息和阅读内容 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="vertical">
 
-                <ImageView
-                    android:id="@+id/iv_last_read_cover"
-                    android:layout_width="60dp"
-                    android:layout_height="80dp"
-                    android:background="@drawable/placeholder_cover"
-                    android:contentDescription="最后阅读图书封面"
-                    android:scaleType="centerCrop" />
-
+                <!-- 阅读进度和时间 -->
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="16dp"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/tv_last_read_title"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:maxLines="2"
-                        android:text="图书标题"
-                        android:textColor="@color/apple_books_text_primary"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="51dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/tv_last_read_progress"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
                         android:text="已读 0%"
                         android:textColor="@color/apple_books_text_secondary"
-                        android:textSize="14sp" />
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="8dp"
+                        android:text="·"
+                        android:textColor="@color/apple_books_text_secondary"
+                        android:textSize="12sp" />
 
                     <TextView
                         android:id="@+id/tv_last_read_time"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
                         android:text="刚刚"
                         android:textColor="@color/apple_books_text_secondary"
                         android:textSize="12sp" />
 
                 </LinearLayout>
-
-                <Button
-                    android:id="@+id/btn_continue_reading"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:backgroundTint="#1EB4A2"
-                    android:text="继续阅读"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
 
             </LinearLayout>
 
@@ -123,41 +193,33 @@
 
             <TextView
                 android:id="@+id/tv_welcome"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 android:ellipsize="end"
                 android:gravity="center"
                 android:maxLines="2"
-                android:text="兜兜绕绕 我们还是相遇了～"
-                android:textColor="@color/apple_books_secondary"
+                android:text=""
+                android:textColor="#666666"
                 android:textSize="14sp"
                 android:textStyle="normal" />
 
         </LinearLayout>
 
-        <!-- 按钮容器 -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="40dp"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <Button
-                android:id="@+id/btn_book_library"
-                android:layout_width="120dp"
-                android:layout_height="55dp"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="#FF40353A"
-                android:text="书库"
-                android:textColor="#FFFFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-
-
-        </LinearLayout>
-
     </LinearLayout>
+
+    <!-- 固定在底部的书库按钮 -->
+    <Button
+        android:id="@+id/btn_book_library"
+        android:layout_width="match_parent"
+        android:layout_height="66dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="24dp"
+        android:backgroundTint="#FF40353A"
+        android:text="书库"
+        android:textColor="#FFFFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold" />
 
 </RelativeLayout>

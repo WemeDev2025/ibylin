@@ -128,30 +128,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
      * 切换菜单栏显示/隐藏状态
      */
     private fun toggleToolbar() {
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
-        if (toolbar.visibility == View.VISIBLE) {
-            // 隐藏菜单栏
-            toolbar.animate()
-                .alpha(0f)
-                .setDuration(200)
-                .withEndAction {
-                    toolbar.visibility = View.GONE
-                }
-                .start()
-            Log.d(TAG, "菜单栏已隐藏")
-        } else {
-            // 显示菜单栏
-            toolbar.visibility = View.VISIBLE
-            toolbar.alpha = 0f
-            toolbar.animate()
-                .alpha(1f)
-                .setDuration(200)
-                .start()
-            Log.d(TAG, "菜单栏已显示")
-            
-            // 不再自动隐藏，改为点击其他区域关闭
-            Log.d(TAG, "菜单栏已显示，点击其他区域可关闭")
-        }
+        // 阅读器使用自定义iOS风格菜单，不需要工具栏切换
+        Log.d(TAG, "阅读器使用自定义菜单，无需切换工具栏")
     }
     
     /**
@@ -591,8 +569,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                                 updatePageInfoDisplay(false)
                             }
                             
-                            // 每500ms检查一次进度
-                            progressHandler.postDelayed(this, 500)
+                            // 每200ms检查一次进度（提高频率）
+                            progressHandler.postDelayed(this, 200)
                         } catch (e: Exception) {
                             Log.w(TAG, "更新阅读进度失败", e)
                         }
@@ -630,7 +608,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 
                 // 使用Handler监听Locator变化
                 val locatorHandler = android.os.Handler(android.os.Looper.getMainLooper())
-                var lastLocatorHash = 0
                 var lastPageInfo = ""
                 
                 val locatorRunnable = object : Runnable {
@@ -638,26 +615,23 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                         try {
                             val currentLocator = navigatorFragment?.currentLocator?.value
                             if (currentLocator != null) {
-                                // 计算Locator的哈希值，检测是否真的发生了变化
-                                val currentHash = currentLocator.hashCode()
                                 val newChapterTitle = getCurrentChapterTitle()
                                 val newPage = getCurrentPage()
                                 val newPageInfo = "$newChapterTitle-$newPage"
                                 
-                                // 只有当Locator真正变化时才更新UI
-                                if (currentHash != lastLocatorHash || newPageInfo != lastPageInfo) {
-                                    lastLocatorHash = currentHash
+                                // 移除哈希缓存，直接比较页码信息，确保实时更新
+                                if (newPageInfo != lastPageInfo) {
                                     lastPageInfo = newPageInfo
                                     
                                     // 更新UI显示
                                     updateChapterAndPageInfo(newChapterTitle, newPage)
                                     
-                                    Log.d(TAG, "Locator真正变化: 章节=$newChapterTitle, 页码=$newPage, hash=$currentHash")
+                                    Log.d(TAG, "页码更新: 章节=$newChapterTitle, 页码=$newPage")
                                 }
                             }
                             
-                            // 每100ms检查一次Locator变化（提高频率）
-                            locatorHandler.postDelayed(this, 100)
+                            // 每50ms检查一次Locator变化（进一步提高频率）
+                            locatorHandler.postDelayed(this, 50)
                         } catch (e: Exception) {
                             Log.w(TAG, "监听Locator变化失败", e)
                         }
@@ -683,18 +657,16 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 // 更新章节标题
                 tvChapterTitle.text = chapterTitle
                 
-                // 更新页码信息
-                val chapterTotalPages = getCurrentChapterTotalPages()
                 if (isMenuVisible) {
                     // 菜单显示时显示详细信息
                     val remainingPages = getRemainingPages()
                     tvPageInfo.text = "本章还剩${remainingPages}页"
                 } else {
-                    // 菜单隐藏时显示简单信息：当前页/当前章节总页数
-                    tvPageInfo.text = "$currentPage / $chapterTotalPages"
+                    // 菜单隐藏时显示当前章节页码
+                    tvPageInfo.text = "$currentPage"
                 }
                 
-                Log.d(TAG, "UI更新: 章节=$chapterTitle, 页码=$currentPage/$chapterTotalPages")
+                Log.d(TAG, "UI更新: 章节=$chapterTitle, 当前页码=$currentPage")
             }
         } catch (e: Exception) {
             Log.w(TAG, "更新章节和页码信息失败", e)
@@ -1152,13 +1124,13 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             Log.d(TAG, "开始应用字体大小切换渐显效果: $sizeName")
             
             // 设置初始透明度
-            view.alpha = 0.3f
+            view.alpha = 0.5f
             
             // 创建渐显动画
             view.animate()
                 .alpha(1.0f)
-                .setDuration(300) // 300毫秒渐显
-                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .setDuration(250) // 减少到250毫秒，更快速
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
                 .withStartAction {
                     Log.d(TAG, "字体大小切换渐显动画开始: $sizeName")
                 }
@@ -1538,6 +1510,13 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 val progress = if (totalPages > 0) (currentPage.toFloat() / totalPages.toFloat()) else 0f
                 editor.putFloat("${bookPath}_progress", progress)
                 
+                // 获取并保存当前页面的第一个段落
+                val currentPageContent = getCurrentPageFirstParagraph()
+                if (currentPageContent.isNotEmpty()) {
+                    editor.putString("${bookPath}_recent_content", currentPageContent)
+                    Log.d(TAG, "保存当前页面内容: $currentPageContent")
+                }
+                
                 // 提交保存
                 val success = editor.commit()
                 Log.d(TAG, "SharedPreferences保存结果: $success")
@@ -1567,20 +1546,28 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             val bookPath = intent.getStringExtra(EXTRA_EPUB_PATH) ?: intent.getStringExtra(EXTRA_BOOK_PATH)
             
             if (bookPath != null) {
-                // 获取当前阅读进度
-                val currentPage = getCurrentPage()
-                val totalPages = getTotalPages()
-                val progress = if (totalPages > 0) (currentPage.toFloat() / totalPages.toFloat()) else 0f
+                // 获取真正的总进度 - 使用totalProgression
+                val currentLocator = navigatorFragment?.currentLocator?.value
+                val progress = if (currentLocator != null) {
+                    // 优先使用totalProgression，这是整本书的真实进度
+                    currentLocator.locations.totalProgression ?: 0.0
+                } else {
+                    0.0
+                }
+                
+                // 获取当前页面的第一个段落
+                val currentPageContent = getCurrentPageFirstParagraph()
                 
                 // 记录到主页的阅读进度管理器
                 com.ibylin.app.utils.ReadingProgressManager.recordReadingProgress(
                     context = this,
                     bookPath = bookPath,
-                    position = progress.toDouble(),
-                    timestamp = System.currentTimeMillis()
+                    position = progress,
+                    timestamp = System.currentTimeMillis(),
+                    recentContent = currentPageContent
                 )
                 
-                Log.d(TAG, "阅读进度已记录到主页: $bookPath, 进度: ${(progress * 100).toInt()}%")
+                Log.d(TAG, "阅读进度已记录到主页: $bookPath, 总进度: ${(progress * 100).toInt()}%, 内容: $currentPageContent")
             }
         } catch (e: Exception) {
             Log.e(TAG, "记录阅读进度到主页失败", e)
@@ -1988,6 +1975,12 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                         }
                     }
                     
+                    // 滑动结束后立即更新页码
+                    if (isTouchMoved) {
+                        Log.d(TAG, "滑动结束，立即更新页码")
+                        updatePageInfoDisplay(false)
+                    }
+                    
                     // 关键：让Readium处理UP事件，确保触摸事件链完整
                     val handled = super.dispatchTouchEvent(event)
                     Log.d(TAG, "Readium处理UP事件结果: $handled")
@@ -2034,6 +2027,13 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             
             // 更新页面信息显示
             updatePageInfoDisplay(true)
+            
+            // 强制更新页面信息，确保显示正确的剩余页数
+            runOnUiThread {
+                val remainingPages = getRemainingPages()
+                tvPageInfo.text = "本章还剩${remainingPages}页"
+                Log.d(TAG, "菜单显示时更新剩余页数: $remainingPages")
+            }
             
             // 不再自动隐藏，改为点击其他区域关闭
             Log.d(TAG, "iOS风格菜单已显示，点击其他区域可关闭")
@@ -2318,15 +2318,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 }
             }
             
-            // 检查是否点击在工具栏内
-            val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
-            if (toolbar.visibility == View.VISIBLE) {
-                val toolbarRect = android.graphics.Rect()
-                toolbar.getGlobalVisibleRect(toolbarRect)
-                if (toolbarRect.contains(touchPoint.x.toInt(), touchPoint.y.toInt())) {
-                    return true
-                }
-            }
+            // 阅读器使用自定义菜单，不需要检查工具栏
             
             return false
         } catch (e: Exception) {
@@ -2511,15 +2503,185 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     }
     
     /**
-     * 获取当前页码
+     * 获取当前页面底部最后一个完整自然段的开头两行
+     */
+    private fun getCurrentPageFirstParagraph(): String {
+        return try {
+            val currentLocator = navigatorFragment?.currentLocator?.value
+            if (currentLocator != null) {
+                Log.d(TAG, "获取当前页面底部段落，当前Locator: $currentLocator")
+                
+                // 尝试从Locator的textBefore和textAfter获取内容
+                val textBefore = currentLocator.text.before ?: ""
+                val textAfter = currentLocator.text.after ?: ""
+                
+                Log.d(TAG, "textBefore: '$textBefore'")
+                Log.d(TAG, "textAfter: '$textAfter'")
+                
+                // 优先使用textAfter，如果没有则使用textBefore
+                val content = if (textAfter.isNotEmpty()) {
+                    textAfter
+                } else if (textBefore.isNotEmpty()) {
+                    textBefore
+                } else {
+                    ""
+                }
+                
+                Log.d(TAG, "提取的原始内容: '$content'")
+                
+                if (content.isNotEmpty()) {
+                    // 提取页面底部最后一个完整自然段的开头两行
+                    val bottomParagraph = extractBottomParagraphFirstTwoLines(content)
+                    Log.d(TAG, "提取的底部段落开头两行: '$bottomParagraph'")
+                    return bottomParagraph
+                } else {
+                    // 如果textBefore和textAfter都为空，尝试使用title作为内容
+                    val title = currentLocator.title ?: ""
+                    if (title.isNotEmpty()) {
+                        Log.d(TAG, "使用标题作为内容: '$title'")
+                        return title
+                    }
+                }
+            }
+            
+            Log.w(TAG, "无法获取当前页面内容，返回默认内容")
+            "正在阅读中..."
+        } catch (e: Exception) {
+            Log.e(TAG, "获取当前页面底部段落失败", e)
+            "正在阅读中..."
+        }
+    }
+    
+    /**
+     * 从文本中提取第一个自然段落
+     */
+    private fun extractFirstParagraph(text: String): String {
+        return try {
+            // 清理HTML标签
+            val cleanText = text.replace(Regex("<[^>]*>"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            
+            // 按句号、问号、感叹号分割，取第一句
+            val sentences = cleanText.split(Regex("[。！？.!?]"))
+            if (sentences.isNotEmpty() && sentences[0].isNotEmpty()) {
+                val firstSentence = sentences[0].trim()
+                // 如果第一句太短，尝试取前两句
+                if (firstSentence.length < 20 && sentences.size > 1) {
+                    val secondSentence = sentences[1].trim()
+                    if (secondSentence.isNotEmpty()) {
+                        return "$firstSentence。$secondSentence。"
+                    }
+                }
+                return "$firstSentence。"
+            }
+            
+            // 如果没有找到句子分隔符，取前100个字符
+            if (cleanText.length > 100) {
+                cleanText.substring(0, 100) + "..."
+            } else {
+                cleanText
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "提取第一个段落失败", e)
+            ""
+        }
+    }
+    
+    /**
+     * 从文本中提取页面底部最后一个完整自然段的开头两行
+     */
+    private fun extractBottomParagraphFirstTwoLines(text: String): String {
+        return try {
+            // 清理HTML标签
+            val cleanText = text.replace(Regex("<[^>]*>"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            
+            Log.d(TAG, "清理后的文本: '$cleanText'")
+            
+            // 按段落分割（双换行符或段落标记）
+            val paragraphs = cleanText.split(Regex("\\n\\s*\\n|\\r\\n\\s*\\r\\n"))
+                .filter { it.trim().isNotEmpty() }
+            
+            Log.d(TAG, "分割后的段落数量: ${paragraphs.size}")
+            
+            if (paragraphs.isNotEmpty()) {
+                // 取最后一个段落
+                val lastParagraph = paragraphs.last().trim()
+                Log.d(TAG, "最后一个段落: '$lastParagraph'")
+                
+                // 将段落按行分割
+                val lines = lastParagraph.split(Regex("\\n|\\r\\n"))
+                    .filter { it.trim().isNotEmpty() }
+                
+                Log.d(TAG, "段落中的行数: ${lines.size}")
+                
+                if (lines.isNotEmpty()) {
+                    // 取前两行
+                    val firstTwoLines = lines.take(2).joinToString(" ")
+                    Log.d(TAG, "前两行内容: '$firstTwoLines'")
+                    
+                    // 如果内容太长，截断到合适长度
+                    return if (firstTwoLines.length > 120) {
+                        firstTwoLines.substring(0, 120) + "..."
+                    } else {
+                        firstTwoLines
+                    }
+                } else {
+                    // 如果没有行分割，按句子分割
+                    val sentences = lastParagraph.split(Regex("[。！？.!?]"))
+                        .filter { it.trim().isNotEmpty() }
+                    
+                    if (sentences.isNotEmpty()) {
+                        // 取前两个句子
+                        val firstTwoSentences = sentences.take(2).joinToString("。") + "。"
+                        return if (firstTwoSentences.length > 120) {
+                            firstTwoSentences.substring(0, 120) + "..."
+                        } else {
+                            firstTwoSentences
+                        }
+                    }
+                }
+            }
+            
+            // 如果没有找到段落，取文本的后半部分
+            val halfLength = cleanText.length / 2
+            val bottomText = cleanText.substring(halfLength)
+            
+            // 按句子分割，取前两个句子
+            val sentences = bottomText.split(Regex("[。！？.!?]"))
+                .filter { it.trim().isNotEmpty() }
+            
+            if (sentences.isNotEmpty()) {
+                val firstTwoSentences = sentences.take(2).joinToString("。") + "。"
+                return if (firstTwoSentences.length > 120) {
+                    firstTwoSentences.substring(0, 120) + "..."
+                } else {
+                    firstTwoSentences
+                }
+            }
+            
+            // 最后备选：取文本的后100个字符
+            if (cleanText.length > 100) {
+                cleanText.substring(cleanText.length - 100) + "..."
+            } else {
+                cleanText
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "提取底部段落开头两行失败", e)
+            ""
+        }
+    }
+
+    /**
+     * 获取当前页码 - 简化计算逻辑
      */
     private fun getCurrentPage(): Int {
         return try {
             val currentLocator = navigatorFragment?.currentLocator?.value
             if (currentLocator != null) {
-                Log.d(TAG, "计算页码，当前Locator: $currentLocator")
-                
-                // 优先使用Locator中的position
+                // 优先使用Locator中的position，这是最准确的方式
                 currentLocator.locations.position?.let { position ->
                     if (position > 0) {
                         Log.d(TAG, "使用position计算页码: $position")
@@ -2527,7 +2689,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     }
                 }
                 
-                // 如果没有position，尝试从progression计算
+                // 如果没有position，使用progression计算（更简单的方式）
                 currentLocator.locations.progression?.let { progression ->
                     val totalPages = getTotalPages()
                     if (totalPages > 0) {
@@ -2537,17 +2699,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     }
                 }
                 
-                // 尝试从totalProgression计算
-                currentLocator.locations.totalProgression?.let { totalProgression ->
-                    val totalPages = getTotalPages()
-                    if (totalPages > 0) {
-                        val calculatedPage = (totalProgression * totalPages).toInt() + 1
-                        Log.d(TAG, "使用totalProgression计算页码: $calculatedPage (totalProgression=$totalProgression, totalPages=$totalPages)")
-                        return calculatedPage
-                    }
-                }
-                
-                // 如果都没有，尝试从fragment解析
+                // 最后尝试从fragment解析
                 currentLocator.locations.fragments.firstOrNull()?.let { fragment ->
                     fragment.toIntOrNull()?.let { page ->
                         if (page > 0) {
@@ -2610,6 +2762,48 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     }
     
     /**
+     * 获取整本书的总页数
+     */
+    private fun getBookTotalPages(): Int {
+        return try {
+            // 使用publication的readingOrder大小作为整本书的总页数
+            publication?.readingOrder?.size?.let { size ->
+                if (size > 0) return size
+            }
+            
+            // 如果没有，使用默认值
+            1000
+        } catch (e: Exception) {
+            Log.w(TAG, "获取整本书总页数失败", e)
+            1000
+        }
+    }
+    
+    /**
+     * 获取整本书的当前页码
+     */
+    private fun getBookCurrentPage(): Int {
+        return try {
+            val currentLocator = navigatorFragment?.currentLocator?.value
+            if (currentLocator != null) {
+                // 使用totalProgression计算整本书的当前页码
+                val totalProgression = currentLocator.locations.totalProgression ?: 0.0
+                val bookTotalPages = getBookTotalPages()
+                val currentPage = (totalProgression * bookTotalPages).toInt() + 1
+                
+                Log.d(TAG, "计算整书页码: totalProgression=$totalProgression, bookTotalPages=$bookTotalPages, currentPage=$currentPage")
+                return currentPage
+            }
+            
+            // 默认返回1
+            1
+        } catch (e: Exception) {
+            Log.w(TAG, "获取整本书当前页码失败", e)
+            1
+        }
+    }
+    
+    /**
      * 获取当前章节总页数
      */
     private fun getCurrentChapterTotalPages(): Int {
@@ -2641,9 +2835,29 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
      * 获取本章剩余页数
      */
     private fun getRemainingPages(): Int {
-        val currentPage = getCurrentPage()
-        val totalPages = getTotalPages()
-        return if (totalPages > currentPage) totalPages - currentPage else 0
+        return try {
+            val currentLocator = navigatorFragment?.currentLocator?.value
+            if (currentLocator != null) {
+                // 使用progression计算当前章节的剩余页数
+                val progression = currentLocator.locations.progression ?: 0.0
+                val chapterTotalPages = getCurrentChapterTotalPages()
+                val currentChapterPage = (progression * chapterTotalPages).toInt() + 1
+                val remainingPages = if (chapterTotalPages > currentChapterPage) {
+                    chapterTotalPages - currentChapterPage
+                } else {
+                    0
+                }
+                
+                Log.d(TAG, "计算本章剩余页数: progression=$progression, chapterTotalPages=$chapterTotalPages, currentChapterPage=$currentChapterPage, remainingPages=$remainingPages")
+                return remainingPages
+            }
+            
+            // 默认返回0
+            0
+        } catch (e: Exception) {
+            Log.w(TAG, "获取本章剩余页数失败", e)
+            0
+        }
     }
     
     /**
@@ -2943,18 +3157,35 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 // 使用Readium原生API直接应用
                 if (currentFragment is Configurable<*, EpubPreferences>) {
                     try {
+                        // 先添加渐隐效果
+                        currentFragment.view?.let { view ->
+                            view.animate()
+                                .alpha(0.7f)
+                                .setDuration(100)
+                                .start()
+                        }
+                        
+                        // 应用字体大小配置
                         currentFragment.submitPreferences(fontSizePreferences)
                         Log.d(TAG, "字体大小已直接应用到当前Fragment: $sizeName")
                         
                         // 添加渐显效果
                         currentFragment.view?.let { view ->
-                            applyFontSizeTransitionEffect(view, sizeName)
+                            view.animate()
+                                .alpha(1.0f)
+                                .setDuration(200)
+                                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                                .start()
                         }
                         
                         Toast.makeText(this, "字体大小已切换为: $sizeName", Toast.LENGTH_SHORT).show()
                         return // 成功应用，直接返回
                     } catch (e: Exception) {
                         Log.w(TAG, "直接应用失败，回退到重新创建方式: ${e.message}")
+                        // 恢复透明度
+                        currentFragment.view?.let { view ->
+                            view.alpha = 1.0f
+                        }
                     }
                 }
             }
@@ -3000,8 +3231,14 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     }
                 )
                 
-                // 使用addToBackStack而不是replace，保持阅读位置
+                // 使用平滑过渡动画，避免闪烁
                 supportFragmentManager.beginTransaction()
+                    .setCustomAnimations(
+                        android.R.anim.fade_in,  // 进入动画
+                        android.R.anim.fade_out, // 退出动画
+                        android.R.anim.fade_in,  // 返回进入动画
+                        android.R.anim.fade_out  // 返回退出动画
+                    )
                     .addToBackStack("font_size_change")
                     .replace(R.id.reader_container, EpubNavigatorFragment::class.java, Bundle(), "EpubNavigatorFragment")
                     .commit()
