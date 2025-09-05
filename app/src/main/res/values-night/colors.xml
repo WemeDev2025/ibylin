@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 黑夜模式下的颜色配置 -->
+    
+    <!-- Apple Books 风格配色 - 黑夜模式 -->
+    <color name="apple_books_bg">#FF000000</color>           <!-- 主背景色 - 纯黑色 -->
+    <color name="apple_books_card_bg">#FF1C1C1E</color>      <!-- 卡片背景色 - 深灰 -->
+    <color name="apple_books_sidebar_bg">#FF1C1C1E</color>   <!-- 侧边栏背景色 - 深灰 -->
+    <color name="apple_books_text_primary">#FFFFFFFF</color>  <!-- 主要文字 - 白色 -->
+    <color name="apple_books_text_secondary">#FF8E8E93</color> <!-- 次要文字 - 浅灰 -->
+    <color name="apple_books_accent">#FF007AFF</color>        <!-- 强调色 - 苹果蓝 -->
+    <color name="apple_books_primary">#FF007AFF</color>       <!-- 主要颜色 - 苹果蓝 -->
+    <color name="apple_books_secondary">#FF8E8E93</color>    <!-- 次要颜色 - 浅灰 -->
+    <color name="apple_books_border">#FF2C2C2E</color>       <!-- 边框色 - 中灰 -->
+    <color name="apple_books_read_bg">#FF2C2C2E</color>      <!-- 已读图书背景 - 中灰 -->
+    
+    <!-- 书库按钮颜色 - 黑夜模式 -->
+    <color name="book_library_button">#FF1EB4A2</color>      <!-- 书库按钮颜色 - 青绿色 -->
+    <color name="book_library_button_pressed">#FF1A9A8A</color>  <!-- 书库按钮按下状态 - 深青绿色 -->
+    
+    <!-- 阅读器专用颜色 - 黑夜模式 -->
+    <color name="reader_background">#FF1A1A1A</color>
+    <color name="reader_content_background">#FF2C2C2E</color>
+    <color name="reader_toolbar_background">#FF1C1C1E</color>
+    <color name="reader_controls_background">#FF2C2C2E</color>
+    <color name="reader_accent">#FF007AFF</color>
+    <color name="reader_icon">#FF8E8E93</color>
+    <color name="reader_text_primary">#FFFFFFFF</color>
+    <color name="reader_text_secondary">#FF8E8E93</color>
+    
+    <!-- 主题颜色 - 黑夜模式 -->
+    <color name="theme_default_background">#FF1A1A1A</color>
+    <color name="theme_default_text">#FFE0E0E0</color>
+    <color name="theme_sepia_background">#FF2A2520</color>
+    <color name="theme_sepia_text">#FFD4C4A8</color>
+    <color name="theme_night_background">#FF000000</color>
+    <color name="theme_night_text">#FFFFFFFF</color>
+    <color name="theme_high_contrast_background">#FF000000</color>
+    <color name="theme_high_contrast_text">#FFFFFFFF</color>
+    
+    <!-- Material Design 标准颜色 - 黑夜模式 -->
+    <color name="material_primary">#FFBB86FC</color>          <!-- Material 3 主色 - 浅紫色 -->
+    <color name="material_primary_variant">#FF3700B3</color>  <!-- Material 3 主色变体 - 深紫色 -->
+    <color name="material_on_primary">#FF000000</color>       <!-- Material 3 主色上的文字 - 黑色 -->
+    <color name="material_secondary">#FF03DAC5</color>        <!-- Material 3 次色 - 青色 -->
+    <color name="material_secondary_variant">#FF03DAC5</color> <!-- Material 3 次色变体 - 青色 -->
+    <color name="material_on_secondary">#FF000000</color>     <!-- Material 3 次色上的文字 - 黑色 -->
+    <color name="material_surface">#FF1C1C1E</color>          <!-- Material 3 表面色 - 深灰 -->
+    <color name="material_on_surface">#FFFFFFFF</color>       <!-- Material 3 表面上的文字 - 白色 -->
+    <color name="material_background">#FF000000</color>       <!-- Material 3 背景色 - 黑色 -->
+    <color name="material_on_background">#FFFFFFFF</color>    <!-- Material 3 背景上的文字 - 白色 -->
+    <color name="material_error">#FFCF6679</color>            <!-- Material 3 错误色 - 浅红色 -->
+    <color name="material_on_error">#FF000000</color>         <!-- Material 3 错误色上的文字 - 黑色 -->
+    
+    <!-- Material 2 兼容颜色 - 黑夜模式 -->
+    <color name="material_accent">#FF03DAC5</color>           <!-- Material 2 强调色 - 青色 -->
+</resources>

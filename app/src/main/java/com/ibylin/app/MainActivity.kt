@@ -16,6 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.core.content.ContextCompat
+import java.io.File
 
 import com.ibylin.app.reader.ReadiumEpubReaderActivity
 import com.ibylin.app.utils.BookmarkManager
@@ -343,6 +344,11 @@ class MainActivity : AppCompatActivity() {
      */
     private fun openReadiumReader(bookPath: String) {
         try {
+            // 如果不是欢迎图书，标记用户已读过其他图书
+            if (!isWelcomeBook(bookPath)) {
+                markUserHasReadOtherBooks()
+            }
+            
             val intent = Intent(this, ReadiumEpubReaderActivity::class.java).apply {
                 putExtra("book_path", bookPath)
             }
@@ -374,11 +380,23 @@ class MainActivity : AppCompatActivity() {
             val lastReadBook = com.ibylin.app.utils.ReadingProgressManager.getLastReadBook(this)
             
             if (lastReadBook != null) {
-                // 显示最后阅读图书卡片
-                showLastReadBookCard(lastReadBook)
+                // 检查是否是欢迎图书
+                if (isWelcomeBook(lastReadBook.path)) {
+                    // 如果是欢迎图书，检查用户是否已经读过其他图书
+                    if (hasUserReadOtherBooks()) {
+                        // 用户已经读过其他图书，不再显示欢迎图书
+                        showWelcomeInterface()
+                    } else {
+                        // 显示欢迎图书
+                        showLastReadBookCard(lastReadBook)
+                    }
+                } else {
+                    // 显示最后阅读图书卡片
+                    showLastReadBookCard(lastReadBook)
+                }
             } else {
-                // 显示默认欢迎界面
-                showWelcomeInterface()
+                // 首次安装，显示欢迎图书
+                showWelcomeBook()
             }
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "检查最后阅读图书失败", e)
@@ -547,6 +565,11 @@ class MainActivity : AppCompatActivity() {
         try {
             android.util.Log.d("MainActivity", "打开书签图书: ${bookmarkBook.bookTitle}")
             
+            // 如果不是欢迎图书，标记用户已读过其他图书
+            if (!isWelcomeBook(bookmarkBook.bookPath)) {
+                markUserHasReadOtherBooks()
+            }
+            
             val intent = Intent(this, ReadiumEpubReaderActivity::class.java).apply {
                 putExtra(ReadiumEpubReaderActivity.EXTRA_EPUB_PATH, bookmarkBook.bookPath)
                 putExtra("bookmark_id", bookmarkBook.bookmarkId)
@@ -558,6 +581,113 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "打开书签图书失败", e)
             Toast.makeText(this, "打开书签图书失败", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 检查是否是欢迎图书
+     */
+    private fun isWelcomeBook(bookPath: String): Boolean {
+        return bookPath.contains("welcome_book.epub") || bookPath.contains("欢迎图书")
+    }
+    
+    /**
+     * 检查用户是否已经读过其他图书
+     */
+    private fun hasUserReadOtherBooks(): Boolean {
+        return try {
+            val prefs = getSharedPreferences("reading_progress", MODE_PRIVATE)
+            val hasReadOtherBooks = prefs.getBoolean("has_read_other_books", false)
+            hasReadOtherBooks
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "检查用户阅读历史失败", e)
+            false
+        }
+    }
+    
+    /**
+     * 标记用户已读过其他图书
+     */
+    private fun markUserHasReadOtherBooks() {
+        try {
+            val prefs = getSharedPreferences("reading_progress", MODE_PRIVATE)
+            prefs.edit().putBoolean("has_read_other_books", true).apply()
+            android.util.Log.d("MainActivity", "已标记用户读过其他图书")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "标记用户阅读历史失败", e)
+        }
+    }
+    
+    /**
+     * 显示欢迎图书
+     */
+    private fun showWelcomeBook() {
+        try {
+            // 从assets中复制欢迎图书到内部存储
+            val welcomeBookPath = copyWelcomeBookFromAssets()
+            
+            if (welcomeBookPath != null) {
+                // 创建欢迎图书的LastReadBook对象
+                val welcomeBook = com.ibylin.app.utils.LastReadBook(
+                    path = welcomeBookPath,
+                    name = "欢迎使用iBylin阅读器",
+                    lastReadTime = System.currentTimeMillis(),
+                    position = 0.0,
+                    recentContent = null
+                )
+                
+                // 记录为最后阅读的图书
+                com.ibylin.app.utils.ReadingProgressManager.recordReadingProgress(
+                    this,
+                    welcomeBookPath,
+                    0.0,
+                    System.currentTimeMillis()
+                )
+                
+                // 显示欢迎图书卡片
+                showLastReadBookCard(welcomeBook)
+                
+                android.util.Log.d("MainActivity", "显示欢迎图书成功")
+            } else {
+                showWelcomeInterface()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "显示欢迎图书失败", e)
+            showWelcomeInterface()
+        }
+    }
+    
+    /**
+     * 从assets复制欢迎图书到内部存储
+     */
+    private fun copyWelcomeBookFromAssets(): String? {
+        return try {
+            val internalDir = File(filesDir, "books")
+            if (!internalDir.exists()) {
+                internalDir.mkdirs()
+            }
+            
+            val welcomeBookFile = File(internalDir, "welcome_book.epub")
+            
+            // 如果文件已存在，直接返回路径
+            if (welcomeBookFile.exists()) {
+                return welcomeBookFile.absolutePath
+            }
+            
+            // 从assets复制文件
+            val inputStream = assets.open("books/welcome_book.epub")
+            val outputStream = welcomeBookFile.outputStream()
+            
+            inputStream.copyTo(outputStream)
+            inputStream.close()
+            outputStream.close()
+            
+            android.util.Log.d("MainActivity", "欢迎图书已复制到: ${welcomeBookFile.absolutePath}")
+            welcomeBookFile.absolutePath
+            
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "复制欢迎图书失败", e)
+            null
         }
     }
     

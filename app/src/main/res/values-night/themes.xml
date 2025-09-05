@@ -2,15 +2,108 @@
     <!-- Base application theme. -->
     <style name="Theme.Ibylin" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_200</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/black</item>
+        <item name="colorPrimary">@color/apple_books_primary</item>
+        <item name="colorPrimaryVariant">@color/apple_books_primary</item>
+        <item name="colorOnPrimary">@color/white</item>
         <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_200</item>
-        <item name="colorOnSecondary">@color/black</item>
+        <item name="colorSecondary">@color/apple_books_secondary</item>
+        <item name="colorSecondaryVariant">@color/apple_books_secondary</item>
+        <item name="colorOnSecondary">@color/white</item>
         <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowTranslucentStatus">false</item>
+        <!-- Background colors -->
+        <item name="android:colorBackground">@color/apple_books_bg</item>
+        <item name="colorSurface">@color/apple_books_card_bg</item>
+        <item name="colorOnSurface">@color/apple_books_text_primary</item>
+        <item name="colorOnBackground">@color/apple_books_text_primary</item>
         <!-- Customize your theme here. -->
+    </style>
+    
+    <!-- Apple风格的对话框样式 - 黑夜模式 -->
+    <style name="AppleStyleDialog" parent="Theme.Material3.DayNight.Dialog.Alert">
+        <!-- 背景和边框 -->
+        <item name="android:background">@color/apple_books_card_bg</item>
+        <item name="android:windowBackground">@color/apple_books_bg</item>
+        
+        <!-- 文字颜色 -->
+        <item name="android:textColorPrimary">@color/apple_books_text_primary</item>
+        <item name="android:textColorSecondary">@color/apple_books_text_secondary</item>
+        
+        <!-- 主题颜色 -->
+        <item name="colorPrimary">@color/apple_books_accent</item>
+        <item name="colorAccent">@color/apple_books_accent</item>
+        <item name="colorOnPrimary">@color/apple_books_text_primary</item>
+        <item name="colorOnSurface">@color/apple_books_text_primary</item>
+        
+        <!-- 窗口尺寸和位置 -->
+        <item name="android:windowMinWidthMajor">85%</item>
+        <item name="android:windowMinWidthMinor">85%</item>
+        
+        <!-- 阴影 -->
+        <item name="android:elevation">24dp</item>
+        
+        <!-- 字体样式 -->
+        <item name="android:textAppearance">@style/AppleStyleDialogTextAppearance</item>
+        <item name="android:textAppearanceButton">@style/AppleStyleDialogButtonTextAppearance</item>
+        
+        <!-- 按钮样式 -->
+        <item name="buttonBarPositiveButtonStyle">@style/AppleStyleDialogPositiveButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/AppleStyleDialogNegativeButton</item>
+        
+        <!-- 动画 -->
+        <item name="android:windowAnimationStyle">@style/AppleStyleDialogAnimation</item>
+    </style>
+    
+    <!-- iOS风格对话框文字样式 - 黑夜模式 -->
+    <style name="AppleStyleDialogTextAppearance" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/apple_books_text_primary</item>
+        <item name="android:lineSpacingMultiplier">1.2</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+    
+    <!-- iOS风格对话框按钮文字样式 - 黑夜模式 -->
+    <style name="AppleStyleDialogButtonTextAppearance" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">17sp</item>
+        <item name="android:textColor">@color/apple_books_accent</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    
+    <!-- iOS风格对话框确认按钮样式 - 黑夜模式 -->
+    <style name="AppleStyleDialogPositiveButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/apple_books_accent</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+    </style>
+    
+    <!-- iOS风格对话框取消按钮样式 - 黑夜模式 -->
+    <style name="AppleStyleDialogNegativeButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/apple_books_text_secondary</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+    </style>
+    
+    <!-- 书库封面长按菜单弹出主题 - 黑夜模式 -->
+    <style name="BookLongPressMenuPopupTheme" parent="ThemeOverlay.Material3.Dark">
+        <item name="android:popupBackground">#FF40353A</item>
+        <item name="android:textColorPrimary">@android:color/white</item>
+        <item name="android:textColorSecondary">@android:color/white</item>
+        <item name="android:itemTextAppearance">@style/BookLongPressMenuTextAppearance</item>
+    </style>
+    
+    <!-- 书库封面长按菜单文字样式 - 黑夜模式 -->
+    <style name="BookLongPressMenuTextAppearance" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textSize">16sp</item>
     </style>
 </resources>

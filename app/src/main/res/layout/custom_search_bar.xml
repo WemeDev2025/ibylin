@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="48dp"
     app:cardElevation="2dp"
-    app:cardBackgroundColor="@android:color/white"
+    app:cardBackgroundColor="@color/apple_books_card_bg"
     app:strokeColor="@color/apple_books_accent"
     app:strokeWidth="1dp"
     app:cardCornerRadius="24dp">
@@ -23,7 +23,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_search"
-            android:tint="@color/black"
+            android:tint="@color/apple_books_text_primary"
             android:layout_marginEnd="12dp" />
 
         <!-- 搜索输入框 -->
@@ -34,8 +34,8 @@
             android:layout_weight="1"
             android:background="@android:color/transparent"
             android:hint="英文单词更精准"
-            android:textColor="@color/black"
-            android:textColorHint="@color/gray"
+            android:textColor="@color/apple_books_text_primary"
+            android:textColorHint="@color/apple_books_text_secondary"
             android:textSize="16sp"
             android:imeOptions="actionSearch"
             android:inputType="text"
@@ -50,7 +50,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_close"
-            android:tint="@color/black"
+            android:tint="@color/apple_books_text_primary"
             android:layout_marginStart="12dp"
             android:visibility="gone"
             android:clickable="true"

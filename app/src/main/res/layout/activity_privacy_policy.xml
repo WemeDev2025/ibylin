@@ -28,7 +28,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="用户协议"
+            android:text="隐私政策"
             android:textSize="20sp"
             android:textStyle="bold"
             android:textColor="@color/white"
@@ -66,22 +66,22 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="《iBylin App用户协议》"
+                    android:text="《iBylin App隐私政策》"
                     android:textSize="24sp"
                     android:textStyle="bold"
                     android:textColor="@android:color/white"
                     android:gravity="center"
                     android:layout_marginBottom="24dp" />
 
-                <!-- 协议内容 -->
+                <!-- 政策内容 -->
                 <TextView
-                    android:id="@+id/tv_agreement_content"
+                    android:id="@+id/tv_policy_content"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textSize="16sp"
                     android:textColor="#CCFFFFFF"
                     android:lineSpacingExtra="6dp"
-                    android:text="@string/user_agreement_content" />
+                    android:text="@string/privacy_policy_content" />
 
             </LinearLayout>
 

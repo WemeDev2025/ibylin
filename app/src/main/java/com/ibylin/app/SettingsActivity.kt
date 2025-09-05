@@ -1,5 +1,8 @@
 package com.ibylin.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -9,6 +12,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.card.MaterialCardView
 import com.ibylin.app.databinding.ActivitySettingsBinding
+import com.ibylin.app.ui.UserAgreementActivity
+import com.ibylin.app.ui.PrivacyPolicyActivity
+import com.ibylin.app.ui.AboutIbylinActivity
 
 /**
  * 设置页面Activity
@@ -78,9 +84,9 @@ class SettingsActivity : AppCompatActivity() {
      */
     private fun openUserAgreement() {
         try {
-            Toast.makeText(this, "用户协议", Toast.LENGTH_SHORT).show()
             Log.d(TAG, "打开用户协议")
-            // TODO: 实现用户协议页面
+            val intent = Intent(this, UserAgreementActivity::class.java)
+            startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "打开用户协议失败", e)
             Toast.makeText(this, "打开用户协议失败", Toast.LENGTH_SHORT).show()
@@ -92,9 +98,9 @@ class SettingsActivity : AppCompatActivity() {
      */
     private fun openPrivacyPolicy() {
         try {
-            Toast.makeText(this, "隐私政策", Toast.LENGTH_SHORT).show()
             Log.d(TAG, "打开隐私政策")
-            // TODO: 实现隐私政策页面
+            val intent = Intent(this, PrivacyPolicyActivity::class.java)
+            startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "打开隐私政策失败", e)
             Toast.makeText(this, "打开隐私政策失败", Toast.LENGTH_SHORT).show()
@@ -106,9 +112,9 @@ class SettingsActivity : AppCompatActivity() {
      */
     private fun openAboutIbylin() {
         try {
-            Toast.makeText(this, "关于ibylin", Toast.LENGTH_SHORT).show()
             Log.d(TAG, "打开关于ibylin")
-            // TODO: 实现关于页面
+            val intent = Intent(this, AboutIbylinActivity::class.java)
+            startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "打开关于ibylin失败", e)
             Toast.makeText(this, "打开关于ibylin失败", Toast.LENGTH_SHORT).show()
@@ -134,12 +140,28 @@ class SettingsActivity : AppCompatActivity() {
      */
     private fun openContactUs() {
         try {
-            Toast.makeText(this, "联系我们", Toast.LENGTH_SHORT).show()
-            Log.d(TAG, "打开联系我们")
-            // TODO: 实现联系我们页面
+            Log.d(TAG, "复制微信到剪贴板")
+            copyWechatToClipboard()
         } catch (e: Exception) {
-            Log.e(TAG, "打开联系我们失败", e)
-            Toast.makeText(this, "打开联系我们失败", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "复制微信失败", e)
+            Toast.makeText(this, "复制微信失败", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 复制微信到剪贴板
+     */
+    private fun copyWechatToClipboard() {
+        try {
+            val clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clipData = ClipData.newPlainText("微信", "task1834")
+            clipboardManager.setPrimaryClip(clipData)
+            
+            Toast.makeText(this, "微信已复制", Toast.LENGTH_SHORT).show()
+            Log.d(TAG, "微信已复制到剪贴板: task1834")
+        } catch (e: Exception) {
+            Log.e(TAG, "复制微信到剪贴板失败", e)
+            Toast.makeText(this, "复制失败", Toast.LENGTH_SHORT).show()
         }
     }
 }

@@ -1005,7 +1005,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         
         // 严格按照DataStore + PreferencesManagerFactory架构应用字体大小
         applyFontSizeWithDataStore(currentFontSize)
-        Toast.makeText(this, "字体大小: ${currentFontSize.toInt()}", Toast.LENGTH_SHORT).show()
     }
     
     private fun decreaseFontSize() {
@@ -1019,7 +1018,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         
         // 严格按照DataStore + PreferencesManagerFactory架构应用字体大小
         applyFontSizeWithDataStore(currentFontSize)
-        Toast.makeText(this, "字体大小: ${currentFontSize.toInt()}", Toast.LENGTH_SHORT).show()
     }
     
     /**
@@ -1099,7 +1097,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         
         // 严格按照DataStore + PreferencesManagerFactory架构应用主题
         applyThemeWithDataStore(currentTheme)
-        Toast.makeText(this, "主题: $currentTheme", Toast.LENGTH_SHORT).show()
     }
     
     /**
@@ -1214,7 +1211,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                         }
                         
                         
-                        Toast.makeText(this, "主题已切换为: $theme", Toast.LENGTH_SHORT).show()
                         
                         // 保持二级菜单显示状态，不退出
                         if (isMenuPanelVisible) {
@@ -1295,16 +1291,13 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 }
                 
                 Log.d(TAG, "主题应用成功: $theme，Navigator已重新创建")
-                Toast.makeText(this, "主题已切换为: $theme", Toast.LENGTH_SHORT).show()
                 
             } ?: run {
                 Log.w(TAG, "Publication为空，无法应用主题")
-                Toast.makeText(this, "无法应用主题，请重新加载书籍", Toast.LENGTH_SHORT).show()
             }
             
         } catch (e: Exception) {
             Log.e(TAG, "应用主题失败", e)
-            Toast.makeText(this, "主题切换失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -1480,10 +1473,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 try {
                     currentFragment.submitPreferences(themePreferences)
                     Log.d(TAG, "主题已成功应用到Readium: $theme")
-                    Toast.makeText(this, "主题已切换为: $theme", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Log.e(TAG, "应用主题时发生异常", e)
-                    Toast.makeText(this, "主题切换失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             } else {
                 Log.w(TAG, "Fragment不支持主题配置，Fragment类型: ${currentFragment.javaClass.name}")
@@ -2720,10 +2711,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 try {
                     currentFragment.submitPreferences(fontSizePreferences)
                     Log.d(TAG, "字体大小已成功应用到Readium: $sizeName (${fontSize})")
-                    Toast.makeText(this, "字体大小已切换为: $sizeName", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Log.e(TAG, "应用字体大小时发生异常", e)
-                    Toast.makeText(this, "字体大小调整失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             } else {
                 Log.w(TAG, "Fragment不支持字体大小配置，Fragment类型: ${currentFragment.javaClass.name}")
@@ -3567,7 +3556,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "切换书签失败", e)
-            Toast.makeText(this, "书签操作失败", Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -3589,13 +3577,11 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 updateBookmarkButtonState()
                 
                 Log.d(TAG, "添加书签成功: $bookmarkId")
-                Toast.makeText(this, "已添加书签", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "无法获取当前位置", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             Log.e(TAG, "添加书签失败", e)
-            Toast.makeText(this, "添加书签失败", Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -3617,11 +3603,9 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 updateBookmarkButtonState()
                 
                 Log.d(TAG, "移除书签成功")
-                Toast.makeText(this, "已移除书签", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             Log.e(TAG, "移除书签失败", e)
-            Toast.makeText(this, "移除书签失败", Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -3958,7 +3942,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                                 .start()
                         }
                         
-                        Toast.makeText(this, "字体大小已切换为: $sizeName", Toast.LENGTH_SHORT).show()
                         return // 成功应用，直接返回
                     } catch (e: Exception) {
                         Log.w(TAG, "直接应用失败，回退到重新创建方式: ${e.message}")
@@ -4040,16 +4023,13 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 }
                 
                 Log.d(TAG, "字体大小应用成功: $sizeName (${fontSize})，Navigator已重新创建")
-                Toast.makeText(this, "字体大小已切换为: $sizeName", Toast.LENGTH_SHORT).show()
                 
             } ?: run {
                 Log.w(TAG, "Publication为空，无法应用字体大小")
-                Toast.makeText(this, "无法应用字体大小，请重新加载书籍", Toast.LENGTH_SHORT).show()
             }
             
         } catch (e: Exception) {
             Log.e(TAG, "应用字体大小失败", e)
-            Toast.makeText(this, "字体大小调整失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -4096,10 +4076,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 val savedProgress = prefs.getFloat("${bookPath}_progress", -1f)
                 
                 if (savedPage > 0) {
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        Toast.makeText(this, "已恢复到第 $savedPage 页", Toast.LENGTH_SHORT).show()
-                        Log.d(TAG, "显示进度恢复消息: 第 $savedPage 页")
-                    }, 1000) // 延迟1秒显示
+                    Log.d(TAG, "已恢复到第 $savedPage 页")
                 }
             }
         } catch (e: Exception) {

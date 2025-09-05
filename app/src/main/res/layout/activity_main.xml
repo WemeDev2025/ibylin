@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="@color/apple_books_bg">
 
 
 
@@ -38,7 +38,7 @@
                 android:layout_gravity="center_vertical"
                 android:gravity="center_vertical"
                 android:text="正在读"
-                android:textColor="#FF000000"
+                android:textColor="@color/apple_books_text_primary"
                 android:textSize="26sp"
                 android:textStyle="bold" />
 
@@ -159,7 +159,7 @@
                 android:gravity="center"
                 android:maxLines="2"
                 android:text=""
-                android:textColor="#666666"
+                android:textColor="@color/apple_books_text_secondary"
                 android:textSize="14sp"
                 android:textStyle="normal" />
 

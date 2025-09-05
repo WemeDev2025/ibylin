@@ -27,6 +27,8 @@ class BookGridAdapter(
     private val onItemLongClick: ((EpubFile, View) -> Unit)? = null
 ) : RecyclerView.Adapter<BookGridAdapter.BookGridViewHolder>() {
     
+    private var spanCount = 2 // 默认2列
+    
     class BookGridViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val ivCover: ImageView = itemView.findViewById(R.id.iv_book_cover)
 
@@ -45,6 +47,7 @@ class BookGridAdapter(
         try {
             val epubFile = epubFiles[position]
             android.util.Log.d("BookGridAdapter", "绑定ViewHolder: position=$position, 书名=${epubFile.name}, 路径=${epubFile.path}")
+            
             
             // 记录书名信息用于日志
             val rawBookTitle = if (epubFile.metadata?.title.isNullOrBlank()) {
@@ -109,6 +112,18 @@ class BookGridAdapter(
         notifyDataSetChanged()
         android.util.Log.d("BookGridAdapter", "notifyDataSetChanged已调用")
     }
+    
+    /**
+     * 设置列数
+     */
+    fun setSpanCount(newSpanCount: Int) {
+        if (spanCount != newSpanCount) {
+            spanCount = newSpanCount
+            android.util.Log.d("BookGridAdapter", "列数已更新: $spanCount")
+            notifyDataSetChanged()
+        }
+    }
+    
     
 
     

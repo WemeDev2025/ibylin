@@ -11,6 +11,8 @@ import android.provider.Settings
 import android.view.View
 import android.view.Menu
 import android.view.MenuItem
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.FrameLayout
@@ -48,11 +50,15 @@ class BookLibraryActivity : AppCompatActivity() {
     private lateinit var llNoBooks: android.widget.LinearLayout
     private lateinit var bookGridAdapter: BookGridAdapter
     private lateinit var btnSort: FrameLayout
-    private lateinit var btnZoom: FrameLayout
     
     // 网格布局相关
     private var currentSpanCount = 2 // 当前列数，默认为2列
     private lateinit var gridLayoutManager: GridLayoutManager
+    
+    // 缩放手势相关
+    private lateinit var scaleGestureDetector: ScaleGestureDetector
+    private var lastScaleFactor = 1.0f
+    private var isAnimating = false // 防止动画期间重复触发
     
 
 
@@ -200,6 +206,14 @@ class BookLibraryActivity : AppCompatActivity() {
         }
     }
     
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        return if (event != null) {
+            scaleGestureDetector.onTouchEvent(event) || super.onTouchEvent(event)
+        } else {
+            super.onTouchEvent(event)
+        }
+    }
+    
     // 缓存相关
     private var cachedEpubFiles: List<EpubFile> = emptyList()
     private var isDataCached = false
@@ -231,7 +245,6 @@ class BookLibraryActivity : AppCompatActivity() {
         llScanning = findViewById(R.id.ll_scanning)
         llNoBooks = findViewById(R.id.ll_no_books)
         btnSort = findViewById(R.id.btn_sort)
-        btnZoom = findViewById(R.id.btn_zoom)
         
         
         // 设置自定义导航栏
@@ -240,8 +253,9 @@ class BookLibraryActivity : AppCompatActivity() {
         // 设置排序按钮点击事件
         setupSortButton()
         
-        // 设置缩放按钮点击事件
-        setupZoomButton()
+        
+        // 初始化缩放手势检测器
+        setupScaleGestureDetector()
         
     }
     
@@ -266,16 +280,51 @@ class BookLibraryActivity : AppCompatActivity() {
         Log.d("BookLibraryActivity", "🎯 排序按钮设置完成")
     }
     
+    
     /**
-     * 设置缩放按钮
+     * 设置缩放手势检测器
      */
-    private fun setupZoomButton() {
-        btnZoom.setOnClickListener {
-            Log.d("BookLibraryActivity", "🎯 缩放按钮被点击")
-            toggleGridLayout()
-        }
+    private fun setupScaleGestureDetector() {
+        scaleGestureDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                if (isAnimating) return true // 动画期间不处理手势
+                
+                val scaleFactor = detector.scaleFactor
+                val deltaScale = scaleFactor - lastScaleFactor
+                
+                // 检测缩放方向，调整阈值避免误触
+                if (Math.abs(deltaScale) > 0.15f) {
+                    if (deltaScale > 0) {
+                        // 放大手势 - 切换到2列布局
+                        if (currentSpanCount == 3) {
+                            Log.d("BookLibraryActivity", "🎯 检测到放大手势，切换到2列布局")
+                            toggleGridLayoutWithAnimation()
+                        }
+                    } else {
+                        // 缩小手势 - 切换到3列布局
+                        if (currentSpanCount == 2) {
+                            Log.d("BookLibraryActivity", "🎯 检测到缩小手势，切换到3列布局")
+                            toggleGridLayoutWithAnimation()
+                        }
+                    }
+                    lastScaleFactor = scaleFactor
+                }
+                
+                return true
+            }
+            
+            override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                lastScaleFactor = 1.0f
+                Log.d("BookLibraryActivity", "🎯 缩放手势开始")
+                return true
+            }
+            
+            override fun onScaleEnd(detector: ScaleGestureDetector) {
+                Log.d("BookLibraryActivity", "🎯 缩放手势结束")
+            }
+        })
         
-        Log.d("BookLibraryActivity", "🎯 缩放按钮设置完成")
+        Log.d("BookLibraryActivity", "🎯 缩放手势检测器设置完成")
     }
     
     /**
@@ -288,6 +337,9 @@ class BookLibraryActivity : AppCompatActivity() {
         // 更新GridLayoutManager的spanCount
         gridLayoutManager.spanCount = currentSpanCount
         
+        // 更新适配器的列数，触发高度调整
+        bookGridAdapter.setSpanCount(currentSpanCount)
+        
         // 更新间距装饰器
         // 移除所有现有的装饰器
         for (i in rvBooks.itemDecorationCount - 1 downTo 0) {
@@ -296,28 +348,46 @@ class BookLibraryActivity : AppCompatActivity() {
         val spacing = resources.getDimensionPixelSize(R.dimen.grid_spacing)
         rvBooks.addItemDecoration(GridSpacingItemDecoration(currentSpanCount, spacing, true))
         
-        // 更新缩放按钮图标
-        updateZoomButtonIcon()
         
-        // 显示切换提示
+        // 记录切换日志
         val layoutText = if (currentSpanCount == 2) "2列" else "3列"
-        Toast.makeText(this, "已切换到${layoutText}布局", Toast.LENGTH_SHORT).show()
+        Log.d("BookLibraryActivity", "已切换到${layoutText}布局")
         
         Log.d("BookLibraryActivity", "🎯 网格布局切换完成: ${currentSpanCount}列")
     }
     
     /**
-     * 更新缩放按钮图标
+     * 带动画的网格布局切换
      */
-    private fun updateZoomButtonIcon() {
-        val zoomIcon = findViewById<ImageView>(R.id.iv_zoom_icon)
-        if (currentSpanCount == 2) {
-            // 2列时显示放大图标（切换到3列）
-            zoomIcon.setImageResource(R.drawable.ic_zoom_in)
-        } else {
-            // 3列时显示缩小图标（切换到2列）
-            zoomIcon.setImageResource(R.drawable.ic_zoom_out)
-        }
+    private fun toggleGridLayoutWithAnimation() {
+        if (isAnimating) return
+        
+        isAnimating = true
+        
+        // 先执行布局切换
+        toggleGridLayout()
+        
+        // 添加平滑的动画效果
+        rvBooks.animate()
+            .alpha(0.7f)
+            .scaleX(0.95f)
+            .scaleY(0.95f)
+            .setDuration(150)
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .withEndAction {
+                // 动画结束后恢复原状
+                rvBooks.animate()
+                    .alpha(1.0f)
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(200)
+                    .setInterpolator(android.view.animation.OvershootInterpolator(0.8f))
+                    .withEndAction {
+                        isAnimating = false
+                    }
+                    .start()
+            }
+            .start()
     }
     
     /**
@@ -528,6 +598,12 @@ class BookLibraryActivity : AppCompatActivity() {
         )
         rvBooks.adapter = bookGridAdapter
         
+        // 设置RecyclerView的触摸事件处理，支持缩放手势
+        rvBooks.setOnTouchListener { _, event ->
+            scaleGestureDetector.onTouchEvent(event)
+            false // 不消费事件，让RecyclerView继续处理滚动等操作
+        }
+        
         // 配置下拉刷新
         setupSwipeRefresh()
     }
@@ -600,13 +676,20 @@ class BookLibraryActivity : AppCompatActivity() {
                             playNativeBounceAnimation(rvBooks)
                             isScrolling = false
                             android.util.Log.d("BookLibraryActivity", "滑动结束，播放原生弹性动画")
+                            
+                            // 显示排序按钮
+                            showSortButton()
                         }
                     }
                     androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING -> {
                         isScrolling = true
+                        // 隐藏排序按钮
+                        hideSortButton()
                     }
                     androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_SETTLING -> {
                         isScrolling = true
+                        // 隐藏排序按钮
+                        hideSortButton()
                     }
                 }
             }
@@ -629,6 +712,50 @@ class BookLibraryActivity : AppCompatActivity() {
             
         } catch (e: Exception) {
             android.util.Log.e("BookLibraryActivity", "播放原生弹性动画失败", e)
+        }
+    }
+    
+    /**
+     * 隐藏排序按钮，带动画效果
+     */
+    private fun hideSortButton() {
+        if (btnSort.visibility == View.VISIBLE) {
+            btnSort.animate()
+                .alpha(0f)
+                .scaleX(0.8f)
+                .scaleY(0.8f)
+                .translationY(50f)
+                .setDuration(200)
+                .withEndAction {
+                    btnSort.visibility = View.GONE
+                }
+                .start()
+            
+            android.util.Log.d("BookLibraryActivity", "排序按钮隐藏动画开始")
+        }
+    }
+    
+    /**
+     * 显示排序按钮，带动画效果
+     */
+    private fun showSortButton() {
+        if (btnSort.visibility == View.GONE) {
+            btnSort.alpha = 0f
+            btnSort.scaleX = 0.8f
+            btnSort.scaleY = 0.8f
+            btnSort.translationY = 50f
+            btnSort.visibility = View.VISIBLE
+            
+            btnSort.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .translationY(0f)
+                .setDuration(300)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.2f))
+                .start()
+            
+            android.util.Log.d("BookLibraryActivity", "排序按钮显示动画开始")
         }
     }
     

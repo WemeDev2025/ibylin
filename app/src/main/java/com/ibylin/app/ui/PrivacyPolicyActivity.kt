@@ -6,15 +6,15 @@ import androidx.appcompat.app.AppCompatActivity
 import com.ibylin.app.R
 
 /**
- * 用户协议页面
+ * 隐私政策页面
  */
-class UserAgreementActivity : AppCompatActivity() {
+class PrivacyPolicyActivity : AppCompatActivity() {
     
     private lateinit var btnBack: ImageButton
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_user_agreement)
+        setContentView(R.layout.activity_privacy_policy)
         
         initViews()
         setupClickListeners()
