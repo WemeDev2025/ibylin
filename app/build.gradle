@@ -41,6 +41,13 @@ android {
         jvmTarget = '1.8'
     }
     
+    // KAPT配置
+    kapt {
+        correctErrorTypes true
+        useBuildCache false
+        mapDiagnosticLocations = true
+    }
+    
     buildFeatures {
         compose false
         viewBinding true
@@ -86,6 +93,10 @@ dependencies {
     
     // Core library desugaring (Readium 3.0.0 要求，因为目标API 24 < 26)
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
+    
+    // DataStore for preferences
+    implementation "androidx.datastore:datastore-preferences:1.0.0"
+    implementation "androidx.datastore:datastore-core:1.0.0"
     
     // 文档解析库 - 暂时注释，先创建基础架构
     // implementation 'org.apache.poi:poi:5.2.3'         // DOCX支持

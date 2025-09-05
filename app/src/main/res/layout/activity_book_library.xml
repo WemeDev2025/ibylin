@@ -93,6 +93,30 @@
 
         </LinearLayout>
 
+        <!-- 缩放按钮 -->
+        <FrameLayout
+            android:id="@+id/btn_zoom"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginEnd="24dp"
+            android:layout_marginBottom="100dp"
+            android:background="@drawable/ios_menu_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="缩放">
+
+            <ImageView
+                android:id="@+id/iv_zoom_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_zoom_in"
+                android:tint="@android:color/white" />
+
+        </FrameLayout>
+
         <!-- 排序按钮 - 复用阅读器menu样式 -->
         <FrameLayout
             android:id="@+id/btn_sort"

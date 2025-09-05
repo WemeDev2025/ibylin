@@ -12,6 +12,7 @@ import android.view.View
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -47,6 +48,12 @@ class BookLibraryActivity : AppCompatActivity() {
     private lateinit var llNoBooks: android.widget.LinearLayout
     private lateinit var bookGridAdapter: BookGridAdapter
     private lateinit var btnSort: FrameLayout
+    private lateinit var btnZoom: FrameLayout
+    
+    // 网格布局相关
+    private var currentSpanCount = 2 // 当前列数，默认为2列
+    private lateinit var gridLayoutManager: GridLayoutManager
+    
 
 
     
@@ -176,6 +183,7 @@ class BookLibraryActivity : AppCompatActivity() {
         
         android.util.Log.d("BookLibraryActivity", "onResume: isDataCached=$isDataCached, cachedEpubFiles.size=${cachedEpubFiles.size}")
         
+        
         // 如果有完整的缓存数据，直接显示
         if (isDataCached && cachedEpubFiles.isNotEmpty()) {
             android.util.Log.d("BookLibraryActivity", "使用完整缓存数据，文件数量=${cachedEpubFiles.size}")
@@ -223,12 +231,17 @@ class BookLibraryActivity : AppCompatActivity() {
         llScanning = findViewById(R.id.ll_scanning)
         llNoBooks = findViewById(R.id.ll_no_books)
         btnSort = findViewById(R.id.btn_sort)
+        btnZoom = findViewById(R.id.btn_zoom)
+        
         
         // 设置自定义导航栏
         setupCustomToolbar()
         
         // 设置排序按钮点击事件
         setupSortButton()
+        
+        // 设置缩放按钮点击事件
+        setupZoomButton()
         
     }
     
@@ -240,6 +253,7 @@ class BookLibraryActivity : AppCompatActivity() {
         Log.d("BookLibraryActivity", "🎯 自定义导航栏设置完成（无按钮）")
     }
     
+    
     /**
      * 设置排序按钮
      */
@@ -250,6 +264,60 @@ class BookLibraryActivity : AppCompatActivity() {
         }
         
         Log.d("BookLibraryActivity", "🎯 排序按钮设置完成")
+    }
+    
+    /**
+     * 设置缩放按钮
+     */
+    private fun setupZoomButton() {
+        btnZoom.setOnClickListener {
+            Log.d("BookLibraryActivity", "🎯 缩放按钮被点击")
+            toggleGridLayout()
+        }
+        
+        Log.d("BookLibraryActivity", "🎯 缩放按钮设置完成")
+    }
+    
+    /**
+     * 切换网格布局（2列和3列之间切换）
+     */
+    private fun toggleGridLayout() {
+        currentSpanCount = if (currentSpanCount == 2) 3 else 2
+        Log.d("BookLibraryActivity", "🎯 切换网格布局: ${currentSpanCount}列")
+        
+        // 更新GridLayoutManager的spanCount
+        gridLayoutManager.spanCount = currentSpanCount
+        
+        // 更新间距装饰器
+        // 移除所有现有的装饰器
+        for (i in rvBooks.itemDecorationCount - 1 downTo 0) {
+            rvBooks.removeItemDecorationAt(i)
+        }
+        val spacing = resources.getDimensionPixelSize(R.dimen.grid_spacing)
+        rvBooks.addItemDecoration(GridSpacingItemDecoration(currentSpanCount, spacing, true))
+        
+        // 更新缩放按钮图标
+        updateZoomButtonIcon()
+        
+        // 显示切换提示
+        val layoutText = if (currentSpanCount == 2) "2列" else "3列"
+        Toast.makeText(this, "已切换到${layoutText}布局", Toast.LENGTH_SHORT).show()
+        
+        Log.d("BookLibraryActivity", "🎯 网格布局切换完成: ${currentSpanCount}列")
+    }
+    
+    /**
+     * 更新缩放按钮图标
+     */
+    private fun updateZoomButtonIcon() {
+        val zoomIcon = findViewById<ImageView>(R.id.iv_zoom_icon)
+        if (currentSpanCount == 2) {
+            // 2列时显示放大图标（切换到3列）
+            zoomIcon.setImageResource(R.drawable.ic_zoom_in)
+        } else {
+            // 3列时显示缩小图标（切换到2列）
+            zoomIcon.setImageResource(R.drawable.ic_zoom_out)
+        }
     }
     
     /**
@@ -391,12 +459,12 @@ class BookLibraryActivity : AppCompatActivity() {
     
     private fun setupRecyclerView() {
         // 设置网格布局，一行2个
-        val gridLayoutManager = GridLayoutManager(this, 2)
+        gridLayoutManager = GridLayoutManager(this, currentSpanCount)
         rvBooks.layoutManager = gridLayoutManager
         
         // 添加自定义间距装饰器，减少垂直间距40%
         val spacing = resources.getDimensionPixelSize(R.dimen.grid_spacing)
-        rvBooks.addItemDecoration(GridSpacingItemDecoration(2, spacing, true))
+        rvBooks.addItemDecoration(GridSpacingItemDecoration(currentSpanCount, spacing, true))
         
         // iOS 风格的滑动优化
         setupIOSStyleScrolling()

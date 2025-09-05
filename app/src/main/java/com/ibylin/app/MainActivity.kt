@@ -18,6 +18,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.core.content.ContextCompat
 
 import com.ibylin.app.reader.ReadiumEpubReaderActivity
+import com.ibylin.app.utils.BookmarkManager
+import com.ibylin.app.adapter.BookmarkBookAdapter
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,14 +36,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var llLastReadCard: android.widget.LinearLayout
     private lateinit var llWelcomeContainer: android.widget.LinearLayout
     private lateinit var ivLastReadCover: android.widget.ImageView
-    private lateinit var tvLastReadProgress: android.widget.TextView
-    private lateinit var tvLastReadTime: android.widget.TextView
     
     
     // 顶部状态栏相关视图
     private lateinit var llStatusContainer: android.widget.LinearLayout
     private lateinit var tvReadingStatus: android.widget.TextView
     private lateinit var btnSettings: android.widget.ImageButton
+    
+    // 书签图书相关
+    private lateinit var llBookmarkBooks: android.widget.LinearLayout
+    private lateinit var rvBookmarkBooks: androidx.recyclerview.widget.RecyclerView
+    private lateinit var bookmarkBookAdapter: BookmarkBookAdapter
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     
@@ -64,12 +69,15 @@ class MainActivity : AppCompatActivity() {
         
         initViews()
         setupClickListeners()
+        setupBookmarkBooks()
     }
     
     override fun onResume() {
         super.onResume()
         // 检查并显示最后阅读的图书
         checkAndShowLastReadBook()
+        // 刷新书签图书列表
+        loadBookmarkBooks()
     }
     
     private fun initViews() {
@@ -84,8 +92,10 @@ class MainActivity : AppCompatActivity() {
         llLastReadCard = findViewById(R.id.ll_last_read_card)
         llWelcomeContainer = findViewById(R.id.ll_welcome_container)
         ivLastReadCover = findViewById(R.id.iv_last_read_cover)
-        tvLastReadProgress = findViewById(R.id.tv_last_read_progress)
-        tvLastReadTime = findViewById(R.id.tv_last_read_time)
+        
+        // 初始化书签图书相关视图
+        llBookmarkBooks = findViewById(R.id.ll_bookmark_books)
+        rvBookmarkBooks = findViewById(R.id.rv_bookmark_books)
         
     }
     
@@ -381,11 +391,6 @@ class MainActivity : AppCompatActivity() {
      */
     private fun showLastReadBookCard(lastReadBook: com.ibylin.app.utils.LastReadBook) {
         try {
-            // 设置图书信息
-            tvLastReadProgress.text = lastReadBook.getProgressText()
-            tvLastReadTime.text = lastReadBook.getFormattedLastReadTime()
-            
-            
             // 尝试加载图书封面
             loadBookCover(lastReadBook.path)
             
@@ -476,6 +481,83 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "打开最后阅读图书失败", e)
             Toast.makeText(this, "打开图书失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 设置书签图书
+     */
+    private fun setupBookmarkBooks() {
+        try {
+            // 设置水平RecyclerView
+            rvBookmarkBooks.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
+                this, 
+                androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, 
+                false
+            )
+            
+            // 创建适配器
+            bookmarkBookAdapter = BookmarkBookAdapter(this) { bookmarkBook ->
+                openBookmarkBook(bookmarkBook)
+            }
+            
+            rvBookmarkBooks.adapter = bookmarkBookAdapter
+            
+            // 加载书签图书
+            loadBookmarkBooks()
+            
+            android.util.Log.d("MainActivity", "书签图书设置完成")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "设置书签图书失败", e)
+        }
+    }
+    
+    /**
+     * 加载书签图书
+     */
+    private fun loadBookmarkBooks() {
+        try {
+            coroutineScope.launch {
+                val bookmarkBooks = withContext(Dispatchers.IO) {
+                    BookmarkManager.getAllBookmarkBooks(this@MainActivity)
+                }
+                
+                if (bookmarkBooks.isNotEmpty()) {
+                    // 显示书签图书区域
+                    llBookmarkBooks.visibility = View.VISIBLE
+                    bookmarkBookAdapter.updateBookmarkBooks(bookmarkBooks)
+                    android.util.Log.d("MainActivity", "加载了${bookmarkBooks.size}本书签图书")
+                } else {
+                    // 隐藏书签图书区域
+                    llBookmarkBooks.visibility = View.GONE
+                    android.util.Log.d("MainActivity", "没有书签图书")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "加载书签图书失败", e)
+            llBookmarkBooks.visibility = View.GONE
+        }
+    }
+    
+    /**
+     * 打开书签图书
+     */
+    private fun openBookmarkBook(bookmarkBook: BookmarkManager.BookmarkBook) {
+        try {
+            android.util.Log.d("MainActivity", "打开书签图书: ${bookmarkBook.bookTitle}")
+            
+            val intent = Intent(this, ReadiumEpubReaderActivity::class.java).apply {
+                putExtra(ReadiumEpubReaderActivity.EXTRA_EPUB_PATH, bookmarkBook.bookPath)
+                putExtra("bookmark_id", bookmarkBook.bookmarkId)
+                putExtra("locator_json", bookmarkBook.locatorJson)
+            }
+            
+            startActivity(intent)
+            
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "打开书签图书失败", e)
+            Toast.makeText(this, "打开书签图书失败", Toast.LENGTH_SHORT).show()
         }
     }
     

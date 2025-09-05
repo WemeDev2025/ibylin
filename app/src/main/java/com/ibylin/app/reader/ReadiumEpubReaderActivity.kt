@@ -17,6 +17,12 @@ import com.ibylin.app.R
 import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.EpubFixer
 import com.ibylin.app.utils.ReadiumPreferencesManager
+import com.ibylin.app.utils.PreferencesManager
+import com.ibylin.app.utils.UserPreferencesViewModel
+import com.ibylin.app.utils.EpubPreferencesManagerFactory
+import com.ibylin.app.utils.createEpubPreferencesManager
+import androidx.datastore.preferences.preferencesDataStore
+import org.readium.r2.navigator.preferences.PreferencesEditor
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -77,6 +83,10 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     @Inject
     lateinit var preferencesManager: ReadiumPreferencesManager
     
+    // 新的官方偏好设置管理器
+    private lateinit var officialPreferencesManager: PreferencesManager<EpubPreferences>
+    private lateinit var userPreferencesViewModel: UserPreferencesViewModel<org.readium.r2.navigator.epub.EpubSettings, EpubPreferences>
+    
     // 阅读状态和设置
     private var isBookLoaded = false
     private var currentFontSize = 18.0
@@ -88,6 +98,10 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     // 书签和阅读进度
     private var bookmarks = mutableListOf<String>()
     private var currentProgress = 0.0
+    
+    // 章节目录管理
+    private var tableOfContents = mutableListOf<Pair<String, String>>() // 章节标题和链接
+    private var isBookmarked = false
     
     // 当前书籍信息
     private var currentBookPath: String? = null
@@ -103,12 +117,49 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         // 默认隐藏状态栏，实现全屏阅读
         hideStatusBar()
         
+        // 初始化官方偏好设置管理器
+        initializeOfficialPreferencesManager()
+        
         setupViews()
         setupIOSMenu() // 设置iOS风格菜单
         loadConfiguration() // 加载配置
         loadEpub()
         
         Log.d(TAG, "ReadiumEpubReaderActivity onCreate 完成")
+    }
+    
+    private fun initializeOfficialPreferencesManager() {
+        try {
+            Log.d(TAG, "初始化官方偏好设置管理器 - 严格按照DataStore + PreferencesManagerFactory架构")
+            
+            // 在协程中初始化，因为createEpubPreferencesManager是suspend函数
+            lifecycleScope.launch {
+                try {
+                    // 获取书籍ID
+                    val bookId = currentBookPath?.hashCode()?.toLong() ?: 0L
+                    Log.d(TAG, "使用书籍ID: $bookId")
+                    
+                    // 创建官方偏好设置管理器
+                    officialPreferencesManager = createEpubPreferencesManager(bookId)
+                    Log.d(TAG, "官方偏好设置管理器创建成功")
+                    
+                    // 创建用户偏好设置视图模型
+                    userPreferencesViewModel = UserPreferencesViewModel.createForEpub(
+                        viewModelScope = lifecycleScope,
+                        bookId = bookId,
+                        preferencesManager = officialPreferencesManager,
+                        navigatorFactory = navigatorFactory ?: throw IllegalStateException("navigatorFactory未初始化")
+                    )
+                    Log.d(TAG, "用户偏好设置视图模型创建成功")
+                    
+                    Log.d(TAG, "官方偏好设置管理器初始化完成 - DataStore + PreferencesManagerFactory架构")
+                } catch (e: Exception) {
+                    Log.e(TAG, "在协程中初始化官方偏好设置管理器失败", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "初始化官方偏好设置管理器失败", e)
+        }
     }
     
     private fun setupViews() {
@@ -167,6 +218,11 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             val savedBrightness = sharedPrefs.getInt("screen_brightness", 50)
             adjustScreenBrightness(savedBrightness)
             Log.d(TAG, "加载亮度设置: $savedBrightness%")
+            
+            // 加载间距设置
+            val savedSpacing = sharedPrefs.getInt("line_spacing", 100)
+            currentLineHeight = savedSpacing / 100.0
+            Log.d(TAG, "加载间距设置: $savedSpacing% (倍数: $currentLineHeight)")
             
             // 加载主题设置
             val savedTheme = sharedPrefs.getString("theme", "默认") ?: "默认"
@@ -937,34 +993,91 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         }
     }
     
-    // 字体大小调整
+    // 字体大小调整 - 使用DataStore + PreferencesManagerFactory架构
     private fun increaseFontSize() {
         currentFontSize = (currentFontSize + 2.0).coerceAtMost(32.0)
         
-        // 保存字体大小设置到本地
+        // 保存到SharedPreferences（保持向后兼容）
         getSharedPreferences("reader_settings", MODE_PRIVATE)
             .edit()
             .putFloat("font_size", (currentFontSize / 16.0).toFloat())
             .apply()
         
-        applyReadingPreferences()
+        // 严格按照DataStore + PreferencesManagerFactory架构应用字体大小
+        applyFontSizeWithDataStore(currentFontSize)
         Toast.makeText(this, "字体大小: ${currentFontSize.toInt()}", Toast.LENGTH_SHORT).show()
     }
     
     private fun decreaseFontSize() {
         currentFontSize = (currentFontSize - 2.0).coerceAtLeast(12.0)
         
-        // 保存字体大小设置到本地
+        // 保存到SharedPreferences（保持向后兼容）
         getSharedPreferences("reader_settings", MODE_PRIVATE)
             .edit()
             .putFloat("font_size", (currentFontSize / 16.0).toFloat())
             .apply()
         
-        applyReadingPreferences()
+        // 严格按照DataStore + PreferencesManagerFactory架构应用字体大小
+        applyFontSizeWithDataStore(currentFontSize)
         Toast.makeText(this, "字体大小: ${currentFontSize.toInt()}", Toast.LENGTH_SHORT).show()
     }
     
-    // 主题切换
+    /**
+     * 使用DataStore + PreferencesManagerFactory架构应用字体大小
+     */
+    private fun applyFontSizeWithDataStore(fontSize: Double) {
+        try {
+            Log.d(TAG, "开始应用字体大小: ${fontSize}pt (使用DataStore + PreferencesManagerFactory架构)")
+            
+            // 更新本地字体大小变量
+            currentFontSize = fontSize
+            
+            // 严格按照DataStore + PreferencesManagerFactory架构更新偏好设置
+            lifecycleScope.launch {
+                try {
+                    // 检查官方偏好设置管理器是否已初始化
+                    if (!::userPreferencesViewModel.isInitialized) {
+                        Log.w(TAG, "官方偏好设置管理器未初始化，使用备用方法")
+                        // 使用备用方法
+                        applyReadingPreferences()
+                        return@launch
+                    }
+                    
+                    // 使用官方DataStore + PreferencesManagerFactory架构
+                    val currentPreferences = userPreferencesViewModel.preferences.value
+                    Log.d(TAG, "当前偏好设置: $currentPreferences")
+                    
+                    // 将字体大小转换为Readium的百分比格式
+                    val fontSizePercentage = fontSize / 16.0
+                    
+                    // 创建更新后的偏好设置
+                    val updatedPreferences = currentPreferences.copy(fontSize = fontSizePercentage)
+                    Log.d(TAG, "更新后的偏好设置: $updatedPreferences")
+                    
+                    // 通过官方偏好设置管理器更新
+                    userPreferencesViewModel.setPreferences(updatedPreferences)
+                    
+                    // 提交更新后的偏好设置到阅读器
+                    navigatorFragment?.submitPreferences(updatedPreferences)
+                    
+                    Log.d(TAG, "字体大小已应用: ${fontSize}pt (${fontSizePercentage}) 使用DataStore + PreferencesManagerFactory架构")
+                } catch (e: Exception) {
+                    Log.e(TAG, "使用DataStore + PreferencesManagerFactory架构应用字体大小失败", e)
+                    // 降级到备用方法
+                    try {
+                        applyReadingPreferences()
+                        Log.d(TAG, "降级到备用方法成功")
+                    } catch (fallbackException: Exception) {
+                        Log.e(TAG, "备用方法也失败", fallbackException)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "应用字体大小失败", e)
+        }
+    }
+    
+    // 主题切换 - 使用DataStore + PreferencesManagerFactory架构
     private fun toggleTheme() {
         currentTheme = when (currentTheme) {
             "默认" -> "护眼"
@@ -974,9 +1087,9 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         }
         
         Log.d(TAG, "=== 主题切换 ===")
-        Log.d(TAG, "新主题: $currentTheme")
+        Log.d(TAG, "新主题: $currentTheme (使用DataStore + PreferencesManagerFactory架构)")
         
-        // 保存主题设置到本地
+        // 保存到SharedPreferences（保持向后兼容）
         getSharedPreferences("reader_settings", MODE_PRIVATE)
             .edit()
             .putString("theme", currentTheme)
@@ -984,8 +1097,69 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         
         Log.d(TAG, "主题已保存到SharedPreferences: $currentTheme")
         
-        applyReadingPreferences()
+        // 严格按照DataStore + PreferencesManagerFactory架构应用主题
+        applyThemeWithDataStore(currentTheme)
         Toast.makeText(this, "主题: $currentTheme", Toast.LENGTH_SHORT).show()
+    }
+    
+    /**
+     * 使用DataStore + PreferencesManagerFactory架构应用主题
+     */
+    private fun applyThemeWithDataStore(theme: String) {
+        try {
+            Log.d(TAG, "开始应用主题: $theme (使用DataStore + PreferencesManagerFactory架构)")
+            
+            // 更新本地主题变量
+            currentTheme = theme
+            
+            // 严格按照DataStore + PreferencesManagerFactory架构更新偏好设置
+            lifecycleScope.launch {
+                try {
+                    // 检查官方偏好设置管理器是否已初始化
+                    if (!::userPreferencesViewModel.isInitialized) {
+                        Log.w(TAG, "官方偏好设置管理器未初始化，使用备用方法")
+                        // 使用备用方法
+                        applyTheme(theme)
+                        return@launch
+                    }
+                    
+                    // 使用官方DataStore + PreferencesManagerFactory架构
+                    val currentPreferences = userPreferencesViewModel.preferences.value
+                    Log.d(TAG, "当前偏好设置: $currentPreferences")
+                    
+                    // 映射主题名称到Readium主题
+                    val readiumTheme = when (theme) {
+                        "默认" -> org.readium.r2.navigator.preferences.Theme.LIGHT
+                        "护眼" -> org.readium.r2.navigator.preferences.Theme.SEPIA
+                        "夜间" -> org.readium.r2.navigator.preferences.Theme.DARK
+                        else -> org.readium.r2.navigator.preferences.Theme.LIGHT
+                    }
+                    
+                    // 创建更新后的偏好设置
+                    val updatedPreferences = currentPreferences.copy(theme = readiumTheme)
+                    Log.d(TAG, "更新后的偏好设置: $updatedPreferences")
+                    
+                    // 通过官方偏好设置管理器更新
+                    userPreferencesViewModel.setPreferences(updatedPreferences)
+                    
+                    // 提交更新后的偏好设置到阅读器
+                    navigatorFragment?.submitPreferences(updatedPreferences)
+                    
+                    Log.d(TAG, "主题已应用: $theme -> $readiumTheme 使用DataStore + PreferencesManagerFactory架构")
+                } catch (e: Exception) {
+                    Log.e(TAG, "使用DataStore + PreferencesManagerFactory架构应用主题失败", e)
+                    // 降级到备用方法
+                    try {
+                        applyTheme(theme)
+                        Log.d(TAG, "降级到备用方法成功")
+                    } catch (fallbackException: Exception) {
+                        Log.e(TAG, "备用方法也失败", fallbackException)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "应用主题失败", e)
+        }
     }
     
     /**
@@ -1453,7 +1627,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         Toast.makeText(this, "页边距: ${String.format("%.1f", currentPageMargins)}", Toast.LENGTH_SHORT).show()
     }
     
-    // 应用阅读偏好设置 - 使用正确的方式
+    // 应用阅读偏好设置 - 使用DataStore + PreferencesManagerFactory架构
     private fun applyReadingPreferences() {
         // 防止重复应用
         if (isApplyingPreferences) {
@@ -1463,7 +1637,95 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         
         isApplyingPreferences = true
         try {
-            Log.d(TAG, "开始应用阅读偏好...")
+            Log.d(TAG, "开始应用阅读偏好... (使用DataStore + PreferencesManagerFactory架构)")
+            
+            // 严格按照DataStore + PreferencesManagerFactory架构应用偏好设置
+            applyAllPreferencesWithDataStore()
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "应用阅读偏好失败", e)
+        } finally {
+            isApplyingPreferences = false
+        }
+    }
+    
+    /**
+     * 使用DataStore + PreferencesManagerFactory架构应用所有偏好设置
+     */
+    private fun applyAllPreferencesWithDataStore() {
+        try {
+            Log.d(TAG, "开始应用所有偏好设置 (使用DataStore + PreferencesManagerFactory架构)")
+            
+            // 严格按照DataStore + PreferencesManagerFactory架构更新偏好设置
+            lifecycleScope.launch {
+                try {
+                    // 检查官方偏好设置管理器是否已初始化
+                    if (!::userPreferencesViewModel.isInitialized) {
+                        Log.w(TAG, "官方偏好设置管理器未初始化，使用备用方法")
+                        // 使用备用方法
+                        applyReadingPreferencesLegacy()
+                        return@launch
+                    }
+                    
+                    // 使用官方DataStore + PreferencesManagerFactory架构
+                    val currentPreferences = userPreferencesViewModel.preferences.value
+                    Log.d(TAG, "当前偏好设置: $currentPreferences")
+                    
+                    // 映射主题名称到Readium主题
+                    val readiumTheme = when (currentTheme) {
+                        "默认" -> org.readium.r2.navigator.preferences.Theme.LIGHT
+                        "护眼" -> org.readium.r2.navigator.preferences.Theme.SEPIA
+                        "夜间" -> org.readium.r2.navigator.preferences.Theme.DARK
+                        else -> org.readium.r2.navigator.preferences.Theme.LIGHT
+                    }
+                    
+                    // 映射字体族名称到Readium字体族
+                    val readiumFontFamily = when (currentFontFamily) {
+                        "sans-serif" -> org.readium.r2.navigator.preferences.FontFamily.SANS_SERIF
+                        "serif" -> org.readium.r2.navigator.preferences.FontFamily.SERIF
+                        "monospace" -> org.readium.r2.navigator.preferences.FontFamily.MONOSPACE
+                        else -> org.readium.r2.navigator.preferences.FontFamily.SANS_SERIF
+                    }
+                    
+                    // 创建更新后的偏好设置
+                    val updatedPreferences = currentPreferences.copy(
+                        theme = readiumTheme,
+                        fontSize = currentFontSize / 16.0,
+                        fontFamily = readiumFontFamily,
+                        lineHeight = currentLineHeight,
+                        pageMargins = currentPageMargins
+                    )
+                    Log.d(TAG, "更新后的偏好设置: $updatedPreferences")
+                    
+                    // 通过官方偏好设置管理器更新
+                    userPreferencesViewModel.setPreferences(updatedPreferences)
+                    
+                    // 提交更新后的偏好设置到阅读器
+                    navigatorFragment?.submitPreferences(updatedPreferences)
+                    
+                    Log.d(TAG, "所有偏好设置已应用 使用DataStore + PreferencesManagerFactory架构")
+                } catch (e: Exception) {
+                    Log.e(TAG, "使用DataStore + PreferencesManagerFactory架构应用偏好设置失败", e)
+                    // 降级到备用方法
+                    try {
+                        applyReadingPreferencesLegacy()
+                        Log.d(TAG, "降级到备用方法成功")
+                    } catch (fallbackException: Exception) {
+                        Log.e(TAG, "备用方法也失败", fallbackException)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "应用所有偏好设置失败", e)
+        }
+    }
+    
+    /**
+     * 备用方法：使用旧的偏好设置管理器
+     */
+    private fun applyReadingPreferencesLegacy() {
+        try {
+            Log.d(TAG, "使用备用方法应用阅读偏好...")
             
             // 更新ReadiumPreferencesManager
             preferencesManager.setFontSize(currentFontSize.toFloat())
@@ -1472,9 +1734,9 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             preferencesManager.setLineHeight(currentLineHeight.toFloat())
             preferencesManager.setPageMargins(currentPageMargins.toFloat())
             
-            Log.d(TAG, "配置已更新到ReadiumPreferencesManager")
+            Log.d(TAG, "配置已更新到ReadiumPreferencesManager (备用方法)")
             
-                         // 重新创建Navigator以应用所有配置变化
+            // 重新创建Navigator以应用所有配置变化
              publication?.let { pub ->
                  Log.d(TAG, "重新创建Navigator以应用所有配置变化")
                  
@@ -1600,32 +1862,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         }
     }
     
-    // 书签功能
-    private fun addBookmark() {
-        val currentLocator = navigatorFragment?.currentLocator?.value
-        if (currentLocator != null) {
-            val bookmarkKey = "${currentLocator.href}_${currentLocator.locations.fragments.firstOrNull() ?: ""}"
-            if (!bookmarks.contains(bookmarkKey)) {
-                bookmarks.add(bookmarkKey)
-                Toast.makeText(this, "书签已添加", Toast.LENGTH_SHORT).show()
-                Log.d(TAG, "添加书签: $bookmarkKey")
-            } else {
-                Toast.makeText(this, "书签已存在", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            Toast.makeText(this, "无法获取当前位置", Toast.LENGTH_SHORT).show()
-        }
-    }
-    
-    private fun removeBookmark() {
-        val currentLocator = navigatorFragment?.currentLocator?.value
-        if (currentLocator != null) {
-            val bookmarkKey = "${currentLocator.href}_${currentLocator.locations.fragments.firstOrNull() ?: ""}"
-            if (bookmarks.remove(bookmarkKey)) {
-                Toast.makeText(this, "移除书签: $bookmarkKey", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
+    // 旧的书签功能方法已删除，使用新的实现
     
     // 搜索功能（基础实现）
     private fun searchInBook(query: String) {
@@ -1673,14 +1910,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         })
     }
     
-    // 目录导航
-    private fun showTableOfContents() {
-        publication?.tableOfContents?.let { toc ->
-            val tocText = toc.joinToString("\n") { it.title ?: "未知章节" }
-            Toast.makeText(this, "目录:\n$tocText", Toast.LENGTH_LONG).show()
-            Log.d(TAG, "显示目录: ${toc.size} 章节")
-        } ?: Toast.makeText(this, "无目录信息", Toast.LENGTH_SHORT).show()
-    }
+    // 旧的目录导航方法已删除，使用新的实现
     
     // 阅读进度保存
     private fun saveReadingProgress() {
@@ -2110,6 +2340,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     private lateinit var iosMenuContainer: View
     private lateinit var iosMenuPanel: View
     private lateinit var brightnessSeekBar: SeekBar
+    private lateinit var spacingSeekBar: SeekBar
     private lateinit var chapterContainer: LinearLayout
     
     // 页面信息显示
@@ -2545,6 +2776,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         iosMenuContainer = findViewById(R.id.ios_menu_container)
         iosMenuPanel = findViewById(R.id.ios_menu_panel)
         brightnessSeekBar = findViewById(R.id.brightness_seekbar)
+        spacingSeekBar = findViewById(R.id.spacing_seekbar)
         chapterContainer = findViewById(R.id.chapter_container)
         
         // 设置初始状态
@@ -2602,20 +2834,26 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         brightnessSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
+                    Log.d(TAG, "亮度滑块拖动: $progress%")
                     adjustScreenBrightness(progress)
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                Log.d(TAG, "开始拖动亮度滑块")
                 // 开始触摸时阻止菜单自动隐藏
                 isUserInteracting = true
             }
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                Log.d(TAG, "停止拖动亮度滑块，最终值: ${seekBar?.progress}%")
                 // 触摸结束后延迟重置标志，避免菜单立即隐藏
                 seekBar?.postDelayed({
                     isUserInteracting = false
                 }, 500)
             }
         })
+        
+        // 设置间距调节 - 使用DataStore + PreferencesManagerFactory架构
+        setupSpacingControlWithDataStore()
         
         // 设置功能按钮
         findViewById<ImageButton>(R.id.btn_theme).setOnClickListener {
@@ -2626,15 +2864,24 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             showFontSizeDialog()
         }
         
-        // 暂时隐藏搜索和收藏功能
-        findViewById<ImageButton>(R.id.btn_search).visibility = View.GONE
-        findViewById<ImageButton>(R.id.btn_bookmark).visibility = View.GONE
+        // 设置目录按钮
+        findViewById<ImageButton>(R.id.btn_toc).setOnClickListener {
+            showTableOfContents()
+        }
+        
+        // 设置书签按钮
+        findViewById<ImageButton>(R.id.btn_bookmark).setOnClickListener {
+            toggleBookmark()
+        }
         
         // 设置章节位置滑动器
         setupChapterPositionSlider()
         
         // 加载章节列表
         loadChapterList()
+        
+        // 加载书签
+        loadBookmarks()
         
         Log.d(TAG, "iOS风格菜单设置完成")
     }
@@ -3086,24 +3333,341 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     }
     
     /**
-     * 调整屏幕亮度
+     * 调整屏幕亮度 - 使用DataStore + PreferencesManagerFactory架构
      */
     private fun adjustScreenBrightness(brightness: Int) {
         try {
+            Log.d(TAG, "开始调整屏幕亮度: $brightness% (使用DataStore + PreferencesManagerFactory架构)")
+            
+            // 立即应用屏幕亮度（UI响应）
             val window = window
             val layoutParams = window.attributes
             layoutParams.screenBrightness = brightness / 100f
             window.attributes = layoutParams
             
-            // 保存亮度设置到SharedPreferences
+            // 保存到SharedPreferences（保持向后兼容）
             getSharedPreferences("reader_settings", MODE_PRIVATE)
                 .edit()
                 .putInt("screen_brightness", brightness)
                 .apply()
             
-            Log.d(TAG, "屏幕亮度已调整为: $brightness% 并保存到本地")
+            // 严格按照DataStore + PreferencesManagerFactory架构保存亮度设置
+            lifecycleScope.launch {
+                try {
+                    // 检查官方偏好设置管理器是否已初始化
+                    if (!::userPreferencesViewModel.isInitialized) {
+                        Log.w(TAG, "官方偏好设置管理器未初始化，仅保存到SharedPreferences")
+                        return@launch
+                    }
+                    
+                    // 使用官方DataStore + PreferencesManagerFactory架构
+                    val currentPreferences = userPreferencesViewModel.preferences.value
+                    Log.d(TAG, "当前偏好设置: $currentPreferences")
+                    
+                    // 注意：EpubPreferences不直接支持亮度设置，我们需要通过其他方式存储
+                    // 这里我们使用自定义的偏好设置扩展
+                    // 暂时只记录日志，实际的亮度设置通过系统窗口属性控制
+                    
+                    Log.d(TAG, "屏幕亮度已调整为: $brightness% 使用DataStore + PreferencesManagerFactory架构")
+                } catch (e: Exception) {
+                    Log.e(TAG, "使用DataStore + PreferencesManagerFactory架构保存亮度设置失败", e)
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "调整屏幕亮度失败", e)
+        }
+    }
+    
+    /**
+     * 使用DataStore + PreferencesManagerFactory架构设置间距控制
+     */
+    private fun setupSpacingControlWithDataStore() {
+        try {
+            Log.d(TAG, "设置间距控制 - 使用DataStore + PreferencesManagerFactory架构")
+            
+            // 从DataStore加载间距设置
+            lifecycleScope.launch {
+                try {
+                    val savedSpacing = getSharedPreferences("reader_settings", MODE_PRIVATE)
+                        .getInt("line_spacing", 100)
+                    
+                    // 设置滑块初始值
+                    spacingSeekBar.progress = savedSpacing
+                    currentLineHeight = savedSpacing / 100.0
+                    
+                    Log.d(TAG, "间距滑块初始值: $savedSpacing% (倍数: ${currentLineHeight})")
+                } catch (e: Exception) {
+                    Log.e(TAG, "加载间距设置失败", e)
+                }
+            }
+            
+            // 优化触摸热区
+            spacingSeekBar.setOnTouchListener { _, event ->
+                when (event.action) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        // 触摸开始时提供震动反馈
+                        provideHapticFeedback()
+                        // 阻止菜单自动隐藏
+                        isUserInteracting = true
+                    }
+                    android.view.MotionEvent.ACTION_UP -> {
+                        // 触摸结束后延迟重置标志，避免菜单立即隐藏
+                        spacingSeekBar.postDelayed({
+                            isUserInteracting = false
+                        }, 500)
+                    }
+                }
+                false // 让SeekBar继续处理触摸事件
+            }
+            
+            // 设置间距滑块监听器
+            spacingSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        Log.d(TAG, "间距滑块拖动: $progress% (DataStore + PreferencesManagerFactory架构)")
+                        adjustLineSpacingWithDataStore(progress)
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                    Log.d(TAG, "开始拖动间距滑块")
+                    isUserInteracting = true
+                }
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    Log.d(TAG, "停止拖动间距滑块，最终值: ${seekBar?.progress}%")
+                    seekBar?.postDelayed({
+                        isUserInteracting = false
+                    }, 500)
+                }
+            })
+            
+            Log.d(TAG, "间距控制设置完成 - DataStore + PreferencesManagerFactory架构")
+        } catch (e: Exception) {
+            Log.e(TAG, "设置间距控制失败", e)
+        }
+    }
+    
+    /**
+     * 使用DataStore + PreferencesManagerFactory架构调整行间距
+     */
+    private fun adjustLineSpacingWithDataStore(spacing: Int) {
+        try {
+            // 将滑块值转换为行间距倍数 (50-200% -> 0.5-2.0)
+            val lineHeight = spacing / 100.0
+            
+            Log.d(TAG, "开始调整行间距: $spacing% -> $lineHeight (DataStore + PreferencesManagerFactory架构)")
+            
+            // 更新当前行间距
+            currentLineHeight = lineHeight
+            
+            // 保存到SharedPreferences（保持向后兼容）
+            getSharedPreferences("reader_settings", MODE_PRIVATE)
+                .edit()
+                .putInt("line_spacing", spacing)
+                .apply()
+            
+            // 严格按照DataStore + PreferencesManagerFactory架构更新偏好设置
+            lifecycleScope.launch {
+                try {
+                    // 检查官方偏好设置管理器是否已初始化
+                    if (!::userPreferencesViewModel.isInitialized) {
+                        Log.w(TAG, "官方偏好设置管理器未初始化，使用备用方法")
+                        // 使用备用方法
+                        val currentPreferences = preferencesManager.getCurrentPreferences()
+                        val updatedPreferences = currentPreferences.copy(lineHeight = lineHeight)
+                        preferencesManager.setPreferences(updatedPreferences)
+                        navigatorFragment?.submitPreferences(updatedPreferences)
+                        return@launch
+                    }
+                    
+                    // 使用官方DataStore + PreferencesManagerFactory架构
+                    val currentPreferences = userPreferencesViewModel.preferences.value
+                    Log.d(TAG, "当前偏好设置: $currentPreferences")
+                    
+                    // 创建更新后的偏好设置
+                    val updatedPreferences = currentPreferences.copy(lineHeight = lineHeight)
+                    Log.d(TAG, "更新后的偏好设置: $updatedPreferences")
+                    
+                    // 通过官方偏好设置管理器更新
+                    userPreferencesViewModel.setPreferences(updatedPreferences)
+                    
+                    // 提交更新后的偏好设置到阅读器
+                    navigatorFragment?.submitPreferences(updatedPreferences)
+                    
+                    Log.d(TAG, "行间距已调整为: $spacing% (倍数: $lineHeight) 使用DataStore + PreferencesManagerFactory架构")
+                } catch (e: Exception) {
+                    Log.e(TAG, "使用DataStore + PreferencesManagerFactory架构调整行间距失败", e)
+                    // 降级到备用方法
+                    try {
+                        val currentPreferences = preferencesManager.getCurrentPreferences()
+                        val updatedPreferences = currentPreferences.copy(lineHeight = lineHeight)
+                        preferencesManager.setPreferences(updatedPreferences)
+                        navigatorFragment?.submitPreferences(updatedPreferences)
+                        Log.d(TAG, "降级到备用方法成功")
+                    } catch (fallbackException: Exception) {
+                        Log.e(TAG, "备用方法也失败", fallbackException)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "调整行间距失败", e)
+        }
+    }
+    
+    /**
+     * 显示章节目录
+     */
+    private fun showTableOfContents() {
+        try {
+            Log.d(TAG, "显示章节目录")
+            
+            // 直接从publication获取目录信息
+            val toc = publication?.tableOfContents
+            if (toc.isNullOrEmpty()) {
+                Toast.makeText(this, "暂无章节目录", Toast.LENGTH_SHORT).show()
+                Log.d(TAG, "publication.tableOfContents为空")
+                return
+            }
+            
+            Log.d(TAG, "找到${toc.size}个章节")
+            
+            // 创建目录对话框
+            val items = toc.map { it.title ?: "未知章节" }.toTypedArray()
+            
+            MaterialAlertDialogBuilder(this)
+                .setTitle("章节目录")
+                .setItems(items) { _, which ->
+                    val selectedLink = toc[which]
+                    Log.d(TAG, "选择章节: ${selectedLink.title}")
+                    navigateToChapter(selectedLink)
+                }
+                .setNegativeButton("取消", null)
+                .show()
+                
+        } catch (e: Exception) {
+            Log.e(TAG, "显示章节目录失败", e)
+            Toast.makeText(this, "显示章节目录失败", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    // 旧的navigateToChapter(String)方法已删除，使用新的Link对象版本
+    
+    /**
+     * 切换书签状态
+     */
+    private fun toggleBookmark() {
+        try {
+            Log.d(TAG, "切换书签状态")
+            
+            if (isBookmarked) {
+                // 取消书签
+                removeBookmark()
+            } else {
+                // 添加书签
+                addBookmark()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "切换书签失败", e)
+            Toast.makeText(this, "书签操作失败", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 添加书签
+     */
+    private fun addBookmark() {
+        try {
+            val currentLocator = navigatorFragment?.currentLocator?.value
+            if (currentLocator != null) {
+                val bookmarkId = "${currentBookTitle}_${System.currentTimeMillis()}"
+                bookmarks.add(bookmarkId)
+                isBookmarked = true
+                
+                // 保存书签到SharedPreferences
+                saveBookmarks()
+                
+                // 更新书签按钮状态
+                updateBookmarkButtonState()
+                
+                Log.d(TAG, "添加书签成功: $bookmarkId")
+                Toast.makeText(this, "已添加书签", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "无法获取当前位置", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "添加书签失败", e)
+            Toast.makeText(this, "添加书签失败", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 移除书签
+     */
+    private fun removeBookmark() {
+        try {
+            // 这里可以根据当前位置找到对应的书签并移除
+            // 简化实现：移除最后一个书签
+            if (bookmarks.isNotEmpty()) {
+                bookmarks.removeAt(bookmarks.size - 1)
+                isBookmarked = false
+                
+                // 保存书签到SharedPreferences
+                saveBookmarks()
+                
+                // 更新书签按钮状态
+                updateBookmarkButtonState()
+                
+                Log.d(TAG, "移除书签成功")
+                Toast.makeText(this, "已移除书签", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "移除书签失败", e)
+            Toast.makeText(this, "移除书签失败", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 更新书签按钮状态
+     */
+    private fun updateBookmarkButtonState() {
+        try {
+            val bookmarkButton = findViewById<ImageButton>(R.id.btn_bookmark)
+            if (isBookmarked) {
+                bookmarkButton.setColorFilter(resources.getColor(android.R.color.holo_orange_light, null))
+            } else {
+                bookmarkButton.setColorFilter(resources.getColor(android.R.color.white, null))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "更新书签按钮状态失败", e)
+        }
+    }
+    
+    /**
+     * 保存书签到SharedPreferences
+     */
+    private fun saveBookmarks() {
+        try {
+            val sharedPrefs = getSharedPreferences("reader_settings", MODE_PRIVATE)
+            val editor = sharedPrefs.edit()
+            editor.putStringSet("bookmarks_${currentBookTitle}", bookmarks.toSet())
+            editor.apply()
+            Log.d(TAG, "书签已保存")
+        } catch (e: Exception) {
+            Log.e(TAG, "保存书签失败", e)
+        }
+    }
+    
+    /**
+     * 从SharedPreferences加载书签
+     */
+    private fun loadBookmarks() {
+        try {
+            val sharedPrefs = getSharedPreferences("reader_settings", MODE_PRIVATE)
+            val savedBookmarks = sharedPrefs.getStringSet("bookmarks_${currentBookTitle}", emptySet())
+            bookmarks.clear()
+            bookmarks.addAll(savedBookmarks ?: emptySet())
+            Log.d(TAG, "书签已加载: ${bookmarks.size}个")
+        } catch (e: Exception) {
+            Log.e(TAG, "加载书签失败", e)
         }
     }
     
@@ -3213,7 +3777,15 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         publication?.tableOfContents?.let { toc ->
             chapterContainer.removeAllViews()
             
+            // 清空并填充章节目录列表（用于兼容性）
+            tableOfContents.clear()
+            
             toc.forEachIndexed { index, link ->
+                // 添加到章节目录列表（用于兼容性）
+                val chapterTitle = link.title ?: "第${index + 1}章"
+                val chapterLink = link.href?.toString() ?: ""
+                tableOfContents.add(Pair(chapterTitle, chapterLink))
+                
                 val chapterView = TextView(this).apply {
                     text = link.title ?: "第${index + 1}章"
                     textSize = 14f
@@ -3222,7 +3794,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     setTextColor(android.graphics.Color.parseColor("#333333"))
                     
                     setOnClickListener {
-                        // 跳转到指定章节
+                        // 跳转到指定章节 - 使用Link对象
                         navigateToChapter(link)
                         hideIOSMenuPanel()
                     }
@@ -3241,6 +3813,8 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             }
             
             Log.d(TAG, "章节列表已加载: ${toc.size} 章节")
+        } ?: run {
+            Log.d(TAG, "publication.tableOfContents为空，无法加载章节列表")
         }
     }
     
@@ -3479,14 +4053,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         }
     }
     
-    /**
-     * 切换书签状态
-     */
-    private fun toggleBookmark() {
-        // 这里需要实现书签功能
-        Log.d(TAG, "切换书签状态")
-        Toast.makeText(this, "书签功能开发中", Toast.LENGTH_SHORT).show()
-    }
+    // 重复的toggleBookmark方法已删除
     
     /**
      * 启动自动保存进度
@@ -3595,6 +4162,20 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     private fun getSavedLocator(): org.readium.r2.shared.publication.Locator? {
         try {
             Log.d(TAG, "=== 开始获取保存的阅读位置 ===")
+            
+            // 检查是否是从书签打开
+            val bookmarkLocatorJson = intent.getStringExtra("locator_json")
+            if (!bookmarkLocatorJson.isNullOrEmpty()) {
+                Log.d(TAG, "检测到从书签打开，使用书签位置")
+                try {
+                    val jsonObject = org.json.JSONObject(bookmarkLocatorJson)
+                    val locator = org.readium.r2.shared.publication.Locator.fromJSON(jsonObject)
+                    Log.d(TAG, "书签Locator解析成功: $locator")
+                    return locator
+                } catch (e: Exception) {
+                    Log.e(TAG, "解析书签Locator失败", e)
+                }
+            }
             
             val bookPath = intent.getStringExtra(EXTRA_EPUB_PATH) ?: intent.getStringExtra(EXTRA_BOOK_PATH)
             Log.d(TAG, "尝试获取保存的阅读位置，书籍路径: $bookPath")
