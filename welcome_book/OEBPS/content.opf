@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="book-id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <dc:identifier id="book-id">welcome-book-ibylin-001</dc:identifier>
+        <dc:title>欢迎使用iBylin阅读器</dc:title>
+        <dc:creator>iBylin团队</dc:creator>
+        <dc:language>zh-CN</dc:language>
+        <dc:description>iBylin阅读器使用指南和功能介绍</dc:description>
+        <dc:publisher>iBylin</dc:publisher>
+        <dc:date>2024-01-01</dc:date>
+    </metadata>
+    
+    <manifest>
+        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+        <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>
+        <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+        <item id="chapter2" href="chapter2.xhtml" media-type="application/xhtml+xml"/>
+        <item id="chapter3" href="chapter3.xhtml" media-type="application/xhtml+xml"/>
+        <item id="css" href="style.css" media-type="text/css"/>
+        <item id="cover-image" href="images/cover.png" media-type="image/png"/>
+        <item id="reading-image" href="images/reading.png" media-type="image/png"/>
+    </manifest>
+    
+    <spine toc="ncx">
+        <itemref idref="cover"/>
+        <itemref idref="chapter1"/>
+        <itemref idref="chapter2"/>
+        <itemref idref="chapter3"/>
+    </spine>
+</package>

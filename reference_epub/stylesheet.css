@@ -1,0 +1,518 @@
+.bgimg {
+  background-image: url(styles/Images/chapter.jpg);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  display: block;
+}
+.bleed-pic {
+  display: block;
+  qrbleed: left top right;
+  margin: 1em 0;
+}
+.bodypic {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+.calibre {
+  display: block;
+  font-size: 1em;
+  line-height: 1.8;
+  padding-left: 0;
+  padding-right: 0;
+  margin: 0 5pt;
+}
+.calibre1 {
+  display: block;
+}
+.calibre2 {
+  display: block;
+  font-size: 1.5em;
+  font-weight: bold;
+  line-height: 1.2;
+  margin: 0.67em 0;
+}
+.calibre3 {
+  height: auto;
+  line-height: 1.2;
+  width: auto;
+}
+.calibre4 {
+  display: none;
+}
+.calibre5 {
+  height: 466.014px;
+  max-height: 436px;
+  max-width: 720px;
+  width: 769px;
+}
+.calibre6 {
+  line-height: 1.2;
+}
+.calibre7 {
+  height: 559.675px;
+  max-height: 1092px;
+  max-width: 1500px;
+  width: 768.784px;
+}
+.calibre8 {
+  height: 781.75px;
+  max-height: 1870px;
+  max-width: 1839px;
+  width: 768.682px;
+}
+.calibre9 {
+  height: 922.325px;
+  max-height: 2397px;
+  max-width: 1998px;
+  width: 768.604px;
+}
+.calibre10 {
+  height: 709.018px;
+  max-height: 1783px;
+  max-width: 1933px;
+  width: 769px;
+}
+.calibre11 {
+  height: 740.138px;
+  max-height: 1679px;
+  max-width: 1744px;
+  width: 768.575px;
+}
+.calibre12 {
+  height: 942.713px;
+  max-height: 2450px;
+  max-width: 1998px;
+  width: 768.934px;
+}
+.calibre13 {
+  height: 538.3px;
+  max-height: 2888px;
+  max-width: 4124px;
+  width: 769px;
+}
+.calibre14 {
+  height: 993.35px;
+  max-height: 2579px;
+  max-width: 1996px;
+  width: 768.847px;
+}
+.calibre15 {
+  height: 889.237px;
+  max-height: 2311px;
+  max-width: 1998px;
+  width: 768.572px;
+}
+.calibre16 {
+  height: 929.638px;
+  max-height: 2416px;
+  max-width: 1998px;
+  width: 768.931px;
+}
+.calibre17 {
+  height: 929.188px;
+  max-height: 2410px;
+  max-width: 1994px;
+  width: 768.559px;
+}
+.calibre18 {
+  height: 851.138px;
+  max-height: 2212px;
+  max-width: 1998px;
+  width: 768.869px;
+}
+.calibre19 {
+  height: 841.487px;
+  max-height: 1829px;
+  max-width: 1671px;
+  width: 768.482px;
+}
+.calibre20 {
+  height: 1065.07px;
+  max-height: 2768px;
+  max-width: 1998px;
+  width: 769px;
+}
+.calibre21 {
+  height: 927.562px;
+  max-height: 2407px;
+  max-width: 1995px;
+  width: 768.486px;
+}
+.calibre22 {
+  height: 561.213px;
+  max-height: 1095px;
+  max-width: 1500px;
+  width: 768.784px;
+}
+.calibre23 {
+  height: 924.638px;
+  max-height: 2403px;
+  max-width: 1998px;
+  width: 768.61px;
+}
+.calibre24 {
+  height: 1032.75px;
+  max-height: 2684px;
+  max-width: 1998px;
+  width: 768.987px;
+}
+.calibre25 {
+  height: 848.207px;
+  max-height: 1888px;
+  max-width: 1711px;
+  width: 769px;
+}
+.calibre26 {
+  height: 836.672px;
+  max-height: 1944px;
+  max-width: 1786px;
+  width: 769px;
+}
+.calibre27 {
+  height: 833.05px;
+  max-height: 2165px;
+  max-width: 1998px;
+  width: 768.496px;
+}
+.calibre28 {
+  height: 997.925px;
+  max-height: 2587px;
+  max-width: 1993px;
+  width: 768.817px;
+}
+.calibre29 {
+  height: 795px;
+  max-height: 1820px;
+  max-width: 1760px;
+  width: 768.859px;
+}
+.calibre30 {
+  height: 1117.36px;
+  max-height: 2891px;
+  max-width: 1989px;
+  width: 769px;
+}
+.calibre31 {
+  height: 992.01px;
+  max-height: 2577px;
+  max-width: 1997px;
+  width: 769px;
+}
+.calibre32 {
+  height: 966.963px;
+  max-height: 2513px;
+  max-width: 1998px;
+  width: 768.651px;
+}
+.calibre33 {
+  height: 562.139px;
+  max-height: 1097px;
+  max-width: 1500px;
+  width: 769px;
+}
+.calibre34 {
+  height: 871.475px;
+  max-height: 2003px;
+  max-width: 1767px;
+  width: 768.497px;
+}
+.calibre35 {
+  height: 847.438px;
+  max-height: 2198px;
+  max-width: 1994px;
+  width: 769px;
+}
+.calibre36 {
+  height: 928.183px;
+  max-height: 2276px;
+  max-width: 1885px;
+  width: 769px;
+}
+.calibre37 {
+  height: 770.725px;
+  max-height: 1999px;
+  max-width: 1994px;
+  width: 768.42px;
+}
+.calibre38 {
+  height: 869.987px;
+  max-height: 2261px;
+  max-width: 1998px;
+  width: 768.54px;
+}
+.calibre39 {
+  height: 805.35px;
+  max-height: 2093px;
+  max-width: 1998px;
+  width: 768.464px;
+}
+.calibre40 {
+  height: 890.062px;
+  max-height: 2312px;
+  max-width: 1997px;
+  width: 768.62px;
+}
+.calibre41 {
+  height: 789.575px;
+  max-height: 2052px;
+  max-width: 1998px;
+  width: 768.817px;
+}
+.calibre42 {
+  height: 537.125px;
+  max-height: 1048px;
+  max-width: 1500px;
+  width: 768.419px;
+}
+.calibre43 {
+  height: 887.175px;
+  max-height: 3335px;
+  max-width: 2890px;
+  width: 768.782px;
+}
+.calibre44 {
+  height: 887.312px;
+  max-height: 2306px;
+  max-width: 1998px;
+  width: 768.902px;
+}
+.calibre45 {
+  height: 1065.46px;
+  max-height: 3437px;
+  max-width: 2480px;
+  width: 768.732px;
+}
+.calibre46 {
+  height: 911.55px;
+  max-height: 2369px;
+  max-width: 1998px;
+  width: 768.592px;
+}
+.calibre47 {
+  height: 909.625px;
+  max-height: 2364px;
+  max-width: 1998px;
+  width: 768.914px;
+}
+.calibre48 {
+  height: 911.688px;
+  max-height: 2367px;
+  max-width: 1996px;
+  width: 768.708px;
+}
+.calibre49 {
+  height: 938.18px;
+  max-height: 2287px;
+  max-width: 1874px;
+  width: 769px;
+}
+.calibre50 {
+  height: 1113.35px;
+  max-height: 2892px;
+  max-width: 1997px;
+  width: 768.888px;
+}
+.calibre51 {
+  height: 877.3px;
+  max-height: 2280px;
+  max-width: 1998px;
+  width: 768.887px;
+}
+.calibre52 {
+  height: 703.375px;
+  max-height: 1828px;
+  max-width: 1998px;
+  width: 768.716px;
+}
+.calibre53 {
+  height: 1020.44px;
+  max-height: 2652px;
+  max-width: 1998px;
+  width: 768.981px;
+}
+.calibre54 {
+  height: 867.4px;
+  max-height: 2252px;
+  max-width: 1996px;
+  width: 768.972px;
+}
+.calibre55 {
+  height: 853.062px;
+  max-height: 2217px;
+  max-width: 1998px;
+  width: 768.525px;
+}
+.calibre56 {
+  height: 904.625px;
+  max-height: 2351px;
+  max-width: 1998px;
+  width: 768.585px;
+}
+.calibre57 {
+  height: 750.544px;
+  max-height: 1951px;
+  max-width: 1998px;
+  width: 769px;
+}
+.calibre58 {
+  height: 746.475px;
+  max-height: 1940px;
+  max-width: 1998px;
+  width: 768.769px;
+}
+.calibre59 {
+  height: 685.513px;
+  max-height: 1564px;
+  max-width: 1754px;
+  width: 768.512px;
+}
+.calibre60 {
+  height: 667.125px;
+  max-height: 1601px;
+  max-width: 1845px;
+  width: 768.577px;
+}
+.calibre61 {
+  height: 695.8px;
+  max-height: 1630px;
+  max-width: 1801px;
+  width: 768.84px;
+}
+.calibre62 {
+  height: 684.4px;
+  max-height: 1630px;
+  max-width: 1831px;
+  width: 768.989px;
+}
+.calibre63 {
+  height: 609.817px;
+  max-height: 1435px;
+  max-width: 1809px;
+  width: 769px;
+}
+.calibre64 {
+  height: 713.632px;
+  max-height: 1790px;
+  max-width: 1928px;
+  width: 769px;
+}
+.calibre65 {
+  height: 748.237px;
+  max-height: 1835px;
+  max-width: 1885px;
+  width: 769px;
+}
+.content {
+  display: block;
+  font-family: "汉仪旗黑50S", "HYQiHei-50s", "PingFang SC", -apple-system, "SF UI Text", "Lucida Grande", STheiti, "Microsoft YaHei", sans-serif;
+  text-align: justify;
+  text-indent: 2em;
+  margin: 1em 0;
+}
+.content-b {
+  display: block;
+  font-family: serif, "思源宋体", "Source Han Serif CN", "PingFang SC", -apple-system, "SF UI Text", "Lucida Grande", STheiti, "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  text-align: justify;
+  text-indent: 0;
+  margin: 0.9em 0 0.2em;
+}
+.firsttitle {
+  display: block;
+  font-family: "汉仪旗黑65S", "HY-QiHei65", "PingFang SC", -apple-system, "SF UI Text", "Lucida Grande", STheiti, "Microsoft YaHei", sans-serif;
+  font-size: 1.5em;
+  font-weight: bold;
+  line-height: 1.2;
+  text-align: center;
+  text-indent: 0;
+  margin: 0.2em 0 0.9em;
+}
+.fourthtitle {
+  display: block;
+  font-family: "汉仪旗黑55S", "ETrump-QiHei55", "PingFang SC", -apple-system, "SF UI Text", "Lucida Grande", STheiti, "Microsoft YaHei", sans-serif;
+  font-size: 1.5em;
+  font-weight: bold;
+  line-height: 1.2;
+  text-align: center;
+  text-indent: 0;
+  margin: 0.5em 0 0.67em;
+}
+.pcalibre {
+  background-color: black;
+  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAmCAQAAAACNCElAAACuUlEQVR42q2WTWgTQRTHX4v1UNFiDgVFPEmRXETbS0V6yKESpMGLl3rw7MGLBizoTTAXmx78wAUpIvHSFAq7JqbGpjWm1kA/Y2I/qOgam1qbLNbEJDXNPpmuS5PMbJqtu//Lzhveb3fmvZn3ALQfE1jBDg7gwA1u4MABdrCCCXQ+DWCDXhA01As2aKgNVA8W6NcEqeoHC9TvhmqGvl1BqvqguRrKDK6aUUQuMGuhOmBIF4poCDrYf6UfpeDM9F659oRSFttcHsGSbW/xD355sNAVUscnXi3/nFy/P3/UVyUUJZG1lE8+XUZEnPxxyKOML45vFRGzBVtIE2fZSdGKvNr/IpEhuJszqoVbJOOVtDrPyLt/aWyjv9Qzi1iUu0I9s8q4yfv7D2Iyq8xFUsfoJdsUmJOG1QmdwbZAW8ARbfQoujbli1961+hpH81vISYyZwLUIds+zmXGe7E7H86/Vd55kVsa/Ew0/p0sE2VlRHRrlvoFE4C13HQljDLi1Pphb4t/XlKt3ROEVSxWTRErgL3S+GaVODqizz89XtQFswM4Ko2X35MFXZ/OFzqDumAOAI42nxtrH+UWpVydwIJ1T2ikLwfgZk2YvJlNXgQGrDWQKyQyrQGGlxtggAVzfkS8OgnC7TleJAqvKdHkxa9pWZblVO74MOU1wFxmk3cjj/IRHwi69oxjBACEJ0uI4q9SS60BqEiNs2PBVZJpwVXdMDuVtOQYSznESEo3zEodJ6KZJKIsnx7RCduuqFSFjCSJ66MFNuykP5o6NcKopuwrKJ4mri/jLNg+IZJC3Ni8EGJfQdTlmC0Q14cLd6NKlvHi65WYFJOiEi8OfyNvMSm8dtDDuhypa/vG9Fzy2fIBj46iYtEoKHtQX3mrYGCpM7gIG9weGNy4GNxSGdzs7bShTk2Qs/Y29D8a5L99J97IcV5pLgAAAABJRU5ErkJggg==");
+  background-repeat: no-repeat;
+  background-size: 100%;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-block;
+  height: 19px;
+  position: relative;
+  vertical-align: sub;
+  width: 19px;
+  margin: 0 3px;
+}
+.quotation {
+  display: block;
+  font-family: "汉仪楷体", "ETrump KaiTi", "方正仿宋", "FZFSJW--GB1-0", "PingFang SC", -apple-system, "SF UI Text", "Lucida Grande", STheiti, "Microsoft YaHei", sans-serif;
+  text-align: justify;
+  text-indent: 2em;
+  margin: 1em 0;
+}
+.quotation-right {
+  display: block;
+  font-family: "汉仪楷体", "ETrump KaiTi", "方正仿宋", "FZFSJW--GB1-0", "PingFang SC", -apple-system, "SF UI Text", "Lucida Grande", STheiti, "Microsoft YaHei", sans-serif;
+  text-align: right;
+  text-indent: 0;
+  margin: 1em 0;
+}
+.secondtitle {
+  color: #EA2D13;
+  display: block;
+  font-family: "汉仪旗黑65S", "HY-QiHei65", "PingFang SC", -apple-system, "SF UI Text", "Lucida Grande", STheiti, "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: bold;
+  line-height: 1.2;
+  text-align: left;
+  text-indent: 0;
+  margin: 0.83em 0 1.2em;
+}
+.secondtitle1 {
+  color: #EA2D13;
+  display: block;
+  font-family: "汉仪旗黑65S", "HY-QiHei65", "PingFang SC", -apple-system, "SF UI Text", "Lucida Grande", STheiti, "Microsoft YaHei", sans-serif;
+  font-size: 1.5em;
+  font-weight: bold;
+  line-height: 1.3em;
+  text-align: left;
+  text-indent: 0;
+  margin: 0.67em 0 1.2em;
+}
+.thirdtitle {
+  color: #EA2D13;
+  display: block;
+  font-family: "汉仪旗黑65S", "HY-QiHei65", "PingFang SC", -apple-system, "SF UI Text", "Lucida Grande", STheiti, "Microsoft YaHei", sans-serif;
+  font-size: 1.5em;
+  font-weight: bold;
+  line-height: 1.3em;
+  padding-bottom: 0.2em;
+  text-align: left;
+  text-indent: 0;
+  margin: 0.67em 0 0.5em;
+  border-bottom: #EA2D13 solid 1px;
+}
+.pcalibre1:hover {
+  background: black;
+  border-radius: 0.25em;
+  bottom: 0;
+  color: white;
+  content: attr(data-wr-footernote);
+  font-family: "汉仪楷体", sans-serif;
+  font-size: 1em;
+  left: 0;
+  position: fixed;
+  z-index: 10;
+  margin: 1em;
+  padding: 0.5em;
+}
