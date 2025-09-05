@@ -65,7 +65,7 @@
         android:layout_above="@+id/btn_book_library"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:paddingTop="85dp"
+        android:paddingTop="55dp"
         android:paddingBottom="120dp"
         android:clipToPadding="false">
 
