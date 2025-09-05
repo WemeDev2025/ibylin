@@ -21,6 +21,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubDefaults
@@ -77,7 +80,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     // 阅读状态和设置
     private var isBookLoaded = false
     private var currentFontSize = 18.0
-    private var currentTheme = "default"
+    private var currentTheme = "默认"
     private var currentFontFamily = "sans-serif"
     private var currentLineHeight = 1.6
     private var currentPageMargins = 1.4
@@ -135,36 +138,64 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     /**
      * 从ReadiumConfigManager和本地设置加载配置
      */
+    // 防止配置重复加载的标志
+    private var isConfigurationLoading = false
+    private var isApplyingPreferences = false
+    
     private fun loadConfiguration() {
+        // 防止重复加载
+        if (isConfigurationLoading) {
+            Log.d(TAG, "配置正在加载中，跳过重复调用")
+            return
+        }
+        
+        isConfigurationLoading = true
         try {
-            Log.d(TAG, "开始加载配置...")
+            Log.d(TAG, "=== 开始加载配置 ===")
             
             // 加载本地保存的设置
             val sharedPrefs = getSharedPreferences("reader_settings", MODE_PRIVATE)
             
+            // 打印所有保存的配置键值对
+            val allPrefs = sharedPrefs.all
+            Log.d(TAG, "=== SharedPreferences中的所有配置 ===")
+            allPrefs.forEach { (key, value) ->
+                Log.d(TAG, "配置项: $key = $value (类型: ${value?.javaClass?.simpleName})")
+            }
+            
             // 加载亮度设置
             val savedBrightness = sharedPrefs.getInt("screen_brightness", 50)
             adjustScreenBrightness(savedBrightness)
+            Log.d(TAG, "加载亮度设置: $savedBrightness%")
             
             // 加载主题设置
             val savedTheme = sharedPrefs.getString("theme", "默认") ?: "默认"
             currentTheme = savedTheme
+            Log.d(TAG, "加载主题设置: $savedTheme")
             
             // 加载字体大小设置
             val savedFontSize = sharedPrefs.getFloat("font_size", 1.0f)
             currentFontSize = savedFontSize * 16.0
+            Log.d(TAG, "加载字体大小设置: savedFontSize=$savedFontSize, currentFontSize=$currentFontSize")
             
-            // 直接从ReadiumPreferencesManager获取配置，严格按照开发实例
-            val preferences = preferencesManager.getCurrentPreferences()
+            // 加载行高设置
+            val savedLineHeight = sharedPrefs.getFloat("line_height", 1.6f)
+            currentLineHeight = savedLineHeight.toDouble()
+            Log.d(TAG, "加载行高设置: $savedLineHeight")
             
-            // 更新其他本地变量
-            currentFontFamily = preferences.fontFamily?.name ?: "sans-serif"
-            currentLineHeight = preferences.lineHeight ?: 1.6
-            currentPageMargins = preferences.pageMargins ?: 1.4
+            // 加载页边距设置
+            val savedPageMargins = sharedPrefs.getFloat("page_margins", 1.4f)
+            currentPageMargins = savedPageMargins.toDouble()
+            Log.d(TAG, "加载页边距设置: $savedPageMargins")
             
-            Log.d(TAG, "配置加载成功: 字体=${currentFontSize}pt, 主题=$currentTheme, 字体族=$currentFontFamily")
-            Log.d(TAG, "本地设置: 亮度=$savedBrightness%, 主题=$savedTheme, 字体大小=${savedFontSize}")
-            Log.d(TAG, "EpubPreferences: $preferences")
+            // 加载字体族设置
+            val savedFontFamily = sharedPrefs.getString("font_family", "sans-serif") ?: "sans-serif"
+            currentFontFamily = savedFontFamily
+            Log.d(TAG, "加载字体族设置: $savedFontFamily")
+            
+            Log.d(TAG, "=== 配置加载完成 ===")
+            Log.d(TAG, "最终配置: 字体=${currentFontSize}pt, 主题=$currentTheme, 字体族=$currentFontFamily")
+            Log.d(TAG, "最终配置: 行高=$currentLineHeight, 页边距=$currentPageMargins")
             
         } catch (e: Exception) {
             Log.e(TAG, "加载配置失败", e)
@@ -174,6 +205,11 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             currentFontFamily = "sans-serif"
             currentLineHeight = 1.6
             currentPageMargins = 1.4
+            Log.d(TAG, "使用默认配置: 字体=${currentFontSize}pt, 主题=$currentTheme")
+        } finally {
+            // 重置加载标志
+            isConfigurationLoading = false
+            Log.d(TAG, "配置加载标志已重置")
         }
     }
     
@@ -423,7 +459,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     throw Exception("无法解析EPUB文件: $error")
                 }
                 
-                // 创建EPUB导航器工厂 - 使用Readium原生配置
+                // 创建EPUB导航器工厂 - 使用Readium原生配置，严格按照参考项目实现
                 val navigatorFactory = EpubNavigatorFactory(
                     publication = publication,
                     configuration = EpubNavigatorFactory.Configuration(
@@ -483,24 +519,55 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             Log.d(TAG, "获取到的保存位置: $savedLocator")
             Log.d(TAG, "savedLocator类型: ${savedLocator?.javaClass?.simpleName}")
             
+            // 创建PreferencesEditor - 按照参考项目的方式
+            Log.d(TAG, "=== 关键问题：创建EpubPreferences ===")
+            Log.d(TAG, "当前配置状态: currentFontSize=$currentFontSize, currentTheme=$currentTheme, currentFontFamily=$currentFontFamily")
+            Log.d(TAG, "当前配置状态: currentLineHeight=$currentLineHeight, currentPageMargins=$currentPageMargins")
+            
+            // ✅ 修复：使用加载的配置创建EpubPreferences
+            val readiumTheme = when (currentTheme) {
+                "默认", "light" -> org.readium.r2.navigator.preferences.Theme.LIGHT
+                "护眼", "sepia" -> org.readium.r2.navigator.preferences.Theme.SEPIA
+                "夜间", "dark" -> org.readium.r2.navigator.preferences.Theme.DARK
+                else -> org.readium.r2.navigator.preferences.Theme.LIGHT
+            }
+            
+            val initialPreferences = EpubPreferences(
+                fontSize = (currentFontSize / 16.0), // 转换为百分比
+                theme = readiumTheme,
+                fontFamily = org.readium.r2.navigator.preferences.FontFamily(currentFontFamily),
+                lineHeight = currentLineHeight,
+                pageMargins = currentPageMargins
+            )
+            
+            Log.d(TAG, "✅ 使用加载的配置创建EpubPreferences: $initialPreferences")
+            Log.d(TAG, "✅ 字体大小: ${(currentFontSize / 16.0)} (${currentFontSize}pt)")
+            Log.d(TAG, "✅ 主题映射: '$currentTheme' -> $readiumTheme")
+            Log.d(TAG, "✅ 字体族: $currentFontFamily -> ${initialPreferences.fontFamily}")
+            Log.d(TAG, "✅ 行高: $currentLineHeight")
+            Log.d(TAG, "✅ 页边距: $currentPageMargins")
+            
+            val preferencesEditor = navigatorFactory.createPreferencesEditor(initialPreferences)
+            
             // 严格按照Readium官方示例，创建FragmentFactory
             Log.d(TAG, "开始创建FragmentFactory，initialLocator: $savedLocator")
             val fragmentFactory = navigatorFactory.createFragmentFactory(
                 initialLocator = savedLocator,
-                                        listener = object : EpubNavigatorFragment.Listener {
-                            override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
-                                Log.d(TAG, "外部链接激活: $url")
-                                try {
-                                    // 调用系统浏览器打开链接
-                                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url.toString()))
-                                    startActivity(intent)
-                                    Log.d(TAG, "已调用系统浏览器打开链接: $url")
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "调用系统浏览器失败", e)
-                                    Toast.makeText(this@ReadiumEpubReaderActivity, "无法打开链接: $url", Toast.LENGTH_SHORT).show()
-                                }
-                            }
+                initialPreferences = initialPreferences, // ✅ 关键修复：传递初始偏好设置
+                listener = object : EpubNavigatorFragment.Listener {
+                    override fun onExternalLinkActivated(url: org.readium.r2.shared.util.AbsoluteUrl) {
+                        Log.d(TAG, "外部链接激活: $url")
+                        try {
+                            // 调用系统浏览器打开链接
+                            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url.toString()))
+                            startActivity(intent)
+                            Log.d(TAG, "已调用系统浏览器打开链接: $url")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "调用系统浏览器失败", e)
+                            Toast.makeText(this@ReadiumEpubReaderActivity, "无法打开链接: $url", Toast.LENGTH_SHORT).show()
                         }
+                    }
+                }
             )
             Log.d(TAG, "FragmentFactory创建成功")
             
@@ -524,7 +591,17 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 navigatorContainer.postDelayed({
                     navigatorFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
                     Log.d(TAG, "延迟获取的navigatorFragment: $navigatorFragment")
+                    
+                    // ✅ 关键修复：Fragment获取成功，初始配置已在setupNavigatorView中设置
+                    if (navigatorFragment != null) {
+                        Log.d(TAG, "✅ Fragment获取成功，初始配置已在setupNavigatorView中设置")
+                        // 不需要再次应用配置，因为initialPreferences已经包含了正确的主题
+                    }
                 }, 100)
+            } else {
+                // ✅ 关键修复：Fragment已获取，初始配置已在setupNavigatorView中设置
+                Log.d(TAG, "✅ Fragment已获取，初始配置已在setupNavigatorView中设置")
+                // 不需要再次应用配置，因为initialPreferences已经包含了正确的主题
             }
             
             // 设置错误拦截器，过滤掉XML解析错误
@@ -595,7 +672,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     }
     
     /**
-     * 设置Locator变化监听器
+     * 设置Locator变化监听器 - 使用Readium的Positions API，严格按照参考项目实现
      */
     private fun setupLocatorChangeListener() {
         try {
@@ -606,8 +683,9 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     updatePageInfoDisplay(false)
                 }
                 
-                // 使用Handler监听Locator变化
+                // 使用Handler监听Locator变化，优化快速翻页时的页码同步
                 val locatorHandler = android.os.Handler(android.os.Looper.getMainLooper())
+                var lastPosition = -1
                 var lastPageInfo = ""
                 
                 val locatorRunnable = object : Runnable {
@@ -615,25 +693,30 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                         try {
                             val currentLocator = navigatorFragment?.currentLocator?.value
                             if (currentLocator != null) {
+                                // 优先使用Readium的Positions API来检测变化
+                                val currentPosition = currentLocator.locations.position ?: -1
                                 val newChapterTitle = getCurrentChapterTitle()
                                 val newPage = getCurrentPage()
                                 val newPageInfo = "$newChapterTitle-$newPage"
                                 
-                                // 移除哈希缓存，直接比较页码信息，确保实时更新
-                                if (newPageInfo != lastPageInfo) {
+                                // 使用position来检测变化，提高快速翻页时的准确性
+                                if (currentPosition != lastPosition || newPageInfo != lastPageInfo) {
+                                    lastPosition = currentPosition
                                     lastPageInfo = newPageInfo
                                     
                                     // 更新UI显示
                                     updateChapterAndPageInfo(newChapterTitle, newPage)
                                     
-                                    Log.d(TAG, "页码更新: 章节=$newChapterTitle, 页码=$newPage")
+                                    Log.d(TAG, "页码更新: 章节=$newChapterTitle, 页码=$newPage, position=$currentPosition")
                                 }
                             }
                             
-                            // 每50ms检查一次Locator变化（进一步提高频率）
-                            locatorHandler.postDelayed(this, 50)
+                            // 每20ms检查一次Locator变化（进一步提高频率，确保快速翻页时页码同步）
+                            locatorHandler.postDelayed(this, 20)
                         } catch (e: Exception) {
-                            Log.w(TAG, "监听Locator变化失败", e)
+                            Log.e(TAG, "监听Locator变化失败", e)
+                            // 即使出错也继续监听
+                            locatorHandler.postDelayed(this, 100)
                         }
                     }
                 }
@@ -641,7 +724,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 // 开始监听
                 locatorHandler.post(locatorRunnable)
                 
-                Log.d(TAG, "Locator变化监听器设置成功")
+                Log.d(TAG, "Locator变化监听器设置成功，使用Readium Positions API")
             }
         } catch (e: Exception) {
             Log.w(TAG, "设置Locator变化监听器失败", e)
@@ -670,6 +753,33 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.w(TAG, "更新章节和页码信息失败", e)
+        }
+    }
+    
+    /**
+     * 立即更新页码信息 - 用于触摸事件后立即更新
+     */
+    private fun updatePageInfoImmediately() {
+        try {
+            // 使用Handler延迟一小段时间，确保Readium的Locator已经更新
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                try {
+                    val currentLocator = navigatorFragment?.currentLocator?.value
+                    if (currentLocator != null) {
+                        val newChapterTitle = getCurrentChapterTitle()
+                        val newPage = getCurrentPage()
+                        
+                        // 立即更新UI显示
+                        updateChapterAndPageInfo(newChapterTitle, newPage)
+                        
+                        Log.d(TAG, "立即更新页码: 章节=$newChapterTitle, 页码=$newPage")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "立即更新页码失败", e)
+                }
+            }, 100) // 延迟100ms，确保Readium的Locator已经更新
+        } catch (e: Exception) {
+            Log.e(TAG, "设置立即更新页码失败", e)
         }
     }
     
@@ -830,12 +940,26 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     // 字体大小调整
     private fun increaseFontSize() {
         currentFontSize = (currentFontSize + 2.0).coerceAtMost(32.0)
+        
+        // 保存字体大小设置到本地
+        getSharedPreferences("reader_settings", MODE_PRIVATE)
+            .edit()
+            .putFloat("font_size", (currentFontSize / 16.0).toFloat())
+            .apply()
+        
         applyReadingPreferences()
         Toast.makeText(this, "字体大小: ${currentFontSize.toInt()}", Toast.LENGTH_SHORT).show()
     }
     
     private fun decreaseFontSize() {
         currentFontSize = (currentFontSize - 2.0).coerceAtLeast(12.0)
+        
+        // 保存字体大小设置到本地
+        getSharedPreferences("reader_settings", MODE_PRIVATE)
+            .edit()
+            .putFloat("font_size", (currentFontSize / 16.0).toFloat())
+            .apply()
+        
         applyReadingPreferences()
         Toast.makeText(this, "字体大小: ${currentFontSize.toInt()}", Toast.LENGTH_SHORT).show()
     }
@@ -843,11 +967,23 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     // 主题切换
     private fun toggleTheme() {
         currentTheme = when (currentTheme) {
-            "default" -> "sepia"
-            "sepia" -> "night"
-            "night" -> "highContrast"
-            else -> "default"
+            "默认" -> "护眼"
+            "护眼" -> "夜间"
+            "夜间" -> "默认"
+            else -> "默认"
         }
+        
+        Log.d(TAG, "=== 主题切换 ===")
+        Log.d(TAG, "新主题: $currentTheme")
+        
+        // 保存主题设置到本地
+        getSharedPreferences("reader_settings", MODE_PRIVATE)
+            .edit()
+            .putString("theme", currentTheme)
+            .apply()
+        
+        Log.d(TAG, "主题已保存到SharedPreferences: $currentTheme")
+        
         applyReadingPreferences()
         Toast.makeText(this, "主题: $currentTheme", Toast.LENGTH_SHORT).show()
     }
@@ -888,9 +1024,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     "夜间" -> currentPrefs.copy(
                         theme = org.readium.r2.navigator.preferences.Theme.DARK
                     )
-                    "复古" -> currentPrefs.copy(
-                        theme = org.readium.r2.navigator.preferences.Theme.SEPIA
-                    )
                     else -> currentPrefs
                 }
                 
@@ -906,10 +1039,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                             applyThemeTransitionEffect(view, theme)
                         }
                         
-                        // 应用自定义背景色（如果需要）
-                        if (theme == "复古") {
-                            applyCustomBackgroundColor(currentFragment, "#F2E2C9")
-                        }
                         
                         Toast.makeText(this, "主题已切换为: $theme", Toast.LENGTH_SHORT).show()
                         
@@ -989,12 +1118,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                         applyThemeTransitionEffect(view, theme)
                     }
                     
-                    // 应用自定义背景色（如果需要）
-                    if (theme == "复古") {
-                        navigatorFragment?.let { fragment ->
-                            applyCustomBackgroundColor(fragment, "#F2E2C9")
-                        }
-                    }
                 }
                 
                 Log.d(TAG, "主题应用成功: $theme，Navigator已重新创建")
@@ -1052,7 +1175,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             fragment.view?.post {
                 try {
                     // 查找WebView并注入自定义CSS
-                    findWebViewAndApplyCustomBackground(fragment.view!!, backgroundColor)
+                    findWebViewAndApplyCustomBackground(fragment.requireView(), backgroundColor)
                 } catch (e: Exception) {
                     Log.e(TAG, "应用自定义背景色失败", e)
                 }
@@ -1171,9 +1294,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 )
                 "夜间" -> currentPrefs.copy(
                     theme = org.readium.r2.navigator.preferences.Theme.DARK
-                )
-                "复古" -> currentPrefs.copy(
-                    theme = org.readium.r2.navigator.preferences.Theme.SEPIA
                 )
                 else -> currentPrefs
             }
@@ -1304,6 +1424,13 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         } else {
             currentLineHeight = (currentLineHeight - 0.1).coerceAtLeast(1.0)
         }
+        
+        // 保存行高设置到本地
+        getSharedPreferences("reader_settings", MODE_PRIVATE)
+            .edit()
+            .putFloat("line_height", currentLineHeight.toFloat())
+            .apply()
+        
         applyReadingPreferences()
         Toast.makeText(this, "行高: ${String.format("%.1f", currentLineHeight)}", Toast.LENGTH_SHORT).show()
     }
@@ -1315,12 +1442,26 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         } else {
             currentPageMargins = (currentPageMargins - 0.1).coerceAtLeast(0.5)
         }
+        
+        // 保存页边距设置到本地
+        getSharedPreferences("reader_settings", MODE_PRIVATE)
+            .edit()
+            .putFloat("page_margins", currentPageMargins.toFloat())
+            .apply()
+        
         applyReadingPreferences()
         Toast.makeText(this, "页边距: ${String.format("%.1f", currentPageMargins)}", Toast.LENGTH_SHORT).show()
     }
     
     // 应用阅读偏好设置 - 使用正确的方式
     private fun applyReadingPreferences() {
+        // 防止重复应用
+        if (isApplyingPreferences) {
+            Log.d(TAG, "偏好正在应用中，跳过重复调用")
+            return
+        }
+        
+        isApplyingPreferences = true
         try {
             Log.d(TAG, "开始应用阅读偏好...")
             
@@ -1341,14 +1482,28 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                  val currentLocator = navigatorFragment?.currentLocator?.value
                 
                 // 创建新的NavigatorFactory，使用更新后的所有配置
+                val readiumTheme = when (currentTheme) {
+                    "默认", "light" -> org.readium.r2.navigator.preferences.Theme.LIGHT
+                    "护眼", "sepia" -> org.readium.r2.navigator.preferences.Theme.SEPIA
+                    "夜间", "dark" -> org.readium.r2.navigator.preferences.Theme.DARK
+                    else -> org.readium.r2.navigator.preferences.Theme.LIGHT
+                }
+                
+                Log.d(TAG, "=== 重新创建Navigator时的配置 ===")
+                Log.d(TAG, "主题映射: '$currentTheme' -> $readiumTheme")
+                Log.d(TAG, "字体大小: ${(currentFontSize / 16.0)} (${currentFontSize}pt)")
+                Log.d(TAG, "行高: $currentLineHeight")
+                Log.d(TAG, "页边距: $currentPageMargins")
+                Log.d(TAG, "字体族: $currentFontFamily")
+                
                 val newNavigatorFactory = EpubNavigatorFactory(
                     publication = pub,
                     configuration = EpubNavigatorFactory.Configuration(
                         defaults = EpubDefaults(
                             pageMargins = currentPageMargins.toDouble(),
                             fontSize = (currentFontSize / 16.0), // 转换为百分比
-                            lineHeight = currentLineHeight.toDouble(),
-                            // 其他默认配置由Readium内部处理
+                            lineHeight = currentLineHeight.toDouble()
+                            // 注意：EpubDefaults不支持theme和fontFamily参数，这些需要在EpubPreferences中设置
                         )
                     )
                 )
@@ -1373,7 +1528,59 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 navigatorFragment = supportFragmentManager.findFragmentByTag("EpubNavigatorFragment") as? EpubNavigatorFragment
                 navigatorFactory = newNavigatorFactory
                 
+                // ✅ 关键修复：Fragment创建后立即应用配置
+                navigatorFragment?.view?.post {
+                    Log.d(TAG, "Fragment视图已创建，立即应用最终配置")
+                    try {
+                        val finalPreferences = EpubPreferences(
+                            fontSize = (currentFontSize / 16.0),
+                            theme = readiumTheme,
+                            fontFamily = org.readium.r2.navigator.preferences.FontFamily(currentFontFamily),
+                            lineHeight = currentLineHeight,
+                            pageMargins = currentPageMargins
+                        )
+                        
+                        val fragment = navigatorFragment
+                        if (fragment is Configurable<*, EpubPreferences>) {
+                            fragment.submitPreferences(finalPreferences)
+                            Log.d(TAG, "✅ 最终配置已应用到Fragment: $finalPreferences")
+                            
+                            // ✅ 关键修复：应用WebView CSS主题增强
+                            fragment.view?.let { view ->
+                                Log.d(TAG, "开始应用WebView CSS主题增强: $currentTheme")
+                                findWebViewAndApplyTheme(view, currentTheme)
+                            }
+                        } else {
+                            Log.w(TAG, "Fragment不支持Configurable接口")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "应用最终配置失败", e)
+                    }
+                }
+                
                 Log.d(TAG, "所有阅读偏好应用成功，Navigator已重新创建")
+                
+                // ✅ 关键修复：使用Readium官方API来应用主题
+                Log.d(TAG, "🔧 检查navigatorFragment状态: ${navigatorFragment != null}")
+                Log.d(TAG, "🔧 检查navigatorFragment.view状态: ${navigatorFragment?.view != null}")
+                
+                // 使用Readium官方API来应用主题，而不是直接操作WebView CSS
+                Log.d(TAG, "Navigator重新创建后，开始应用Readium主题: $currentTheme")
+                
+                // 创建包含主题的EpubPreferences
+                val themePreferences = EpubPreferences(
+                    theme = when (currentTheme) {
+                        "默认" -> org.readium.r2.navigator.preferences.Theme.LIGHT
+                        "护眼" -> org.readium.r2.navigator.preferences.Theme.SEPIA
+                        "夜间" -> org.readium.r2.navigator.preferences.Theme.DARK
+                        else -> org.readium.r2.navigator.preferences.Theme.LIGHT
+                    }
+                )
+                
+                // 使用Readium官方API提交主题偏好
+                navigatorFragment?.submitPreferences(themePreferences)
+                Log.d(TAG, "✅ 已通过Readium官方API提交主题偏好: $currentTheme")
+                
                 Toast.makeText(this, "设置已保存并应用", Toast.LENGTH_SHORT).show()
                 
             } ?: run {
@@ -1386,6 +1593,10 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "应用阅读偏好失败", e)
             Toast.makeText(this, "保存设置失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        } finally {
+            // 重置应用标志
+            isApplyingPreferences = false
+            Log.d(TAG, "偏好应用标志已重置")
         }
     }
     
@@ -1658,12 +1869,20 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             
             setOnClickListener {
                 currentTheme = when (currentTheme) {
-                    "light" -> "sepia"
-                    "sepia" -> "night"
-                    "night" -> "light"
-                    else -> "light"
+                    "默认" -> "护眼"
+                    "护眼" -> "夜间"
+                    "夜间" -> "默认"
+                    else -> "默认"
                 }
                 themeLabel.text = "主题: $currentTheme"
+                
+                // 保存主题设置到本地
+                getSharedPreferences("reader_settings", MODE_PRIVATE)
+                    .edit()
+                    .putString("theme", currentTheme)
+                    .apply()
+                
+                Log.d(TAG, "菜单主题切换: $currentTheme")
                 applyReadingPreferences()
             }
         }
@@ -1947,6 +2166,9 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                     
                     Log.d(TAG, "dispatchTouchEvent ACTION_UP: x=${event.x}, y=${event.y}, 持续时间=${touchDuration}ms, 移动距离=(${deltaX}, ${deltaY})")
                     
+                    // 立即更新页码，确保翻页后页码及时更新
+                    updatePageInfoImmediately()
+                    
                     // 检查触摸位置，判断是否点击在菜单区域外
                     if (isMenuVisible || isMenuPanelVisible) {
                         val touchPoint = android.graphics.PointF(event.x, event.y)
@@ -2196,18 +2418,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                         }
                     </style>
                 """.trimIndent()
-                "复古" -> """
-                    <style>
-                        body { 
-                            background-color: #F4F1E8 !important; 
-                            color: #2F2F2F !important; 
-                        }
-                        * { 
-                            background-color: #F4F1E8 !important; 
-                            color: #2F2F2F !important; 
-                        }
-                    </style>
-                """.trimIndent()
                 else -> ""
             }
             
@@ -2218,7 +2428,6 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
                 "默认" -> Log.d(TAG, "⚪ 默认主题: 背景=#FFFFFF(白色), 文字=#000000(黑色)")
                 "护眼" -> Log.d(TAG, "🟡 护眼主题: 背景=#F5F5DC(米色), 文字=#2F2F2F(深灰)")
                 "夜间" -> Log.d(TAG, "⚫ 夜间主题: 背景=#1A1A1A(深黑), 文字=#E0E0E0(浅灰)")
-                "复古" -> Log.d(TAG, "🟤 复古主题: 背景=#F2E2C9(复古米色), 文字=#2F2F2F(深灰)")
             }
             
             if (cssTheme.isNotEmpty()) {
@@ -2675,31 +2884,32 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
     }
 
     /**
-     * 获取当前页码 - 简化计算逻辑
+     * 获取当前页码 - 优化计算逻辑，提高连续翻页时的准确性
      */
     private fun getCurrentPage(): Int {
         return try {
             val currentLocator = navigatorFragment?.currentLocator?.value
             if (currentLocator != null) {
-                // 优先使用Locator中的position，这是最准确的方式
+                // 优先使用Readium的Positions API - 这是最准确的方式，严格按照参考项目实现
                 currentLocator.locations.position?.let { position ->
                     if (position > 0) {
-                        Log.d(TAG, "使用position计算页码: $position")
+                        Log.d(TAG, "使用Readium Positions API计算页码: $position")
                         return position
                     }
                 }
                 
-                // 如果没有position，使用progression计算（更简单的方式）
+                // 使用progression计算，这是最可靠的方式
                 currentLocator.locations.progression?.let { progression ->
                     val totalPages = getTotalPages()
                     if (totalPages > 0) {
-                        val calculatedPage = (progression * totalPages).toInt() + 1
+                        // 使用更精确的计算方式，避免整数截断问题
+                        val calculatedPage = kotlin.math.round(progression * totalPages).toInt() + 1
                         Log.d(TAG, "使用progression计算页码: $calculatedPage (progression=$progression, totalPages=$totalPages)")
                         return calculatedPage
                     }
                 }
                 
-                // 最后尝试从fragment解析
+                // 尝试从fragment解析
                 currentLocator.locations.fragments.firstOrNull()?.let { fragment ->
                     fragment.toIntOrNull()?.let { page ->
                         if (page > 0) {
@@ -2730,30 +2940,26 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             // 默认返回1
             1
         } catch (e: Exception) {
-            Log.w(TAG, "获取当前页码失败", e)
+            Log.e(TAG, "获取当前页码失败", e)
             1
         }
     }
     
     /**
-     * 获取总页数
+     * 获取总页数 - 使用Readium的方法，严格按照参考项目实现
      */
     private fun getTotalPages(): Int {
         return try {
-            val currentLocator = navigatorFragment?.currentLocator?.value
-            if (currentLocator != null) {
-                // 尝试从Locator中获取总页数信息
-                currentLocator.locations.otherLocations["totalPages"]?.toString()?.toIntOrNull()?.let { total ->
-                    if (total > 0) return total
+            // 使用readingOrder的大小作为总页数 - 这是Readium推荐的方式
+            publication?.readingOrder?.size?.let { size ->
+                if (size > 0) {
+                    Log.d(TAG, "使用readingOrder大小作为总页数: $size")
+                    return size
                 }
             }
             
-            // 如果没有，使用readingOrder的大小作为备选
-            publication?.readingOrder?.size?.let { size ->
-                if (size > 0) return size
-            }
-            
             // 默认返回100
+            Log.d(TAG, "使用默认总页数: 100")
             100
         } catch (e: Exception) {
             Log.w(TAG, "获取总页数失败", e)
@@ -3081,7 +3287,7 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
      * 显示主题设置对话框
      */
     private fun showThemeDialog() {
-        val themes = arrayOf("默认", "护眼", "夜间", "复古")
+        val themes = arrayOf("默认", "护眼", "夜间")
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("选择主题")
             .setItems(themes) { _, which ->
@@ -3331,6 +3537,55 @@ class ReadiumEpubReaderActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.w(TAG, "显示进度恢复消息失败", e)
+        }
+    }
+    
+    /**
+     * 保存Preferences到本地SharedPreferences - 严格按照参考项目实现
+     */
+    private fun savePreferencesToLocal(preferences: EpubPreferences) {
+        try {
+            Log.d(TAG, "=== 开始保存Preferences到本地 ===")
+            Log.d(TAG, "要保存的Preferences: $preferences")
+            
+            val sharedPrefs = getSharedPreferences("reader_settings", MODE_PRIVATE)
+            val editor = sharedPrefs.edit()
+            
+            // 保存字体大小
+            preferences.fontSize?.let { fontSize ->
+                editor.putFloat("font_size", fontSize.toFloat())
+                Log.d(TAG, "✅ 保存字体大小: $fontSize (${(fontSize * 16).toInt()}pt)")
+            }
+            
+            // 保存主题 - 使用当前主题名称而不是映射
+            editor.putString("theme", currentTheme)
+            Log.d(TAG, "✅ 保存主题: $currentTheme")
+            
+            // 保存行高
+            preferences.lineHeight?.let { lineHeight ->
+                editor.putFloat("line_height", lineHeight.toFloat())
+                Log.d(TAG, "✅ 保存行高: $lineHeight")
+            }
+            
+            // 保存页边距
+            preferences.pageMargins?.let { pageMargins ->
+                editor.putFloat("page_margins", pageMargins.toFloat())
+                Log.d(TAG, "✅ 保存页边距: $pageMargins")
+            }
+            
+            // 保存字体族
+            preferences.fontFamily?.let { fontFamily ->
+                editor.putString("font_family", fontFamily.name)
+                Log.d(TAG, "✅ 保存字体族: ${fontFamily.name}")
+            }
+            
+            // 提交保存
+            val success = editor.apply()
+            Log.d(TAG, "✅ SharedPreferences保存完成: $success")
+            Log.d(TAG, "Preferences保存完成")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "保存Preferences失败", e)
         }
     }
     

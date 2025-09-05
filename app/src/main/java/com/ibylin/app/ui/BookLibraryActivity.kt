@@ -12,6 +12,8 @@ import android.view.View
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.ImageButton
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import android.util.Log
@@ -19,7 +21,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.appbar.MaterialToolbar
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -39,12 +40,13 @@ import kotlinx.coroutines.withContext
 
 class BookLibraryActivity : AppCompatActivity() {
     
-    private lateinit var btnCategory: ImageButton
+    private lateinit var customToolbar: LinearLayout
     private lateinit var rvBooks: RecyclerView
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var llScanning: android.widget.LinearLayout
     private lateinit var llNoBooks: android.widget.LinearLayout
     private lateinit var bookGridAdapter: BookGridAdapter
+    private lateinit var btnSort: FrameLayout
 
 
     
@@ -88,7 +90,7 @@ class BookLibraryActivity : AppCompatActivity() {
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         Log.d("BookLibraryActivity", "🎯 onCreateOptionsMenu被调用")
-        // 不创建系统菜单，改为使用自定义PopupMenu
+        // 不再使用系统菜单，改为使用自定义PopupMenu
         return true
     }
     
@@ -199,7 +201,7 @@ class BookLibraryActivity : AppCompatActivity() {
     private val sharedPreferences by lazy { getSharedPreferences("book_cache", MODE_PRIVATE)     }
     
     private fun setupTransparentStatusBar() {
-        // 设置状态栏透明
+        // 设置状态栏透明，让MaterialToolbar处理状态栏
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             window.decorView.systemUiVisibility = 
@@ -207,30 +209,137 @@ class BookLibraryActivity : AppCompatActivity() {
                 android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
                 android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         }
+        
+        // 确保MaterialToolbar正确处理状态栏
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+        }
     }
     
     private fun initViews() {
-        btnCategory = findViewById(R.id.btn_category)
+        customToolbar = findViewById(R.id.custom_toolbar)
         rvBooks = findViewById(R.id.rv_books)
         swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout)
         llScanning = findViewById(R.id.ll_scanning)
         llNoBooks = findViewById(R.id.ll_no_books)
+        btnSort = findViewById(R.id.btn_sort)
         
-        // 设置顶部导航栏
-        setupTopNavigation()
+        // 设置自定义导航栏
+        setupCustomToolbar()
+        
+        // 设置排序按钮点击事件
+        setupSortButton()
+        
     }
     
     /**
-     * 设置顶部导航栏
+     * 设置自定义导航栏
      */
-    private fun setupTopNavigation() {
-        // 设置分类按钮点击事件
-        btnCategory.setOnClickListener {
-            Log.d("BookLibraryActivity", "🎯 分类按钮被点击")
-            showCategoryMenu(btnCategory)
+    private fun setupCustomToolbar() {
+        // 由于删除了导航栏，暂时不设置任何按钮
+        Log.d("BookLibraryActivity", "🎯 自定义导航栏设置完成（无按钮）")
+    }
+    
+    /**
+     * 设置排序按钮
+     */
+    private fun setupSortButton() {
+        btnSort.setOnClickListener {
+            Log.d("BookLibraryActivity", "🎯 排序按钮被点击")
+            showSortMenu(btnSort)
         }
         
-        Log.d("BookLibraryActivity", "🎯 顶部导航栏设置完成")
+        Log.d("BookLibraryActivity", "🎯 排序按钮设置完成")
+    }
+    
+    /**
+     * 显示排序菜单
+     */
+    private fun showSortMenu(anchorView: View) {
+        Log.d("BookLibraryActivity", "🎯 开始显示排序菜单")
+        Log.d("BookLibraryActivity", "  锚点视图: $anchorView")
+        
+        val popupMenu = android.widget.PopupMenu(this, anchorView, android.view.Gravity.END)
+        popupMenu.inflate(R.menu.menu_sort_options)
+        
+        Log.d("BookLibraryActivity", "  菜单已填充，菜单项数量: ${popupMenu.menu.size()}")
+        
+        // 打印所有菜单项
+        for (i in 0 until popupMenu.menu.size()) {
+            val item = popupMenu.menu.getItem(i)
+            Log.d("BookLibraryActivity", "    菜单项[$i]: ${item.title} (ID: ${item.itemId})")
+        }
+        
+        // 设置从右侧弹出的动画
+        try {
+            val popup = android.widget.PopupMenu::class.java.getDeclaredField("mPopup")
+            popup.isAccessible = true
+            val popupWindow = popup.get(popupMenu) as android.widget.ListPopupWindow
+            
+            // 设置自定义的从右侧滑入动画样式
+            popupWindow.animationStyle = R.style.SlideInFromRightAnimation
+            
+            Log.d("BookLibraryActivity", "  已设置从右侧滑入的动画样式")
+            
+        } catch (e: Exception) {
+            Log.e("BookLibraryActivity", "设置菜单动画失败", e)
+        }
+        
+        // 设置菜单项点击事件
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            Log.d("BookLibraryActivity", "🎯 排序菜单项被点击: ${menuItem.title} (ID: ${menuItem.itemId})")
+            handleSortMenuItemClick(menuItem)
+            true
+        }
+        
+        // 显示菜单
+        Log.d("BookLibraryActivity", "  准备显示菜单")
+        popupMenu.show()
+        Log.d("BookLibraryActivity", "  菜单已显示")
+    }
+    
+    /**
+     * 处理排序菜单项点击
+     */
+    private fun handleSortMenuItemClick(menuItem: MenuItem) {
+        when (menuItem.itemId) {
+            // 分类选项
+            R.id.category_all -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 全部")
+                filterBooksByCategory("全部")
+            }
+            R.id.category_science_fiction -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 科幻")
+                filterBooksByCategory("科幻")
+            }
+            R.id.category_literature -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 文学")
+                filterBooksByCategory("文学")
+            }
+            R.id.category_wuxia -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 武侠")
+                filterBooksByCategory("武侠")
+            }
+            R.id.category_romance -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 言情")
+                filterBooksByCategory("言情")
+            }
+            R.id.category_history -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 历史")
+                filterBooksByCategory("历史")
+            }
+            R.id.category_finance -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 理财")
+                filterBooksByCategory("理财")
+            }
+            R.id.category_english -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 英文")
+                filterBooksByCategory("英文")
+            }
+            else -> {
+                Log.d("BookLibraryActivity", "❓ 未匹配的菜单项: ${menuItem.title} (ID: ${menuItem.itemId})")
+            }
+        }
     }
     
     /**
@@ -240,7 +349,7 @@ class BookLibraryActivity : AppCompatActivity() {
         Log.d("BookLibraryActivity", "🎯 开始显示分类菜单")
         Log.d("BookLibraryActivity", "  锚点视图: $anchorView")
         
-        val popupMenu = android.widget.PopupMenu(this, anchorView)
+        val popupMenu = android.widget.PopupMenu(this, anchorView, android.view.Gravity.END)
         popupMenu.inflate(R.menu.menu_book_library)
         
         Log.d("BookLibraryActivity", "  菜单已填充，菜单项数量: ${popupMenu.menu.size()}")
@@ -251,7 +360,20 @@ class BookLibraryActivity : AppCompatActivity() {
             Log.d("BookLibraryActivity", "    菜单项[$i]: ${item.title} (ID: ${item.itemId})")
         }
         
-        // 使用原生样式，不设置自定义背景
+        // 设置从右侧弹出的动画
+        try {
+            val popup = android.widget.PopupMenu::class.java.getDeclaredField("mPopup")
+            popup.isAccessible = true
+            val popupWindow = popup.get(popupMenu) as android.widget.ListPopupWindow
+            
+            // 设置自定义的从右侧滑入动画样式
+            popupWindow.animationStyle = R.style.SlideInFromRightAnimation
+            
+            Log.d("BookLibraryActivity", "  已设置从右侧滑入的动画样式")
+            
+        } catch (e: Exception) {
+            Log.e("BookLibraryActivity", "设置菜单动画失败", e)
+        }
         
         // 设置菜单项点击事件
         popupMenu.setOnMenuItemClickListener { menuItem ->
@@ -265,6 +387,7 @@ class BookLibraryActivity : AppCompatActivity() {
         popupMenu.show()
         Log.d("BookLibraryActivity", "  菜单已显示")
     }
+    
     
     private fun setupRecyclerView() {
         // 设置网格布局，一行2个
@@ -1888,4 +2011,5 @@ class BookLibraryActivity : AppCompatActivity() {
             }
         }
     }
+    
 }

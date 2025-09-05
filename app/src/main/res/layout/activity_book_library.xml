@@ -8,42 +8,15 @@
 
     <!-- 自定义顶部导航栏 -->
     <LinearLayout
-        android:id="@+id/top_navigation_bar"
+        android:id="@+id/custom_toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="31dp"
-        android:background="@color/material_surface"
-        android:elevation="4dp"
-        android:orientation="horizontal"
+        android:background="@android:color/transparent"
+        android:fitsSystemWindows="true"
         android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp">
-
-        <!-- 书架标题 -->
-        <TextView
-            android:id="@+id/tv_shelf_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="书架"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@color/material_on_surface" />
-
-        <!-- 分类按钮 -->
-        <ImageButton
-            android:id="@+id/btn_category"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_setting"
-            android:contentDescription="分类"
-            android:scaleType="centerInside"
-            android:padding="12dp" />
-
-    </LinearLayout>
+        android:paddingEnd="24dp"/>
 
     <!-- 内容区域 -->
     <RelativeLayout
@@ -55,12 +28,7 @@
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipe_refresh_layout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_alignParentTop="true"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginBottom="8dp">
+            android:layout_height="match_parent">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_books"
@@ -70,7 +38,6 @@
                 android:clipToPadding="false"
                 android:fadeScrollbars="true"
                 android:overScrollMode="never"
-                android:paddingBottom="16dp"
                 android:scrollbarStyle="insideOverlay"
                 android:scrollbars="none"
                 android:visibility="gone" />
@@ -125,6 +92,30 @@
                 android:textSize="14sp" />
 
         </LinearLayout>
+
+        <!-- 排序按钮 - 复用阅读器menu样式 -->
+        <FrameLayout
+            android:id="@+id/btn_sort"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginEnd="24dp"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/ios_menu_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="排序">
+
+            <ImageView
+                android:id="@+id/iv_sort_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_menu"
+                android:tint="@android:color/white" />
+
+        </FrameLayout>
 
     </RelativeLayout>
 

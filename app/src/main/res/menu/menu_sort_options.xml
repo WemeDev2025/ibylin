@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- 分类选项 -->
+    <item
+        android:id="@+id/category_all"
+        android:title="全部"
+        android:icon="@drawable/ic_sort" />
+
+    <item
+        android:id="@+id/category_science_fiction"
+        android:title="科幻"
+        android:icon="@drawable/ic_sort" />
+
+    <item
+        android:id="@+id/category_literature"
+        android:title="文学"
+        android:icon="@drawable/ic_sort" />
+
+    <item
+        android:id="@+id/category_wuxia"
+        android:title="武侠"
+        android:icon="@drawable/ic_sort" />
+
+    <item
+        android:id="@+id/category_romance"
+        android:title="言情"
+        android:icon="@drawable/ic_sort" />
+
+    <item
+        android:id="@+id/category_history"
+        android:title="历史"
+        android:icon="@drawable/ic_sort" />
+
+    <item
+        android:id="@+id/category_finance"
+        android:title="理财"
+        android:icon="@drawable/ic_sort" />
+
+    <item
+        android:id="@+id/category_english"
+        android:title="英文"
+        android:icon="@drawable/ic_sort" />
+
+</menu>
