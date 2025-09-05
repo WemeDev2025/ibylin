@@ -86,76 +86,106 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        Log.d("BookLibraryActivity", "🎯 onCreateOptionsMenu被调用")
         menuInflater.inflate(R.menu.menu_book_library, menu)
+        Log.d("BookLibraryActivity", "🎯 菜单已创建，菜单项数量: ${menu?.size()}")
+        
+        // 调试：打印所有菜单项
+        if (menu != null) {
+            for (i in 0 until menu.size()) {
+                val item = menu.getItem(i)
+                Log.d("BookLibraryActivity", "🎯 菜单项[$i]: ${item.title} (ID: ${item.itemId})")
+                if (item.hasSubMenu()) {
+                    val subMenu = item.subMenu
+                    Log.d("BookLibraryActivity", "🎯   子菜单项数量: ${subMenu?.size()}")
+                    for (j in 0 until (subMenu?.size() ?: 0)) {
+                        val subItem = subMenu?.getItem(j)
+                        Log.d("BookLibraryActivity", "🎯   子菜单项[$j]: ${subItem?.title} (ID: ${subItem?.itemId})")
+                    }
+                }
+            }
+        }
+        
+        // 强制显示Toast，确保菜单创建成功
+        Toast.makeText(this, "菜单已创建，菜单项数量: ${menu?.size()}", Toast.LENGTH_LONG).show()
+        
         return true
     }
     
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        Log.d("BookLibraryActivity", "🎯 菜单项被点击: ${item.title} (ID: ${item.itemId})")
+        Log.d("BookLibraryActivity", "🎯 菜单项ID对比:")
+        Log.d("BookLibraryActivity", "  R.id.category_science_fiction = ${R.id.category_science_fiction}")
+        Log.d("BookLibraryActivity", "  item.itemId = ${item.itemId}")
+        Log.d("BookLibraryActivity", "  是否匹配: ${item.itemId == R.id.category_science_fiction}")
+        
+        // 添加更详细的调试信息
+        Log.d("BookLibraryActivity", "🔍 所有分类菜单项ID:")
+        Log.d("BookLibraryActivity", "  R.id.category_all = ${R.id.category_all}")
+        Log.d("BookLibraryActivity", "  R.id.category_science_fiction = ${R.id.category_science_fiction}")
+        Log.d("BookLibraryActivity", "  R.id.category_literature = ${R.id.category_literature}")
+        Log.d("BookLibraryActivity", "  R.id.category_chinese = ${R.id.category_chinese}")
+        Log.d("BookLibraryActivity", "  R.id.category_finance = ${R.id.category_finance}")
+        
+        // 添加Toast提示，确保用户能看到点击反馈
+        Toast.makeText(this, "菜单项被点击: ${item.title}", Toast.LENGTH_SHORT).show()
+        
+        // 强制显示Toast，确保用户能看到
+        Toast.makeText(this, "菜单项被点击: ${item.title}", Toast.LENGTH_LONG).show()
+        
+        // 立即显示Toast确认方法被调用
+        Toast.makeText(this, "onOptionsItemSelected被调用!", Toast.LENGTH_LONG).show()
+        
         return when (item.itemId) {
             // 分类筛选菜单
             R.id.category_all -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 全部")
                 filterBooksByCategory("全部")
                 true
             }
-            R.id.category_wuxia -> {
-                filterBooksByCategory("武侠")
-                true
-            }
-            R.id.category_xianxia -> {
-                filterBooksByCategory("仙侠")
-                true
-            }
             R.id.category_science_fiction -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 科幻")
+                Log.d("BookLibraryActivity", "🚀 科幻分类点击事件触发!")
+                Toast.makeText(this, "科幻分类被点击!", Toast.LENGTH_LONG).show()
                 filterBooksByCategory("科幻")
                 true
             }
-            R.id.category_romance -> {
-                filterBooksByCategory("言情")
-                true
-            }
-            R.id.category_urban_fiction -> {
-                filterBooksByCategory("都市")
-                true
-            }
-            R.id.category_history -> {
-                filterBooksByCategory("历史")
-                true
-            }
             R.id.category_literature -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 文学")
                 filterBooksByCategory("文学")
                 true
             }
             R.id.category_chinese -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 中文")
                 filterBooksByCategory("中文")
                 true
             }
-            R.id.category_english -> {
-                filterBooksByCategory("英文")
-                true
-            }
-            R.id.category_japanese -> {
-                filterBooksByCategory("日文")
-                true
-            }
-            R.id.category_unknown -> {
-                filterBooksByCategory("未分类")
+            R.id.category_finance -> {
+                Log.d("BookLibraryActivity", "📋 用户选择分类: 理财")
+                filterBooksByCategory("理财")
                 true
             }
             
             // 其他菜单项
             R.id.action_category_stats -> {
+                Log.d("BookLibraryActivity", "📊 显示分类统计")
                 showCategoryStats()
                 true
             }
             R.id.action_reclassify -> {
+                Log.d("BookLibraryActivity", "🔄 重新分类所有图书")
                 reclassifyAllBooks()
                 true
             }
             R.id.action_clear_categories -> {
+                Log.d("BookLibraryActivity", "🗑️ 清除所有分类")
                 clearAllCategories()
                 true
             }
-            else -> super.onOptionsItemSelected(item)
+            else -> {
+                Log.d("BookLibraryActivity", "❓ 未匹配的菜单项: ${item.title} (ID: ${item.itemId})")
+                super.onOptionsItemSelected(item)
+            }
         }
     }
     
@@ -229,7 +259,10 @@ class BookLibraryActivity : AppCompatActivity() {
                     openSettings()
                     true
                 }
-                else -> false
+                else -> {
+                    // 其他菜单项传递给onOptionsItemSelected处理
+                    onOptionsItemSelected(menuItem)
+                }
             }
         }
     }
@@ -1637,29 +1670,112 @@ class BookLibraryActivity : AppCompatActivity() {
      */
     private fun filterBooksByCategory(category: String) {
         try {
+            Log.d("BookLibraryActivity", "🔍 开始分类筛选: $category")
+            Log.d("BookLibraryActivity", "  总图书数量: ${cachedEpubFiles.size}")
+            Log.d("BookLibraryActivity", "  筛选目标分类: '$category'")
+            
+            // 立即显示Toast确认方法被调用
+            Toast.makeText(this, "开始筛选: $category", Toast.LENGTH_SHORT).show()
+            
+            // 调试：打印所有已保存的分类
+            com.ibylin.app.utils.BookCategoryManager.debugPrintAllCategories(this)
+            
             val allBooks = cachedEpubFiles
             
-            val filteredBooks = if (category == "全部") {
-                allBooks
-            } else {
-                allBooks.filter { book ->
-                    com.ibylin.app.utils.BookCategoryManager.getBookCategory(this, book.path) == category
+            // 特别针对科幻分类进行详细调试
+            if (category == "科幻") {
+                Log.d("BookLibraryActivity", "🚀 特别调试科幻分类筛选:")
+                Log.d("BookLibraryActivity", "  检查所有图书的分类:")
+                allBooks.forEachIndexed { index, book ->
+                    val bookCategory = com.ibylin.app.utils.BookCategoryManager.getBookCategory(this, book.path)
+                    Log.d("BookLibraryActivity", "    图书[$index]: ${book.name}")
+                    Log.d("BookLibraryActivity", "      路径: ${book.path}")
+                    Log.d("BookLibraryActivity", "      分类: '$bookCategory'")
+                    Log.d("BookLibraryActivity", "      是否匹配科幻: ${bookCategory == "科幻"}")
+                    
+                    // 检查文件名是否包含科幻关键词
+                    val fileName = book.name.lowercase()
+                    val hasSciFiKeywords = fileName.contains("科幻") || 
+                                          fileName.contains("三体") || 
+                                          fileName.contains("刘慈欣") ||
+                                          fileName.contains("science fiction") || 
+                                          fileName.contains("sci-fi")
+                    Log.d("BookLibraryActivity", "      文件名包含科幻关键词: $hasSciFiKeywords")
                 }
             }
             
+            val filteredBooks = if (category == "全部") {
+                Log.d("BookLibraryActivity", "  选择全部图书，无需筛选")
+                // 对全部图书也进行去重
+                allBooks.distinctBy { it.path.lowercase().trim() }
+            } else {
+                Log.d("BookLibraryActivity", "  开始筛选分类: $category")
+                
+                val filtered = allBooks.filter { book ->
+                    val bookCategory = com.ibylin.app.utils.BookCategoryManager.getBookCategory(this, book.path)
+                    Log.d("BookLibraryActivity", "    检查图书: ${book.name}")
+                    Log.d("BookLibraryActivity", "      路径: ${book.path}")
+                    Log.d("BookLibraryActivity", "      分类: '$bookCategory'")
+                    Log.d("BookLibraryActivity", "      目标分类: '$category'")
+                    Log.d("BookLibraryActivity", "      分类长度: ${bookCategory.length}, 目标长度: ${category.length}")
+                    Log.d("BookLibraryActivity", "      匹配结果: ${bookCategory == category}")
+                    Log.d("BookLibraryActivity", "      字符对比: '${bookCategory.toCharArray().joinToString()}' vs '${category.toCharArray().joinToString()}'")
+                    bookCategory == category
+                }
+                
+                Log.d("BookLibraryActivity", "  筛选完成，符合条件的图书: ${filtered.size}本")
+                
+                // 对筛选结果进行去重
+                val uniqueFiltered = filtered.distinctBy { it.path.lowercase().trim() }
+                Log.d("BookLibraryActivity", "  去重后图书数量: ${uniqueFiltered.size}本")
+                
+                // 如果科幻分类筛选结果为空，提供更多调试信息
+                if (category == "科幻" && uniqueFiltered.isEmpty()) {
+                    Log.d("BookLibraryActivity", "🚀 科幻分类筛选结果为空，分析原因:")
+                    Log.d("BookLibraryActivity", "  检查是否有科幻相关的图书:")
+                    val sciFiBooks = allBooks.filter { book ->
+                        val fileName = book.name.lowercase()
+                        fileName.contains("科幻") || 
+                        fileName.contains("三体") || 
+                        fileName.contains("刘慈欣") ||
+                        fileName.contains("science fiction") || 
+                        fileName.contains("sci-fi")
+                    }
+                    Log.d("BookLibraryActivity", "  文件名包含科幻关键词的图书: ${sciFiBooks.size}本")
+                    sciFiBooks.forEach { book ->
+                        val bookCategory = com.ibylin.app.utils.BookCategoryManager.getBookCategory(this, book.path)
+                        Log.d("BookLibraryActivity", "    ${book.name} -> 分类: '$bookCategory'")
+                    }
+                }
+                
+                uniqueFiltered
+            }
+            
             // 更新适配器
+            Log.d("BookLibraryActivity", "🔄 开始更新适配器...")
+            Log.d("BookLibraryActivity", "  当前适配器状态: ${bookGridAdapter.itemCount} 项")
+            Log.d("BookLibraryActivity", "  准备更新为: ${filteredBooks.size} 项")
+            
             bookGridAdapter.updateEpubFiles(filteredBooks)
+            Log.d("BookLibraryActivity", "  适配器已更新")
+            Log.d("BookLibraryActivity", "  更新后适配器状态: ${bookGridAdapter.itemCount} 项")
             
             // 更新标题栏显示分类信息
             supportActionBar?.subtitle = "分类：$category (${filteredBooks.size}本)"
+            Log.d("BookLibraryActivity", "  标题栏已更新: 分类：$category (${filteredBooks.size}本)")
             
             // 显示筛选结果提示
             Toast.makeText(this, "筛选完成：$category (${filteredBooks.size}本)", Toast.LENGTH_SHORT).show()
             
-            Log.d("BookLibraryActivity", "分类筛选完成: $category, 找到 ${filteredBooks.size} 本图书")
+            // 强制刷新UI
+            Log.d("BookLibraryActivity", "🔄 强制刷新UI...")
+            rvBooks.invalidate()
+            rvBooks.requestLayout()
+            
+            Log.d("BookLibraryActivity", "✅ 分类筛选完成: $category, 找到 ${filteredBooks.size} 本图书")
             
         } catch (e: Exception) {
-            Log.e("BookLibraryActivity", "分类筛选失败", e)
+            Log.e("BookLibraryActivity", "❌ 分类筛选失败", e)
             Toast.makeText(this, "筛选失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
@@ -1809,19 +1925,34 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     /**
-     * 在扫描图书时自动分类
+     * 在扫描图书时自动分类 - 支持协程
      */
     private fun autoClassifyBooks(books: List<EpubFile>) {
-        try {
-            Log.d("BookLibraryActivity", "开始自动分类 ${books.size} 本图书")
-            
-            // 执行批量分类
-            val classifications = com.ibylin.app.utils.BookCategoryManager.classifyBooks(this, books)
-            
-            Log.d("BookLibraryActivity", "自动分类完成，分类结果: $classifications")
-            
-        } catch (e: Exception) {
-            Log.e("BookLibraryActivity", "清除分类失败", e)
+        coroutineScope.launch {
+            try {
+                Log.d("BookLibraryActivity", "🚀 开始自动分类 ${books.size} 本图书")
+                
+                // 执行批量分类（现在是协程方法）
+                val classifications = com.ibylin.app.utils.BookCategoryManager.classifyBooks(this@BookLibraryActivity, books)
+                
+                withContext(Dispatchers.Main) {
+                    Log.d("BookLibraryActivity", "✅ 自动分类完成")
+                    Log.d("BookLibraryActivity", "  分类结果统计:")
+                    val categoryCounts = classifications.values.groupingBy { it }.eachCount()
+                    categoryCounts.forEach { (category, count) ->
+                        Log.d("BookLibraryActivity", "    $category: ${count}本")
+                    }
+                    
+                    // 显示分类完成提示
+                    Toast.makeText(this@BookLibraryActivity, "智能分类完成！", Toast.LENGTH_SHORT).show()
+                }
+                
+            } catch (e: Exception) {
+                Log.e("BookLibraryActivity", "❌ 自动分类失败", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@BookLibraryActivity, "分类失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 }

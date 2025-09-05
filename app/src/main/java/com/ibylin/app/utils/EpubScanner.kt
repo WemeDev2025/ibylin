@@ -41,30 +41,31 @@ class EpubScanner {
      */
     suspend fun scanEpubFiles(context: Context): List<EpubFile> = withContext(Dispatchers.IO) {
         val epubFiles = mutableListOf<EpubFile>()
+        val scannedPaths = mutableSetOf<String>() // 用于去重的路径集合
         
         try {
             // 扫描外部存储
             val externalStorage = Environment.getExternalStorageDirectory()
             if (externalStorage.exists() && externalStorage.canRead()) {
-                scanDirectory(externalStorage, epubFiles)
+                scanDirectory(externalStorage, epubFiles, scannedPaths)
             }
             
             // 扫描内部存储
             val internalStorage = context.filesDir.parentFile
             if (internalStorage != null && internalStorage.exists() && internalStorage.canRead()) {
-                scanDirectory(internalStorage, epubFiles)
+                scanDirectory(internalStorage, epubFiles, scannedPaths)
             }
             
             // 扫描下载目录
             val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             if (downloadDir.exists() && downloadDir.canRead()) {
-                scanDirectory(downloadDir, epubFiles)
+                scanDirectory(downloadDir, epubFiles, scannedPaths)
             }
             
             // 扫描文档目录
             val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
             if (documentsDir.exists() && documentsDir.canRead()) {
-                scanDirectory(documentsDir, epubFiles)
+                scanDirectory(documentsDir, epubFiles, scannedPaths)
             }
             
             Log.d(TAG, "扫描完成，找到 ${epubFiles.size} 个EPUB文件")
@@ -79,7 +80,7 @@ class EpubScanner {
     /**
      * 递归扫描目录
      */
-    private fun scanDirectory(directory: File, epubFiles: MutableList<EpubFile>) {
+    private fun scanDirectory(directory: File, epubFiles: MutableList<EpubFile>, scannedPaths: MutableSet<String>) {
         try {
             if (!directory.exists() || !directory.canRead()) return
             
@@ -89,22 +90,31 @@ class EpubScanner {
                 if (file.isFile) {
                     // 检查是否是EPUB文件
                     if (isEpubFile(file.name)) {
-                        // 尝试解析EPUB元数据
-                        val metadata = tryParseEpubMetadata(file.absolutePath)
+                        val absolutePath = file.absolutePath
                         
-                        val epubFile = EpubFile(
-                            name = file.name,
-                            path = file.absolutePath,
-                            size = file.length(),
-                            lastModified = file.lastModified(),
-                            metadata = metadata
-                        )
-                        epubFiles.add(epubFile)
-                        Log.d(TAG, "找到EPUB文件: ${file.absolutePath}, 元数据: ${metadata?.title}")
+                        // 检查是否已经扫描过这个文件（去重）
+                        if (!scannedPaths.contains(absolutePath)) {
+                            scannedPaths.add(absolutePath)
+                            
+                            // 尝试解析EPUB元数据
+                            val metadata = tryParseEpubMetadata(absolutePath)
+                            
+                            val epubFile = EpubFile(
+                                name = file.name,
+                                path = absolutePath,
+                                size = file.length(),
+                                lastModified = file.lastModified(),
+                                metadata = metadata
+                            )
+                            epubFiles.add(epubFile)
+                            Log.d(TAG, "找到EPUB文件: $absolutePath, 元数据: ${metadata?.title}")
+                        } else {
+                            Log.d(TAG, "跳过重复文件: $absolutePath")
+                        }
                     }
                 } else if (file.isDirectory && !isSystemDirectory(file.name)) {
                     // 递归扫描子目录，但跳过系统目录
-                    scanDirectory(file, epubFiles)
+                    scanDirectory(file, epubFiles, scannedPaths)
                 }
             }
         } catch (e: Exception) {
