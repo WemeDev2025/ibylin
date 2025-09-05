@@ -13,6 +13,11 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowTranslucentStatus">false</item>
+        <!-- Background colors -->
+        <item name="android:colorBackground">@color/apple_books_bg</item>
+        <item name="colorSurface">@color/apple_books_card_bg</item>
+        <item name="colorOnSurface">@color/apple_books_text_primary</item>
+        <item name="colorOnBackground">@color/apple_books_text_primary</item>
         <!-- 使用原生菜单样式 -->
         <!-- Customize your theme here. -->
     </style>

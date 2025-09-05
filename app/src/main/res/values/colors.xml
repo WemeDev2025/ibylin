@@ -10,17 +10,17 @@
     <color name="gray">#FF757575</color>
     <color name="primary">#FF2196F3</color>
     
-    <!-- Apple Books 风格配色 -->
-    <color name="apple_books_bg">#FF000000</color>           <!-- 主背景色 - 纯黑色 -->
-    <color name="apple_books_card_bg">#FF2C2C2E</color>      <!-- 卡片背景色 - 中灰 -->
-    <color name="apple_books_sidebar_bg">#FF2C2C2E</color>   <!-- 侧边栏背景色 - 中灰 -->
-    <color name="apple_books_text_primary">#FFFFFFFF</color>  <!-- 主要文字 - 白色 -->
-    <color name="apple_books_text_secondary">#FF8E8E93</color> <!-- 次要文字 - 浅灰 -->
+    <!-- Apple Books 风格配色 - 白天模式 -->
+    <color name="apple_books_bg">#FFFFFFFF</color>           <!-- 主背景色 - 白色 -->
+    <color name="apple_books_card_bg">#FFFFFFFF</color>      <!-- 卡片背景色 - 白色 -->
+    <color name="apple_books_sidebar_bg">#FFF5F5F5</color>   <!-- 侧边栏背景色 - 浅灰 -->
+    <color name="apple_books_text_primary">#FF000000</color>  <!-- 主要文字 - 黑色 -->
+    <color name="apple_books_text_secondary">#FF666666</color> <!-- 次要文字 - 深灰 -->
     <color name="apple_books_accent">#FF007AFF</color>        <!-- 强调色 - 苹果蓝 -->
     <color name="apple_books_primary">#FF007AFF</color>       <!-- 主要颜色 - 苹果蓝 -->
-    <color name="apple_books_secondary">#FF8E8E93</color>    <!-- 次要颜色 - 浅灰 -->
-    <color name="apple_books_border">#FF3A3A3C</color>       <!-- 边框色 - 深灰 -->
-    <color name="apple_books_read_bg">#FF3A3A3C</color>      <!-- 已读图书背景 - 更深的灰 -->
+    <color name="apple_books_secondary">#FF666666</color>    <!-- 次要颜色 - 深灰 -->
+    <color name="apple_books_border">#FFE0E0E0</color>       <!-- 边框色 - 浅灰 -->
+    <color name="apple_books_read_bg">#FFF5F5F5</color>      <!-- 已读图书背景 - 浅灰 -->
     
     <!-- 书库按钮颜色 -->
     <color name="book_library_button">#FF1EB4A2</color>      <!-- 书库按钮颜色 - 青绿色 -->

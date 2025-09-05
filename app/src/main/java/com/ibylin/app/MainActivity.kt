@@ -37,6 +37,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var llLastReadCard: android.widget.LinearLayout
     private lateinit var llWelcomeContainer: android.widget.LinearLayout
     private lateinit var ivLastReadCover: android.widget.ImageView
+    private lateinit var cvLastReadCard: com.google.android.material.card.MaterialCardView
+    private var breathingAnimator: android.animation.ValueAnimator? = null
     
     
     // 顶部状态栏相关视图
@@ -71,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         initViews()
         setupClickListeners()
         setupBookmarkBooks()
+        setupBreathingAnimation()
     }
     
     override fun onResume() {
@@ -93,6 +96,7 @@ class MainActivity : AppCompatActivity() {
         llLastReadCard = findViewById(R.id.ll_last_read_card)
         llWelcomeContainer = findViewById(R.id.ll_welcome_container)
         ivLastReadCover = findViewById(R.id.iv_last_read_cover)
+        cvLastReadCard = findViewById(R.id.cv_last_read_card)
         
         // 初始化书签图书相关视图
         llBookmarkBooks = findViewById(R.id.ll_bookmark_books)
@@ -100,10 +104,80 @@ class MainActivity : AppCompatActivity() {
         
     }
     
+    /**
+     * 配置Lottie呼吸动画
+     */
+    private fun setupBreathingAnimation() {
+        try {
+            // 使用标准的ValueAnimator让封面产生呼吸动画
+            val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+            animator.duration = 5000 // 5秒一个周期，缓慢的呼吸
+            animator.repeatCount = android.animation.ValueAnimator.INFINITE
+            animator.repeatMode = android.animation.ValueAnimator.REVERSE
+            
+            animator.addUpdateListener { animation ->
+                val value = animation.animatedValue as Float
+                // 让整个卡片产生呼吸效果：1.0到1.05的缩放（100%-105%）
+                val scale = 1.0f + (value * 0.05f)
+                
+                // 同步缩放卡片容器和封面图片
+                cvLastReadCard.scaleX = scale
+                cvLastReadCard.scaleY = scale
+                ivLastReadCover.scaleX = scale
+                ivLastReadCover.scaleY = scale
+            }
+            
+            // 保存animator引用，用于控制
+            breathingAnimator = animator
+            
+            android.util.Log.d("MainActivity", "Lottie呼吸动画配置完成")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "配置Lottie呼吸动画失败", e)
+        }
+    }
+    
+    /**
+     * 启动呼吸动画
+     */
+    private fun startBreathingAnimation() {
+        try {
+            breathingAnimator?.start()
+            android.util.Log.d("MainActivity", "Lottie呼吸动画已启动")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "启动Lottie呼吸动画失败", e)
+        }
+    }
+    
+    /**
+     * 停止呼吸动画
+     */
+    private fun stopBreathingAnimation() {
+        try {
+            breathingAnimator?.cancel()
+            // 重置整个卡片的缩放
+            cvLastReadCard.scaleX = 1f
+            cvLastReadCard.scaleY = 1f
+            ivLastReadCover.scaleX = 1f
+            ivLastReadCover.scaleY = 1f
+            android.util.Log.d("MainActivity", "Lottie呼吸动画已停止")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "停止Lottie呼吸动画失败", e)
+        }
+    }
+    
     private fun setupClickListeners() {
         // 设置按钮点击事件
         btnSettings.setOnClickListener {
             openSettings()
+        }
+        
+        // 测试动画按钮 - 点击最后阅读图书卡片来切换动画
+        llLastReadCard.setOnClickListener {
+            if (breathingAnimator?.isRunning == true) {
+                stopBreathingAnimation()
+            } else {
+                startBreathingAnimation()
+            }
         }
 
         // 书架按钮点击事件
@@ -419,6 +493,9 @@ class MainActivity : AppCompatActivity() {
             // 显示状态容器
             llStatusContainer.visibility = android.view.View.VISIBLE
             
+            // 启动Lottie呼吸动画
+            startBreathingAnimation()
+            
             android.util.Log.d("MainActivity", "显示最后阅读图书卡片: ${lastReadBook.name}")
             
         } catch (e: Exception) {
@@ -436,6 +513,9 @@ class MainActivity : AppCompatActivity() {
         
         // 隐藏状态容器
         llStatusContainer.visibility = android.view.View.GONE
+        
+        // 停止Lottie呼吸动画
+        stopBreathingAnimation()
         
         
         android.util.Log.d("MainActivity", "显示欢迎界面")

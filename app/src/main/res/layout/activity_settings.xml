@@ -36,7 +36,7 @@
             app:cardElevation="4dp"
             app:cardUseCompatPadding="true"
             app:strokeWidth="0dp"
-            app:cardBackgroundColor="#FF40353A">
+            app:cardBackgroundColor="@color/apple_books_card_bg">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -51,7 +51,7 @@
                     android:layout_marginEnd="16dp"
                     android:src="@drawable/ic_document"
                     android:contentDescription="用户协议图标"
-                    android:tint="@android:color/white" />
+                    android:tint="@color/apple_books_text_primary" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -63,7 +63,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="用户协议"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/apple_books_text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -72,7 +72,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="查看应用使用条款"
-                        android:textColor="#CCFFFFFF"
+                        android:textColor="@color/apple_books_text_secondary"
                         android:textSize="14sp" />
 
                 </LinearLayout>
@@ -82,7 +82,7 @@
                     android:layout_height="16dp"
                     android:src="@drawable/ic_arrow_right"
                     android:contentDescription="箭头"
-                    android:tint="#CCFFFFFF" />
+                    android:tint="@color/apple_books_text_secondary" />
 
             </LinearLayout>
 
@@ -100,7 +100,7 @@
             app:cardElevation="4dp"
             app:cardUseCompatPadding="true"
             app:strokeWidth="0dp"
-            app:cardBackgroundColor="#FF40353A">
+            app:cardBackgroundColor="@color/apple_books_card_bg">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -115,7 +115,7 @@
                     android:layout_marginEnd="16dp"
                     android:src="@drawable/ic_privacy"
                     android:contentDescription="隐私政策图标"
-                    android:tint="@android:color/white" />
+                    android:tint="@color/apple_books_text_primary" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -127,7 +127,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="隐私政策"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/apple_books_text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -136,7 +136,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="了解我们如何保护您的隐私"
-                        android:textColor="#CCFFFFFF"
+                        android:textColor="@color/apple_books_text_secondary"
                         android:textSize="14sp" />
 
                 </LinearLayout>
@@ -146,7 +146,7 @@
                     android:layout_height="16dp"
                     android:src="@drawable/ic_arrow_right"
                     android:contentDescription="箭头"
-                    android:tint="#CCFFFFFF" />
+                    android:tint="@color/apple_books_text_secondary" />
 
             </LinearLayout>
 
@@ -164,7 +164,7 @@
             app:cardElevation="4dp"
             app:cardUseCompatPadding="true"
             app:strokeWidth="0dp"
-            app:cardBackgroundColor="#FF40353A">
+            app:cardBackgroundColor="@color/apple_books_card_bg">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -179,7 +179,7 @@
                     android:layout_marginEnd="16dp"
                     android:src="@drawable/ic_info"
                     android:contentDescription="关于图标"
-                    android:tint="@android:color/white" />
+                    android:tint="@color/apple_books_text_primary" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -191,7 +191,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="关于ibylin"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/apple_books_text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -200,7 +200,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="了解应用版本和开发者信息"
-                        android:textColor="#CCFFFFFF"
+                        android:textColor="@color/apple_books_text_secondary"
                         android:textSize="14sp" />
 
                 </LinearLayout>
@@ -210,7 +210,7 @@
                     android:layout_height="16dp"
                     android:src="@drawable/ic_arrow_right"
                     android:contentDescription="箭头"
-                    android:tint="#CCFFFFFF" />
+                    android:tint="@color/apple_books_text_secondary" />
 
             </LinearLayout>
 
@@ -228,7 +228,7 @@
             app:cardElevation="4dp"
             app:cardUseCompatPadding="true"
             app:strokeWidth="0dp"
-            app:cardBackgroundColor="#FF40353A">
+            app:cardBackgroundColor="@color/apple_books_card_bg">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -243,7 +243,7 @@
                     android:layout_marginEnd="16dp"
                     android:src="@drawable/ic_star"
                     android:contentDescription="评价图标"
-                    android:tint="@android:color/white" />
+                    android:tint="@color/apple_books_text_primary" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -255,7 +255,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="商店评价"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/apple_books_text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -264,7 +264,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="在应用商店为我们评分"
-                        android:textColor="#CCFFFFFF"
+                        android:textColor="@color/apple_books_text_secondary"
                         android:textSize="14sp" />
 
                 </LinearLayout>
@@ -274,7 +274,7 @@
                     android:layout_height="16dp"
                     android:src="@drawable/ic_arrow_right"
                     android:contentDescription="箭头"
-                    android:tint="#CCFFFFFF" />
+                    android:tint="@color/apple_books_text_secondary" />
 
             </LinearLayout>
 
@@ -291,7 +291,7 @@
             app:cardElevation="4dp"
             app:cardUseCompatPadding="true"
             app:strokeWidth="0dp"
-            app:cardBackgroundColor="#FF40353A">
+            app:cardBackgroundColor="@color/apple_books_card_bg">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -306,7 +306,7 @@
                     android:layout_marginEnd="16dp"
                     android:src="@drawable/ic_contact"
                     android:contentDescription="联系我们图标"
-                    android:tint="@android:color/white" />
+                    android:tint="@color/apple_books_text_primary" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -318,7 +318,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="联系我们"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/apple_books_text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -327,7 +327,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="反馈问题或建议"
-                        android:textColor="#CCFFFFFF"
+                        android:textColor="@color/apple_books_text_secondary"
                         android:textSize="14sp" />
 
                 </LinearLayout>
@@ -337,7 +337,7 @@
                     android:layout_height="16dp"
                     android:src="@drawable/ic_arrow_right"
                     android:contentDescription="箭头"
-                    android:tint="#CCFFFFFF" />
+                    android:tint="@color/apple_books_text_secondary" />
 
             </LinearLayout>
 
