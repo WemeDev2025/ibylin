@@ -35,7 +35,11 @@ class PexelsManager private constructor() {
     }
     
     private val pexelsService: PexelsService by lazy {
-        val client = OkHttpClient.Builder().build()
+        val client = OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
         
         Retrofit.Builder()
             .baseUrl(PEXELS_BASE_URL)
@@ -116,6 +120,7 @@ class PexelsManager private constructor() {
         } catch (e: Exception) {
             Log.e(TAG, "搜索封面图片失败: query=$query, page=$page", e)
             Log.e(TAG, "异常详情: ${e.javaClass.simpleName} - ${e.message}")
+            Log.e(TAG, "异常堆栈: ${e.stackTrace.joinToString("\n")}")
             e.printStackTrace()
             emptyList()
         }

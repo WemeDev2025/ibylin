@@ -21,6 +21,11 @@ android {
         vectorDrawables {
             useSupportLibrary true
         }
+        
+        // 支持16KB页面大小
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
     }
 
     buildTypes {
@@ -58,10 +63,34 @@ android {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
+        // 支持16KB页面大小对齐
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
     
     lint {
         baseline = file("lint-baseline.xml")
+    }
+    
+    // 支持16KB页面大小
+    bundle {
+        language {
+            enableSplit = false
+        }
+        density {
+            enableSplit = false
+        }
+        abi {
+            enableSplit = false
+        }
+    }
+    
+    // 确保native库16KB对齐
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 }
 

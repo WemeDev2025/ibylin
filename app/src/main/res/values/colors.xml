@@ -62,4 +62,8 @@
     
     <!-- Material 2 兼容颜色 -->
     <color name="material_accent">#FF03DAC5</color>           <!-- Material 2 强调色 - 青色 -->
+    
+    <!-- 对话框专用颜色 -->
+    <color name="primary_color">#FF1EB4A2</color>            <!-- 主色调 - 青绿色 -->
+    <color name="gray_600">#FF49454F</color>                 <!-- 灰色文字 -->
 </resources>

@@ -22,11 +22,15 @@ import com.google.android.material.textfield.TextInputEditText
 import com.ibylin.app.R
 import com.ibylin.app.api.PexelsPhoto
 import com.ibylin.app.utils.CoverManager
+import com.ibylin.app.utils.CoverTitleOverlay
 import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.PexelsManager
 import com.ibylin.app.utils.SearchHelper
+import com.ibylin.app.utils.TitleColor
+import com.ibylin.app.utils.TitleFont
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
 class CoverSelectionActivity : AppCompatActivity() {
@@ -507,6 +511,7 @@ class CoverSelectionActivity : AppCompatActivity() {
         
         coroutineScope.launch {
             try {
+                Log.d(TAG, "开始调用pexelsManager.searchCoverImages: query=$query, page=$page")
                 val photos = pexelsManager.searchCoverImages(
                     query = query,
                     page = page,
@@ -514,6 +519,7 @@ class CoverSelectionActivity : AppCompatActivity() {
                 )
                 
                 Log.d(TAG, "搜索完成: 找到 ${photos.size} 张图片")
+                Log.d(TAG, "搜索结果详情: ${photos.take(3).map { "ID=${it.id}, URL=${it.src.medium}" }}")
                 
                 if (photos.isNotEmpty()) {
                     if (isNewSearch) {
@@ -563,6 +569,7 @@ class CoverSelectionActivity : AppCompatActivity() {
     
     private fun onCoverSelected(photo: PexelsPhoto, viewHolder: CoverSelectionAdapter.ViewHolder) {
         try {
+            Log.d(TAG, "onCoverSelected被调用: photo.id=${photo.id}")
             android.util.Log.d("CoverSelectionActivity", "开始下载封面，显示doLottie loading动画")
             
             // 隐藏之前的loading动画
@@ -594,16 +601,15 @@ class CoverSelectionActivity : AppCompatActivity() {
                     }
                     
                     if (localPath != null) {
-                        // 更新书籍封面
-                        updateBookCover(localPath)
-                        Toast.makeText(this@CoverSelectionActivity, "封面更新成功", Toast.LENGTH_SHORT).show()
+                        // 隐藏loading动画
+                        viewHolder.hideLoadingAnimation()
+                        currentLoadingViewHolder = null
                         
-                        // 返回结果给调用方
-                        val resultIntent = Intent().apply {
-                            putExtra(EXTRA_COVER_PATH, localPath)
+                        // 弹出书名编辑对话框 - 确保在主线程执行
+                        Log.d(TAG, "下载成功，准备显示书名编辑对话框: $localPath")
+                        withContext(Dispatchers.Main) {
+                            showTitleEditDialog(localPath)
                         }
-                        setResult(RESULT_COVER_UPDATED, resultIntent)
-                        finish()
                     } else {
                         // 下载失败，隐藏loading动画
                         viewHolder.hideLoadingAnimation()
@@ -666,6 +672,118 @@ class CoverSelectionActivity : AppCompatActivity() {
         }
     }
     
+    /**
+     * 显示书名编辑对话框
+     */
+    private fun showTitleEditDialog(originalImagePath: String) {
+        try {
+            Log.d(TAG, "开始显示书名编辑对话框，图片路径: $originalImagePath")
+            
+            // 获取默认书名
+            val defaultTitle = if (book.metadata?.title.isNullOrBlank()) {
+                book.name
+            } else {
+                book.metadata?.title ?: book.name
+            }
+            
+            Log.d(TAG, "默认书名: $defaultTitle")
+            
+            // 优化书名显示
+            val optimizedTitle = SearchHelper.optimizeBookTitleForDisplay(defaultTitle)
+            Log.d(TAG, "优化后书名: $optimizedTitle")
+            
+            // 创建并显示对话框
+            val dialog = TitleEditDialog.newInstance(optimizedTitle)
+            Log.d(TAG, "创建TitleEditDialog实例成功")
+            
+            dialog.setOnTitleConfirmedListener { newTitle, position, layout, color, font ->
+                Log.d(TAG, "用户确认书名: $newTitle, 位置: $position, 布局: $layout, 颜色: $color, 字体: $font")
+                // 用户确认书名后，合成封面并保存
+                processTitleConfirmation(originalImagePath, newTitle, position, layout, color, font)
+            }
+            
+            Log.d(TAG, "准备显示对话框")
+            Log.d(TAG, "supportFragmentManager状态: ${supportFragmentManager.isStateSaved}")
+            Log.d(TAG, "Activity状态: ${if (isFinishing) "正在结束" else "正常运行"}")
+            
+            if (!supportFragmentManager.isStateSaved && !isFinishing) {
+                dialog.show(supportFragmentManager, "TitleEditDialog")
+                Log.d(TAG, "对话框显示命令已执行")
+            } else {
+                Log.e(TAG, "无法显示对话框: FragmentManager状态已保存或Activity正在结束")
+                Toast.makeText(this, "无法显示编辑对话框", Toast.LENGTH_SHORT).show()
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "显示书名编辑对话框失败", e)
+            Toast.makeText(this, "显示编辑对话框失败", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * 处理书名确认
+     */
+    private fun processTitleConfirmation(originalImagePath: String, newTitle: String, position: TitlePosition, layout: TitleLayout, color: TitleColor, font: TitleFont) {
+        try {
+            // 显示处理状态
+            tvStatus.text = "正在合成封面..."
+            
+            // 在后台线程处理图片合成
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    // 合成书名到封面
+                    val overlayPath = CoverTitleOverlay.addTitleToCover(
+                        this@CoverSelectionActivity,
+                        originalImagePath,
+                        newTitle,
+                        book.name,
+                        position,
+                        layout,
+                        color,
+                        font
+                    )
+                    
+                    if (overlayPath != null) {
+                        // 切换到主线程更新UI
+                        launch(Dispatchers.Main) {
+                            // 保存合成后的封面
+                            updateBookCover(overlayPath)
+                            Toast.makeText(this@CoverSelectionActivity, "封面更新成功", Toast.LENGTH_SHORT).show()
+                            
+                            // 返回结果给调用方
+                            val resultIntent = Intent().apply {
+                                putExtra(EXTRA_COVER_PATH, overlayPath)
+                            }
+                            setResult(RESULT_COVER_UPDATED, resultIntent)
+                            finish()
+                        }
+                    } else {
+                        // 合成失败，使用原始图片
+                        launch(Dispatchers.Main) {
+                            updateBookCover(originalImagePath)
+                            Toast.makeText(this@CoverSelectionActivity, "封面更新成功（未添加书名）", Toast.LENGTH_SHORT).show()
+                            
+                            val resultIntent = Intent().apply {
+                                putExtra(EXTRA_COVER_PATH, originalImagePath)
+                            }
+                            setResult(RESULT_COVER_UPDATED, resultIntent)
+                            finish()
+                        }
+                    }
+                    
+                } catch (e: Exception) {
+                    Log.e(TAG, "处理书名确认失败", e)
+                    launch(Dispatchers.Main) {
+                        Toast.makeText(this@CoverSelectionActivity, "处理失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "处理书名确认失败", e)
+            Toast.makeText(this, "处理失败", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     
     private class CoverSelectionAdapter(
@@ -719,6 +837,7 @@ class CoverSelectionActivity : AppCompatActivity() {
                 hideLoadingAnimation()
                 
                 itemView.setOnClickListener {
+                    Log.d("CoverSelectionAdapter", "图片被点击: photo.id=${photo.id}")
                     onCoverClick(photo, this)
                 }
             }
@@ -728,10 +847,31 @@ class CoverSelectionActivity : AppCompatActivity() {
              */
             fun showLoadingAnimation() {
                 try {
-                    android.util.Log.d("CoverSelectionActivity", "显示dotLottie loading动画")
+                    android.util.Log.d("CoverSelectionActivity", "开始显示dotLottie loading动画")
+                    
+                    // 确保在主线程执行
+                    if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+                        android.util.Log.w("CoverSelectionActivity", "不在主线程，切换到主线程显示动画")
+                        itemView.post {
+                            showLoadingAnimationOnMainThread()
+                        }
+                        return
+                    }
+                    
+                    showLoadingAnimationOnMainThread()
+                    
+                } catch (e: Exception) {
+                    android.util.Log.e("CoverSelectionActivity", "显示dotLottie loading动画失败", e)
+                }
+            }
+            
+            private fun showLoadingAnimationOnMainThread() {
+                try {
+                    android.util.Log.d("CoverSelectionActivity", "在主线程显示loading动画")
                     
                     // 显示loading覆盖层
                     loadingOverlay.visibility = View.VISIBLE
+                    android.util.Log.d("CoverSelectionActivity", "loading覆盖层已显示")
                     
                     // 配置dotLottie动画
                     val config = Config.Builder()
@@ -743,13 +883,22 @@ class CoverSelectionActivity : AppCompatActivity() {
                         .useFrameInterpolation(true)
                         .build()
                     
+                    android.util.Log.d("CoverSelectionActivity", "dotLottie配置已创建")
+                    
                     // 加载并启动dotLottie动画
                     lottieLoading.load(config)
                     
                     android.util.Log.d("CoverSelectionActivity", "dotLottie loading动画已启动")
                     
                 } catch (e: Exception) {
-                    android.util.Log.e("CoverSelectionActivity", "显示dotLottie loading动画失败", e)
+                    android.util.Log.e("CoverSelectionActivity", "在主线程显示loading动画失败", e)
+                    // 如果dotLottie失败，至少显示覆盖层
+                    try {
+                        loadingOverlay.visibility = View.VISIBLE
+                        android.util.Log.d("CoverSelectionActivity", "fallback: 仅显示覆盖层")
+                    } catch (e2: Exception) {
+                        android.util.Log.e("CoverSelectionActivity", "显示覆盖层也失败", e2)
+                    }
                 }
             }
             
@@ -758,7 +907,27 @@ class CoverSelectionActivity : AppCompatActivity() {
              */
             fun hideLoadingAnimation() {
                 try {
-                    android.util.Log.d("CoverSelectionActivity", "隐藏dotLottie loading动画")
+                    android.util.Log.d("CoverSelectionActivity", "开始隐藏dotLottie loading动画")
+                    
+                    // 确保在主线程执行
+                    if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+                        android.util.Log.w("CoverSelectionActivity", "不在主线程，切换到主线程隐藏动画")
+                        itemView.post {
+                            hideLoadingAnimationOnMainThread()
+                        }
+                        return
+                    }
+                    
+                    hideLoadingAnimationOnMainThread()
+                    
+                } catch (e: Exception) {
+                    android.util.Log.e("CoverSelectionActivity", "隐藏dotLottie loading动画失败", e)
+                }
+            }
+            
+            private fun hideLoadingAnimationOnMainThread() {
+                try {
+                    android.util.Log.d("CoverSelectionActivity", "在主线程隐藏loading动画")
                     
                     // 停止dotLottie动画
                     lottieLoading.stop()
@@ -769,7 +938,14 @@ class CoverSelectionActivity : AppCompatActivity() {
                     android.util.Log.d("CoverSelectionActivity", "dotLottie loading动画已隐藏")
                     
                 } catch (e: Exception) {
-                    android.util.Log.e("CoverSelectionActivity", "隐藏dotLottie loading动画失败", e)
+                    android.util.Log.e("CoverSelectionActivity", "在主线程隐藏loading动画失败", e)
+                    // 如果dotLottie失败，至少隐藏覆盖层
+                    try {
+                        loadingOverlay.visibility = View.GONE
+                        android.util.Log.d("CoverSelectionActivity", "fallback: 仅隐藏覆盖层")
+                    } catch (e2: Exception) {
+                        android.util.Log.e("CoverSelectionActivity", "隐藏覆盖层也失败", e2)
+                    }
                 }
             }
         }
