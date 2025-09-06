@@ -11,6 +11,10 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import com.lottiefiles.dotlottie.core.widget.DotLottieAnimation
+import com.lottiefiles.dotlottie.core.model.Config
+import com.lottiefiles.dotlottie.core.util.DotLottieSource
+import com.dotlottie.dlplayer.Mode
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -47,6 +51,7 @@ class CoverSelectionActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var customSearchBar: View
     private lateinit var searchInput: TextInputEditText
+    private var currentLoadingViewHolder: CoverSelectionAdapter.ViewHolder? = null
     private lateinit var clearButton: ImageView
 
     private lateinit var adapter: CoverSelectionAdapter
@@ -117,8 +122,8 @@ class CoverSelectionActivity : AppCompatActivity() {
         Log.d(TAG, "封面腰封将显示的书名: '$bookTitle'")
         
         adapter = CoverSelectionAdapter(
-            onCoverClick = { photo ->
-                onCoverSelected(photo)
+            onCoverClick = { photo, viewHolder ->
+                onCoverSelected(photo, viewHolder)
             },
             bookTitle = bookTitle
         )
@@ -556,36 +561,70 @@ class CoverSelectionActivity : AppCompatActivity() {
         }
     }
     
-    private fun onCoverSelected(photo: PexelsPhoto) {
-        showLoading(true)
-        tvStatus.text = "正在下载封面图片..."
-        
-        coroutineScope.launch {
-            try {
-                val localPath = pexelsManager.downloadImage(this@CoverSelectionActivity, photo, book.name)
-                
-                if (localPath != null) {
-                    // 更新书籍封面
-                    updateBookCover(localPath)
-                    Toast.makeText(this@CoverSelectionActivity, "封面更新成功", Toast.LENGTH_SHORT).show()
+    private fun onCoverSelected(photo: PexelsPhoto, viewHolder: CoverSelectionAdapter.ViewHolder) {
+        try {
+            android.util.Log.d("CoverSelectionActivity", "开始下载封面，显示doLottie loading动画")
+            
+            // 隐藏之前的loading动画
+            currentLoadingViewHolder?.hideLoadingAnimation()
+            
+            // 显示新的loading动画
+            currentLoadingViewHolder = viewHolder
+            viewHolder.showLoadingAnimation()
+            
+            // 只更新状态文本，不隐藏整个列表
+            tvStatus.text = "正在下载封面图片..."
+            
+            coroutineScope.launch {
+                try {
+                    // 记录动画开始时间
+                    val animationStartTime = System.currentTimeMillis()
+                    val minAnimationDuration = 2000L // 至少播放2秒动画
                     
-                    // 返回结果给调用方
-                    val resultIntent = Intent().apply {
-                        putExtra(EXTRA_COVER_PATH, localPath)
+                    val localPath = pexelsManager.downloadImage(this@CoverSelectionActivity, photo, book.name)
+                    
+                    // 计算已播放时间
+                    val elapsedTime = System.currentTimeMillis() - animationStartTime
+                    val remainingTime = minAnimationDuration - elapsedTime
+                    
+                    // 如果下载太快，等待动画播放完成
+                    if (remainingTime > 0) {
+                        android.util.Log.d("CoverSelectionActivity", "下载完成太快，等待动画播放完成，剩余时间: ${remainingTime}ms")
+                        kotlinx.coroutines.delay(remainingTime)
                     }
-                    setResult(RESULT_COVER_UPDATED, resultIntent)
-                    finish()
-                } else {
-                    showLoading(false)
-                    tvStatus.text = "下载失败"
-                    Toast.makeText(this@CoverSelectionActivity, "下载失败", Toast.LENGTH_SHORT).show()
+                    
+                    if (localPath != null) {
+                        // 更新书籍封面
+                        updateBookCover(localPath)
+                        Toast.makeText(this@CoverSelectionActivity, "封面更新成功", Toast.LENGTH_SHORT).show()
+                        
+                        // 返回结果给调用方
+                        val resultIntent = Intent().apply {
+                            putExtra(EXTRA_COVER_PATH, localPath)
+                        }
+                        setResult(RESULT_COVER_UPDATED, resultIntent)
+                        finish()
+                    } else {
+                        // 下载失败，隐藏loading动画
+                        viewHolder.hideLoadingAnimation()
+                        currentLoadingViewHolder = null
+                        tvStatus.text = "下载失败"
+                        Toast.makeText(this@CoverSelectionActivity, "下载失败", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "下载封面图片失败", e)
+                    // 下载失败，隐藏loading动画
+                    viewHolder.hideLoadingAnimation()
+                    currentLoadingViewHolder = null
+                    tvStatus.text = "下载失败: ${e.message}"
+                    Toast.makeText(this@CoverSelectionActivity, "下载失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "下载封面图片失败", e)
-                showLoading(false)
-                tvStatus.text = "下载失败: ${e.message}"
-                Toast.makeText(this@CoverSelectionActivity, "下载失败: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+            
+        } catch (e: Exception) {
+            android.util.Log.e("CoverSelectionActivity", "处理封面选择失败", e)
+            viewHolder.hideLoadingAnimation()
+            currentLoadingViewHolder = null
         }
     }
     
@@ -630,7 +669,7 @@ class CoverSelectionActivity : AppCompatActivity() {
 
     
     private class CoverSelectionAdapter(
-        private val onCoverClick: (PexelsPhoto) -> Unit,
+        private val onCoverClick: (PexelsPhoto, ViewHolder) -> Unit,
         private val bookTitle: String
     ) : RecyclerView.Adapter<CoverSelectionAdapter.ViewHolder>() {
         
@@ -662,6 +701,8 @@ class CoverSelectionActivity : AppCompatActivity() {
         
         inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             private val ivCover: ImageView = itemView.findViewById(R.id.iv_cover)
+            private val loadingOverlay: View = itemView.findViewById(R.id.loading_overlay)
+            private val lottieLoading: DotLottieAnimation = itemView.findViewById(R.id.lottie_loading)
             
             fun bind(photo: PexelsPhoto, bookTitle: String) {
                 // 使用Glide加载图片
@@ -674,8 +715,61 @@ class CoverSelectionActivity : AppCompatActivity() {
                 // 图片已经设置为撑满容器，使用 centerCrop 确保图片填满整个容器
                 ivCover.scaleType = ImageView.ScaleType.CENTER_CROP
                 
+                // 确保loading动画初始状态为隐藏
+                hideLoadingAnimation()
+                
                 itemView.setOnClickListener {
-                    onCoverClick(photo)
+                    onCoverClick(photo, this)
+                }
+            }
+            
+            /**
+             * 显示dotLottie loading动画
+             */
+            fun showLoadingAnimation() {
+                try {
+                    android.util.Log.d("CoverSelectionActivity", "显示dotLottie loading动画")
+                    
+                    // 显示loading覆盖层
+                    loadingOverlay.visibility = View.VISIBLE
+                    
+                    // 配置dotLottie动画
+                    val config = Config.Builder()
+                        .autoplay(true)
+                        .speed(1f)
+                        .loop(true)
+                        .source(DotLottieSource.Asset("waiting_animation.json"))
+                        .playMode(Mode.FORWARD)
+                        .useFrameInterpolation(true)
+                        .build()
+                    
+                    // 加载并启动dotLottie动画
+                    lottieLoading.load(config)
+                    
+                    android.util.Log.d("CoverSelectionActivity", "dotLottie loading动画已启动")
+                    
+                } catch (e: Exception) {
+                    android.util.Log.e("CoverSelectionActivity", "显示dotLottie loading动画失败", e)
+                }
+            }
+            
+            /**
+             * 隐藏dotLottie loading动画
+             */
+            fun hideLoadingAnimation() {
+                try {
+                    android.util.Log.d("CoverSelectionActivity", "隐藏dotLottie loading动画")
+                    
+                    // 停止dotLottie动画
+                    lottieLoading.stop()
+                    
+                    // 隐藏loading覆盖层
+                    loadingOverlay.visibility = View.GONE
+                    
+                    android.util.Log.d("CoverSelectionActivity", "dotLottie loading动画已隐藏")
+                    
+                } catch (e: Exception) {
+                    android.util.Log.e("CoverSelectionActivity", "隐藏dotLottie loading动画失败", e)
                 }
             }
         }

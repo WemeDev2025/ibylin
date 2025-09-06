@@ -31,6 +31,9 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.ibylin.app.R
 import com.ibylin.app.adapter.BookGridAdapter
 import com.ibylin.app.reader.ReadiumEpubReaderActivity
+import com.lottiefiles.dotlottie.core.model.Config
+import com.lottiefiles.dotlottie.core.util.DotLottieSource
+import com.dotlottie.dlplayer.Mode
 
 import com.ibylin.app.utils.EpubFile
 import com.ibylin.app.utils.BookScanner
@@ -59,6 +62,13 @@ class BookLibraryActivity : AppCompatActivity() {
     private lateinit var scaleGestureDetector: ScaleGestureDetector
     private var lastScaleFactor = 1.0f
     private var isAnimating = false // 防止动画期间重复触发
+    
+    // doLottie动画相关 - 使用与MainActivity相同的技术
+    private var bookFadeInAnimators: MutableList<android.animation.ValueAnimator> = mutableListOf()
+    
+    // 后台刷新控制
+    private var isRefreshing = false
+    private var refreshJob: kotlinx.coroutines.Job? = null
     
 
 
@@ -204,6 +214,17 @@ class BookLibraryActivity : AppCompatActivity() {
         } else {
             android.util.Log.d("BookLibraryActivity", "权限未授予")
         }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        
+        // 清理资源
+        refreshJob?.cancel()
+        bookFadeInAnimators.forEach { it.cancel() }
+        bookFadeInAnimators.clear()
+        
+        android.util.Log.d("BookLibraryActivity", "BookLibraryActivity已销毁，资源已清理")
     }
     
     override fun onTouchEvent(event: MotionEvent?): Boolean {
@@ -654,14 +675,98 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     /**
-     * 开始刷新
+     * 开始刷新 - 后台更新数据，完成后统一显示
      */
     private fun startRefresh() {
-        // 清除缓存，强制重新扫描
-        clearCacheData()
+        // 防止重复刷新
+        if (isRefreshing) {
+            android.util.Log.d("BookLibraryActivity", "正在刷新中，跳过重复请求")
+            return
+        }
         
-        // 开始扫描书籍
-        startBookScan()
+        isRefreshing = true
+        android.util.Log.d("BookLibraryActivity", "开始后台刷新")
+        
+        // 取消之前的刷新任务
+        refreshJob?.cancel()
+        
+        // 在后台协程中执行数据更新
+        refreshJob = coroutineScope.launch {
+            try {
+                // 清除缓存，强制重新扫描
+                clearCacheData()
+                
+                // 后台扫描书籍
+                android.util.Log.d("BookLibraryActivity", "后台开始扫描书籍")
+                val bookScanner = BookScanner()
+                val allBooks = bookScanner.scanAllBooks(this@BookLibraryActivity)
+                android.util.Log.d("BookLibraryActivity", "后台扫描完成: 文件数量=${allBooks.size}")
+                
+                // 过滤有效文件
+                val validBooks = allBooks.filter { bookFile ->
+                    val file = java.io.File(bookFile.path)
+                    val exists = file.exists()
+                    if (!exists) {
+                        android.util.Log.w("BookLibraryActivity", "后台扫描发现已删除的文件: ${bookFile.name}")
+                    }
+                    exists
+                }
+                
+                // 转换为EpubFile格式
+                val newEpubFiles = validBooks.map { bookFile ->
+                    EpubFile(
+                        name = bookFile.name,
+                        path = bookFile.path,
+                        size = bookFile.size,
+                        lastModified = bookFile.lastModified,
+                        metadata = bookFile.metadata?.let { metadata ->
+                            com.ibylin.app.utils.EpubFileMetadata(
+                                title = metadata.title,
+                                author = metadata.author,
+                                coverImagePath = metadata.coverImagePath,
+                                description = metadata.description,
+                                version = metadata.version
+                            )
+                        }
+                    )
+                }
+                
+                // 更新缓存
+                cachedEpubFiles = newEpubFiles
+                isDataCached = true
+                saveCacheData(cachedEpubFiles)
+                
+                // 自动分类图书
+                autoClassifyBooks(cachedEpubFiles)
+                
+                // 切换到主线程统一显示
+                withContext(Dispatchers.Main) {
+                    android.util.Log.d("BookLibraryActivity", "后台更新完成，开始统一显示")
+                    
+                    // 停止下拉刷新动画
+                    swipeRefreshLayout.isRefreshing = false
+                    
+                    // 隐藏扫描进度
+                    hideScanningProgress()
+                    
+                    // 统一显示图书列表（只显示一次）
+                    showBooksOnce(cachedEpubFiles)
+                    
+                    isRefreshing = false
+                    android.util.Log.d("BookLibraryActivity", "后台刷新完成")
+                }
+                
+            } catch (e: Exception) {
+                android.util.Log.e("BookLibraryActivity", "后台刷新失败", e)
+                withContext(Dispatchers.Main) {
+                    // 停止下拉刷新动画
+                    swipeRefreshLayout.isRefreshing = false
+                    hideScanningProgress()
+                    showNoBooks()
+                    isRefreshing = false
+                }
+            }
+        }
     }
     
     private fun setupScrollListener() {
@@ -889,7 +994,56 @@ class BookLibraryActivity : AppCompatActivity() {
     }
     
     /**
-     * 显示书籍列表
+     * 统一显示书籍列表（只显示一次）- 后台更新完成后调用
+     */
+    private fun showBooksOnce(epubFiles: List<EpubFile>) {
+        android.util.Log.d("BookLibraryActivity", "showBooksOnce被调用: 文件数量=${epubFiles.size}")
+        
+        // 确保数据一致性：再次过滤不存在的文件
+        val validEpubFiles = epubFiles.filter { epubFile ->
+            val file = java.io.File(epubFile.path)
+            val exists = file.exists()
+            if (!exists) {
+                android.util.Log.w("BookLibraryActivity", "showBooksOnce中发现已删除的文件: ${epubFile.name}")
+            }
+            exists
+        }
+        
+        // 去除重复的书籍（基于文件路径）
+        val uniqueEpubFiles = validEpubFiles.distinctBy { it.path.lowercase().trim() }
+        
+        // 按最后修改时间排序：最新添加的书籍显示在最前面
+        val sortedEpubFiles = uniqueEpubFiles.sortedByDescending { it.lastModified }
+        
+        android.util.Log.d("BookLibraryActivity", "统一显示: 原始数量=${epubFiles.size}, 有效数量=${validEpubFiles.size}, 去重后数量=${uniqueEpubFiles.size}, 排序后数量=${sortedEpubFiles.size}")
+        
+        if (sortedEpubFiles.isEmpty()) {
+            android.util.Log.d("BookLibraryActivity", "最终文件列表为空，显示无书籍提示")
+            showNoBooks()
+        } else {
+            android.util.Log.d("BookLibraryActivity", "最终文件列表不为空，统一显示书籍列表")
+            android.util.Log.d("BookLibraryActivity", "设置llNoBooks为GONE, rvBooks为VISIBLE")
+            llNoBooks.visibility = View.GONE
+            rvBooks.visibility = View.VISIBLE
+            
+            android.util.Log.d("BookLibraryActivity", "调用bookGridAdapter.updateEpubFiles")
+            bookGridAdapter.updateEpubFiles(sortedEpubFiles)
+            android.util.Log.d("BookLibraryActivity", "bookGridAdapter.updateEpubFiles调用完成")
+            
+            // 在适配器更新后，使用适配器中的实际数量更新标题
+            val actualCount = bookGridAdapter.itemCount
+            android.util.Log.d("BookLibraryActivity", "适配器更新后，实际显示数量: $actualCount")
+            updateTitle(actualCount)
+            
+            // 延迟启动图书渐显动画，确保RecyclerView已经完成布局
+            rvBooks.post {
+                startBookFadeInAnimation()
+            }
+        }
+    }
+    
+    /**
+     * 显示书籍列表（原有方法，保持兼容性，不包含动画）
      */
     private fun showBooks(epubFiles: List<EpubFile>) {
         android.util.Log.d("BookLibraryActivity", "showBooks被调用: 文件数量=${epubFiles.size}")
@@ -929,6 +1083,8 @@ class BookLibraryActivity : AppCompatActivity() {
             val actualCount = bookGridAdapter.itemCount
             android.util.Log.d("BookLibraryActivity", "适配器更新后，实际显示数量: $actualCount")
             updateTitle(actualCount)
+            
+            // 注意：动画只在showBooksOnce()中调用，这里不调用动画
         }
     }
     
@@ -2204,6 +2360,75 @@ class BookLibraryActivity : AppCompatActivity() {
                     Toast.makeText(this@BookLibraryActivity, "分类失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
+        }
+    }
+    
+    /**
+     * 启动图书渐显动画 - 使用doLottie技术实现从上到下依次渐显效果
+     */
+    private fun startBookFadeInAnimation() {
+        try {
+            android.util.Log.d("BookLibraryActivity", "开始doLottie图书渐显动画")
+            
+            // 清除之前的动画
+            bookFadeInAnimators.forEach { it.cancel() }
+            bookFadeInAnimators.clear()
+            
+            // 延迟执行，确保RecyclerView完全布局完成
+            rvBooks.postDelayed({
+                // 获取RecyclerView中的所有可见子视图
+                val childCount = rvBooks.childCount
+                if (childCount == 0) {
+                    android.util.Log.d("BookLibraryActivity", "没有子视图，跳过渐显动画")
+                    return@postDelayed
+                }
+                
+                android.util.Log.d("BookLibraryActivity", "找到 $childCount 个可见子视图，开始doLottie渐显动画")
+                
+                // 使用doLottie技术实现渐显效果
+                for (i in 0 until childCount) {
+                    val child = rvBooks.getChildAt(i)
+                    if (child != null) {
+                        // 初始状态：完全透明，向下偏移
+                        child.alpha = 0f
+                        child.translationY = 50f
+                        
+                        // 使用doLottie的ValueAnimator实现渐显动画
+                        val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+                        animator.duration = 300L // 每个图书300ms动画时间
+                        animator.startDelay = (i * 100).toLong() // 每个图书延迟100ms，实现依次出现
+                        animator.interpolator = android.view.animation.DecelerateInterpolator()
+                        
+                        animator.addUpdateListener { animation ->
+                            val progress = animation.animatedValue as Float
+                            // 使用doLottie技术控制透明度渐变
+                            child.alpha = progress
+                            // 使用doLottie技术控制位移动画
+                            child.translationY = 50f * (1f - progress) // 从50dp偏移到0
+                        }
+                        
+                        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: android.animation.Animator) {
+                                // 动画结束后确保最终状态
+                                child.alpha = 1f
+                                child.translationY = 0f
+                            }
+                        })
+                        
+                        // 保存动画引用用于管理
+                        bookFadeInAnimators.add(animator)
+                        animator.start()
+                        
+                        android.util.Log.d("BookLibraryActivity", "doLottie图书[$i]渐显动画已启动，延迟${i * 100}ms")
+                    }
+                }
+                
+                android.util.Log.d("BookLibraryActivity", "doLottie图书渐显动画配置完成")
+                
+            }, 100) // 延迟100ms确保布局完成
+            
+        } catch (e: Exception) {
+            android.util.Log.e("BookLibraryActivity", "doLottie图书渐显动画失败", e)
         }
     }
     

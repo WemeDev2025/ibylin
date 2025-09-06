@@ -69,7 +69,9 @@ class BookGridAdapter(
             android.util.Log.d("BookGridAdapter", "开始加载封面: ${epubFile.name}")
             loadCoverImage(holder.ivCover, epubFile)
             
-
+            // 确保视图处于正常状态（动画会在Activity中控制）
+            holder.itemView.alpha = 1f
+            holder.itemView.translationY = 0f
             
             // 设置封面点击事件，添加缩放动画
             holder.ivCover.setOnClickListener {
