@@ -14,6 +14,7 @@ import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.DialogFragment
 import com.ibylin.app.R
@@ -59,6 +60,11 @@ class TitleEditDialog : DialogFragment() {
     private lateinit var btnPositionBottom: com.google.android.material.button.MaterialButton
     private lateinit var btnPositionLeft: com.google.android.material.button.MaterialButton
     private lateinit var btnPositionRight: com.google.android.material.button.MaterialButton
+    private lateinit var btnPositionCenterVertical: com.google.android.material.button.MaterialButton
+    
+    // 位置按钮容器
+    private lateinit var layoutPositionButtonsHorizontal: LinearLayout
+    private lateinit var layoutPositionButtonsVertical: LinearLayout
     
     // 布局选项按钮
     private lateinit var btnLayoutHorizontal: com.google.android.material.button.MaterialButton
@@ -155,6 +161,11 @@ class TitleEditDialog : DialogFragment() {
             btnPositionBottom = view.findViewById(R.id.btn_position_bottom)
             btnPositionLeft = view.findViewById(R.id.btn_position_left)
             btnPositionRight = view.findViewById(R.id.btn_position_right)
+            btnPositionCenterVertical = view.findViewById(R.id.btn_position_center_vertical)
+            
+            // 位置按钮容器
+            layoutPositionButtonsHorizontal = view.findViewById<LinearLayout>(R.id.layout_position_buttons_horizontal)
+            layoutPositionButtonsVertical = view.findViewById<LinearLayout>(R.id.layout_position_buttons_vertical)
             
             Log.d("TitleEditDialog", "initViews: 位置按钮初始化完成")
             
@@ -243,6 +254,11 @@ class TitleEditDialog : DialogFragment() {
             updatePositionButtons()
         }
         
+        btnPositionCenterVertical.setOnClickListener {
+            selectedPosition = TitlePosition.CENTER
+            updatePositionButtons()
+        }
+        
         // 布局选项按钮监听器
         btnLayoutHorizontal.setOnClickListener {
             selectedLayout = TitleLayout.HORIZONTAL
@@ -323,22 +339,19 @@ class TitleEditDialog : DialogFragment() {
      * 更新位置按钮的选中状态
      */
     private fun updatePositionButtons() {
-        // 根据布局类型显示/隐藏相应的位置按钮
+        // 根据布局类型显示/隐藏相应的位置按钮容器
         if (selectedLayout == TitleLayout.HORIZONTAL) {
             // 水平布局：显示上/中/下
-            btnPositionTop.visibility = View.VISIBLE
-            btnPositionCenter.visibility = View.VISIBLE
-            btnPositionBottom.visibility = View.VISIBLE
-            btnPositionLeft.visibility = View.GONE
-            btnPositionRight.visibility = View.GONE
+            layoutPositionButtonsHorizontal.visibility = View.VISIBLE
+            layoutPositionButtonsVertical.visibility = View.GONE
             
             // 重置所有按钮为未选中状态
             btnPositionTop.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
             btnPositionCenter.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
             btnPositionBottom.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-            btnPositionTop.setTextColor(Color.parseColor("#E0E0E0"))
-            btnPositionCenter.setTextColor(Color.parseColor("#E0E0E0"))
-            btnPositionBottom.setTextColor(Color.parseColor("#E0E0E0"))
+            btnPositionTop.setTextColor(Color.parseColor("#666666"))
+            btnPositionCenter.setTextColor(Color.parseColor("#666666"))
+            btnPositionBottom.setTextColor(Color.parseColor("#666666"))
             
             // 设置选中按钮
             when (selectedPosition) {
@@ -363,19 +376,16 @@ class TitleEditDialog : DialogFragment() {
             }
         } else {
             // 垂直布局：显示左/中/右（水平方向的位置）
-            btnPositionTop.visibility = View.GONE
-            btnPositionCenter.visibility = View.VISIBLE
-            btnPositionBottom.visibility = View.GONE
-            btnPositionLeft.visibility = View.VISIBLE
-            btnPositionRight.visibility = View.VISIBLE
+            layoutPositionButtonsHorizontal.visibility = View.GONE
+            layoutPositionButtonsVertical.visibility = View.VISIBLE
             
             // 重置所有按钮为未选中状态
             btnPositionLeft.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-            btnPositionCenter.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
+            btnPositionCenterVertical.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
             btnPositionRight.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-            btnPositionLeft.setTextColor(Color.parseColor("#E0E0E0"))
-            btnPositionCenter.setTextColor(Color.parseColor("#E0E0E0"))
-            btnPositionRight.setTextColor(Color.parseColor("#E0E0E0"))
+            btnPositionLeft.setTextColor(Color.parseColor("#666666"))
+            btnPositionCenterVertical.setTextColor(Color.parseColor("#666666"))
+            btnPositionRight.setTextColor(Color.parseColor("#666666"))
             
             // 设置选中按钮
             when (selectedPosition) {
@@ -384,8 +394,8 @@ class TitleEditDialog : DialogFragment() {
                     btnPositionLeft.setTextColor(Color.WHITE)
                 }
                 TitlePosition.CENTER -> {
-                    btnPositionCenter.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
-                    btnPositionCenter.setTextColor(Color.WHITE)
+                    btnPositionCenterVertical.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
+                    btnPositionCenterVertical.setTextColor(Color.WHITE)
                 }
                 TitlePosition.RIGHT -> {
                     btnPositionRight.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
@@ -394,8 +404,8 @@ class TitleEditDialog : DialogFragment() {
                 else -> {
                     // 如果当前选中的是上/下，切换到中
                     selectedPosition = TitlePosition.CENTER
-                    btnPositionCenter.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
-                    btnPositionCenter.setTextColor(Color.WHITE)
+                    btnPositionCenterVertical.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
+                    btnPositionCenterVertical.setTextColor(Color.WHITE)
                 }
             }
         }
@@ -416,14 +426,14 @@ class TitleEditDialog : DialogFragment() {
                 btnLayoutHorizontal.setTextColor(Color.WHITE)
                 // 设置未选中按钮样式
                 btnLayoutVertical.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnLayoutVertical.setTextColor(Color.parseColor("#E0E0E0"))
+                btnLayoutVertical.setTextColor(Color.parseColor("#666666"))
             }
             TitleLayout.VERTICAL -> {
                 btnLayoutVertical.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
                 btnLayoutVertical.setTextColor(Color.WHITE)
                 // 设置未选中按钮样式
                 btnLayoutHorizontal.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnLayoutHorizontal.setTextColor(Color.parseColor("#E0E0E0"))
+                btnLayoutHorizontal.setTextColor(Color.parseColor("#666666"))
             }
         }
     }
@@ -443,14 +453,14 @@ class TitleEditDialog : DialogFragment() {
                 btnColorBlack.setTextColor(Color.WHITE)
                 // 设置未选中按钮样式
                 btnColorWhite.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnColorWhite.setTextColor(Color.parseColor("#E0E0E0"))
+                btnColorWhite.setTextColor(Color.parseColor("#666666"))
             }
             TitleColor.WHITE -> {
                 btnColorWhite.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
                 btnColorWhite.setTextColor(Color.WHITE)
                 // 设置未选中按钮样式
                 btnColorBlack.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnColorBlack.setTextColor(Color.parseColor("#E0E0E0"))
+                btnColorBlack.setTextColor(Color.parseColor("#666666"))
             }
         }
     }
@@ -471,27 +481,27 @@ class TitleEditDialog : DialogFragment() {
                 btnFontSystem.setTextColor(Color.WHITE)
                 // 设置未选中按钮样式
                 btnFontMashanzheng.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnFontMashanzheng.setTextColor(Color.parseColor("#E0E0E0"))
+                btnFontMashanzheng.setTextColor(Color.parseColor("#666666"))
                 btnFontNotoserif.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnFontNotoserif.setTextColor(Color.parseColor("#E0E0E0"))
+                btnFontNotoserif.setTextColor(Color.parseColor("#666666"))
             }
             TitleFont.MASHANZHENG -> {
                 btnFontMashanzheng.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
                 btnFontMashanzheng.setTextColor(Color.WHITE)
                 // 设置未选中按钮样式
                 btnFontSystem.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnFontSystem.setTextColor(Color.parseColor("#E0E0E0"))
+                btnFontSystem.setTextColor(Color.parseColor("#666666"))
                 btnFontNotoserif.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnFontNotoserif.setTextColor(Color.parseColor("#E0E0E0"))
+                btnFontNotoserif.setTextColor(Color.parseColor("#666666"))
             }
             TitleFont.NOTOSERIF -> {
                 btnFontNotoserif.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
                 btnFontNotoserif.setTextColor(Color.WHITE)
                 // 设置未选中按钮样式
                 btnFontSystem.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnFontSystem.setTextColor(Color.parseColor("#E0E0E0"))
+                btnFontSystem.setTextColor(Color.parseColor("#666666"))
                 btnFontMashanzheng.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.TRANSPARENT)
-                btnFontMashanzheng.setTextColor(Color.parseColor("#E0E0E0"))
+                btnFontMashanzheng.setTextColor(Color.parseColor("#666666"))
             }
         }
     }
